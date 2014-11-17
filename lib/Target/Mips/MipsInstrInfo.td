@@ -375,6 +375,9 @@ def simm18_lsl3 : Operand<i32> {
   let ParserMatchClass = MipsJumpTargetAsmOperand;
 }
 
+def simm32      : Operand<i32> {
+}
+
 def simm20      : Operand<i32> {
 }
 
@@ -416,6 +419,10 @@ def uimm16      : Operand<i32> {
 
 def pcrel16      : Operand<i32> {
 }
+
+def uimm32      : Operand<i32> {
+}
+
 
 def MipsMemAsmOperand : AsmOperandClass {
   let Name = "Mem";
@@ -535,6 +542,9 @@ def immSExt8  : PatLeaf<(imm), [{ return isInt<8>(N->getSExtValue()); }]>;
 // e.g. addi, andi
 def immSExt16  : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
 
+def immSExt32  : PatLeaf<(imm), [{ return isInt<32>(N->getSExtValue()); }]>;
+
+
 // Node immediate fits as 15-bit sign extended on target immediate.
 // e.g. addi, andi
 def immSExt15  : PatLeaf<(imm), [{ return isInt<15>(N->getSExtValue()); }]>;
@@ -549,6 +559,13 @@ def immZExt16  : PatLeaf<(imm), [{
   else
     return (uint64_t)N->getZExtValue() == (unsigned short)N->getZExtValue();
 }], LO16>;
+
+def immZExt32  : PatLeaf<(imm), [{
+  if (N->getValueType(0) == MVT::i32)
+    return (uint32_t)N->getZExtValue() == (unsigned)N->getZExtValue();
+  else
+    return (uint64_t)N->getZExtValue() == (unsigned)N->getZExtValue();
+}]>;
 
 // Immediate can be loaded with LUi (32-bit int with lower 16-bit cleared).
 def immLow16Zero : PatLeaf<(imm), [{
@@ -768,7 +785,7 @@ class JumpFJ<DAGOperand opnd, string opstr, SDPatternOperator operator,
          [(operator targetoperator:$target)], IIBranch, FrmJ, bopstr> {
   let isTerminator=1;
   let isBarrier=1;
-  let hasDelaySlot = 1;
+  let hasDelaySlot = 0;
   let DecoderMethod = "DecodeJumpTarget";
   let Defs = [AT];
 }
@@ -842,7 +859,7 @@ class BAL_BR_Pseudo<Instruction RealInst> :
   let isBranch = 1;
   let isTerminator = 1;
   let isBarrier = 1;
-  let hasDelaySlot = 1;
+  let hasDelaySlot = 0;
   let Defs = [RA];
 }
 
@@ -1054,7 +1071,7 @@ class TrapBase<Instruction RealInst>
 //===----------------------------------------------------------------------===//
 
 // Return RA.
-let isReturn=1, isTerminator=1, hasDelaySlot=1, isBarrier=1, hasCtrlDep=1 in
+let isReturn=1, isTerminator=1, hasDelaySlot=0, isBarrier=1, hasCtrlDep=1 in
 def RetRA : PseudoSE<(outs), (ins), [(MipsRet)]>;
 
 let Defs = [SP], Uses = [SP], hasSideEffects = 1 in {
@@ -1197,6 +1214,20 @@ def LW  : Load<"lw", GPR32Opnd, load, II_LW, addrDefault>, MMRel,
 def SB  : Store<"sb", GPR32Opnd, truncstorei8, II_SB>, MMRel, LW_FM<0x28>;
 def SH  : Store<"sh", GPR32Opnd, truncstorei16, II_SH>, MMRel, LW_FM<0x29>;
 def SW  : Store<"sw", GPR32Opnd, store, II_SW>, MMRel, LW_FM<0x2b>;
+
+/// Mips NEW: Spill load/store
+def SPILLLW : InstSE<(outs CPURegs:$rt), (ins mem:$addr), "spilllw\t$rt, $addr",
+    [], NoItinerary, FrmI, "spilllw">, MMRel, LW_FM<0x37> {
+  let DecoderMethod = "DecodeMem";
+  let canFoldAsLoad = 1;
+  let mayLoad = 1;
+}
+
+def SPILLSW : InstSE<(outs), (ins CPURegs:$rt, mem:$addr), "spillsw\t$rt, $addr",
+    [], NoItinerary, FrmI, "spillsw">, MMRel, LW_FM<0x36> {
+  let DecoderMethod = "DecodeMem";
+  let mayStore = 1;
+}
 
 /// load/store left/right
 let EncodingPredicates = []<Predicate>, // FIXME: Lack of HasStdEnc is probably a bug
@@ -1412,6 +1443,7 @@ def WSBH : MMRel, SubwordSwap<"wsbh", GPR32Opnd>, SEB_FM<2, 0x20>, ISA_MIPS32R2;
 
 /// No operation.
 def NOP : PseudoSE<(outs), (ins), []>, PseudoInstExpansion<(SLL ZERO, ZERO, 0)>;
+//def NOP : MipsInstNOP<(outs), (ins), "nop", []>;
 
 // FrameIndexes are legalized when they are operands from load/store
 // instructions. The same not happens for stack address copies, so an
@@ -1659,17 +1691,17 @@ class StoreRegImmPat<Instruction StoreInst, ValueType ValTy> :
 
 // Small immediates
 let AdditionalPredicates = [NotInMicroMips] in {
-def : MipsPat<(i32 immSExt16:$in),
+def : MipsPat<(i32 immSExt32:$in),
               (ADDiu ZERO, imm:$in)>;
-def : MipsPat<(i32 immZExt16:$in),
+def : MipsPat<(i32 immZExt32:$in),
               (ORi ZERO, imm:$in)>;
 }
 def : MipsPat<(i32 immLow16Zero:$in),
               (LUi (HI16 imm:$in))>;
 
 // Arbitrary immediates
-def : MipsPat<(i32 imm:$imm),
-          (ORi (LUi (HI16 imm:$imm)), (LO16 imm:$imm))>;
+//def : MipsPat<(i32 imm:$imm),
+//          (ORi (LUi (HI16 imm:$imm)), (LO16 imm:$imm))>;
 
 // Carry MipsPatterns
 def : MipsPat<(subc GPR32:$lhs, GPR32:$rhs),
@@ -1711,6 +1743,9 @@ def : MipsPat<(MipsHi tjumptable:$in), (LUi tjumptable:$in)>;
 def : MipsPat<(MipsHi tconstpool:$in), (LUi tconstpool:$in)>;
 def : MipsPat<(MipsHi tglobaltlsaddr:$in), (LUi tglobaltlsaddr:$in)>;
 def : MipsPat<(MipsHi texternalsym:$in), (LUi texternalsym:$in)>;
+
+def : MipsPat<(MipsHi CPURegs:$in), (ADDu ZERO, CPURegs:$in)>;
+
 
 def : MipsPat<(MipsLo tglobaladdr:$in), (ADDiu ZERO, tglobaladdr:$in)>;
 def : MipsPat<(MipsLo tblockaddress:$in), (ADDiu ZERO, tblockaddress:$in)>;
@@ -1834,10 +1869,10 @@ multiclass SetgePats<RegisterClass RC, Instruction SLTOp, Instruction SLTuOp> {
 
 multiclass SetgeImmPats<RegisterClass RC, Instruction SLTiOp,
                         Instruction SLTiuOp> {
-  def : MipsPat<(setge RC:$lhs, immSExt16:$rhs),
-                (XORi (SLTiOp RC:$lhs, immSExt16:$rhs), 1)>;
-  def : MipsPat<(setuge RC:$lhs, immSExt16:$rhs),
-                (XORi (SLTiuOp RC:$lhs, immSExt16:$rhs), 1)>;
+  def : MipsPat<(setge RC:$lhs, immSExt32:$rhs),
+                (XORi (SLTiOp RC:$lhs, immSExt32:$rhs), 1)>;
+  def : MipsPat<(setuge RC:$lhs, immSExt32:$rhs),
+                (XORi (SLTiuOp RC:$lhs, immSExt32:$rhs), 1)>;
 }
 
 defm : SeteqPats<GPR32, SLTiu, XOR, SLTu, ZERO>;
