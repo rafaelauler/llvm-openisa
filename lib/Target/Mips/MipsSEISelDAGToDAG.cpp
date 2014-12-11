@@ -305,7 +305,7 @@ bool MipsSEDAGToDAGISel::selectAddrRegImm(SDValue Addr, SDValue &Base,
   }
 
   // Addresses of the form FI+const or FI|const
-  if (selectAddrFrameIndexOffset(Addr, Base, Offset, 16))
+  if (selectAddrFrameIndexOffset(Addr, Base, Offset, 32))
     return true;
 
   // Operand is a result from an ADD.

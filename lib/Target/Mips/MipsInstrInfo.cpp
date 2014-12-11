@@ -51,7 +51,7 @@ void MipsInstrInfo::
 insertNoop(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI) const
 {
   DebugLoc DL;
-  BuildMI(MBB, MI, DL, get(Mips::NOP));
+  //  BuildMI(MBB, MI, DL, get(Mips::NOP));
 }
 
 MachineMemOperand *MipsInstrInfo::GetMemOperand(MachineBasicBlock &MBB, int FI,

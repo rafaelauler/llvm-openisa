@@ -364,7 +364,7 @@ void MipsSEInstrInfo::adjustStackPtr(unsigned SP, int64_t Amount,
   unsigned ADDu = STI.isABI_N64() ? Mips::DADDu : Mips::ADDu;
   unsigned ADDiu = STI.isABI_N64() ? Mips::DADDiu : Mips::ADDiu;
 
-  if (isInt<16>(Amount))// addi sp, sp, amount
+  if (isInt<32>(Amount))// addi sp, sp, amount
     BuildMI(MBB, I, DL, get(ADDiu), SP).addReg(SP).addImm(Amount);
   else { // Expand immediate that doesn't fit in 16-bit.
     unsigned Reg = loadImmediate(Amount, MBB, I, DL, nullptr);
@@ -392,12 +392,19 @@ MipsSEInstrInfo::loadImmediate(int64_t Imm, MachineBasicBlock &MBB,
     AnalyzeImm.Analyze(Imm, Size, LastInstrIsADDiu);
   MipsAnalyzeImmediate::InstSeq::const_iterator Inst = Seq.begin();
 
-  assert(Seq.size() && (!LastInstrIsADDiu || (Seq.size() > 1)));
+  assert(Seq.size());
 
   // The first instruction can be a LUi, which is different from other
   // instructions (ADDiu, ORI and SLL) in that it does not have a register
   // operand.
   unsigned Reg = RegInfo.createVirtualRegister(RC);
+
+  if (LastInstrIsADDiu && Seq.size() == 1) {
+    BuildMI(MBB, II, DL, get(Inst->Opc), Reg).addReg(ZEROReg)
+      .addImm(SignExtend64<16>(Inst->ImmOpnd));
+    *NewImm = 0;
+    return Reg;
+  }
 
   if (Inst->Opc == LUi)
     BuildMI(MBB, II, DL, get(LUi), Reg).addImm(SignExtend64<16>(Inst->ImmOpnd));

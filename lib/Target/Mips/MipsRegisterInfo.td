@@ -117,6 +117,8 @@ let Namespace = "Mips" in {
   def SP   : MipsGPRReg< 29, "sp">,  DwarfRegNum<[29]>;
   def FP   : MipsGPRReg< 30, "fp">,  DwarfRegNum<[30]>;
   def RA   : MipsGPRReg< 31, "ra">,  DwarfRegNum<[31]>;
+  foreach I = 32-65 in
+  def R#I : MipsGPRReg<#I, ""#I>, DwarfRegNum<[#I]>;
 
   // General Purpose 64-bit Registers
   def ZERO_64 : Mips64GPRReg< 0, "zero", [ZERO]>, DwarfRegNum<[0]>;
@@ -153,16 +155,16 @@ let Namespace = "Mips" in {
   def RA_64   : Mips64GPRReg< 31, "ra",  [RA]>, DwarfRegNum<[31]>;
 
   /// Mips Single point precision FPU Registers
-  foreach I = 0-31 in
-  def F#I : FPR<I, "f"#I>, DwarfRegNum<[!add(I, 32)]>;
+  foreach I = 0-63 in
+  def F#I : FPR<I, "f"#I>, DwarfRegNum<[!add(I, 64)]>;
 
   // Higher half of 64-bit FP registers.
   foreach I = 0-31 in
-  def F_HI#I : FPR<I, "f"#I>, DwarfRegNum<[!add(I, 32)]>;
+  def F_HI#I : FPR<I, "f"#I>, DwarfRegNum<[!add(I, 66)]>;
 
   /// Mips Double point precision FPU Registers (aliased
   /// with the single precision to hold 64 bit values)
-  foreach I = 0-15 in
+  foreach I = 0-31 in
   def D#I : AFPR<!shl(I, 1), "f"#!shl(I, 1),
                  [!cast<FPR>("F"#!shl(I, 1)),
                   !cast<FPR>("F"#!add(!shl(I, 1), 1))]>;
@@ -283,7 +285,12 @@ class GPR32Class<list<ValueType> regTypes> :
   // Not preserved across procedure calls
   T8, T9,
   // Reserved
-  K0, K1, GP, SP, FP, RA)>;
+  K0, K1, GP, SP, FP, RA,
+  // Extra
+  R32,
+  R33, R34, R35, R36, R37, R38, R39, R40, R41, R42, R43, R44, R45, R46, R47,
+  R48, R49, R50, R51, R52, R53, R54, R55, R56, R57, R58, R59, R60, R61, R62,
+  R63, R64, R65)>;
 
 def GPR32 : GPR32Class<[i32]>;
 def DSPR  : GPR32Class<[v4i8, v2i16]>;
@@ -355,7 +362,9 @@ def AFGR64 : RegisterClass<"Mips", [f64], 64, (add
   // Not preserved across procedure calls
   D8, D9,
   // Callee save
-  D10, D11, D12, D13, D14, D15)>;
+  D10, D11, D12, D13, D14, D15,
+  D16, D17, D18, D19, D20, D21, D22, D23, D24, D25, D26, D27, D28, D29,
+  D30, D31)>;
 
 def FGR64 : RegisterClass<"Mips", [f64], 64, (sequence "D%u_64", 0, 31)>;
 

@@ -158,27 +158,7 @@ void MipsSERegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
     unsigned OffsetBitSize = getLoadStoreOffsetSizeInBits(MI.getOpcode());
     unsigned OffsetAlign = getLoadStoreOffsetAlign(MI.getOpcode());
 
-    if (OffsetBitSize < 16 && isInt<16>(Offset) &&
-        (!isIntN(OffsetBitSize, Offset) ||
-         OffsetToAlignment(Offset, OffsetAlign) != 0)) {
-      // If we have an offset that needs to fit into a signed n-bit immediate
-      // (where n < 16) and doesn't, but does fit into 16-bits then use an ADDiu
-      MachineBasicBlock &MBB = *MI.getParent();
-      DebugLoc DL = II->getDebugLoc();
-      unsigned ADDiu = Subtarget.isABI_N64() ? Mips::DADDiu : Mips::ADDiu;
-      const TargetRegisterClass *RC =
-          Subtarget.isABI_N64() ? &Mips::GPR64RegClass : &Mips::GPR32RegClass;
-      MachineRegisterInfo &RegInfo = MBB.getParent()->getRegInfo();
-      unsigned Reg = RegInfo.createVirtualRegister(RC);
-      const MipsSEInstrInfo &TII =
-          *static_cast<const MipsSEInstrInfo *>(
-              MBB.getParent()->getSubtarget().getInstrInfo());
-      BuildMI(MBB, II, DL, TII.get(ADDiu), Reg).addReg(FrameReg).addImm(Offset);
-
-      FrameReg = Reg;
-      Offset = 0;
-      IsKill = true;
-    } else if (!isInt<16>(Offset)) {
+    if (!isInt<32>(Offset)) {
       // Otherwise split the offset into 16-bit pieces and add it in multiple
       // instructions.
       MachineBasicBlock &MBB = *MI.getParent();

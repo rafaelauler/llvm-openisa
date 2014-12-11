@@ -60,15 +60,18 @@ MipsRegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
   default:
     return 0;
   case Mips::GPR32RegClassID:
-  case Mips::GPR64RegClassID:
+  case Mips::GPR64RegClassID: {
+    const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
+    return 60 - TFI->hasFP(MF);
+  }
   case Mips::DSPRRegClassID: {
     const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
     return 28 - TFI->hasFP(MF);
   }
   case Mips::FGR32RegClassID:
-    return 32;
+    return 64;
   case Mips::AFGR64RegClassID:
-    return 16;
+    return 32;
   case Mips::FGR64RegClassID:
     return 32;
   }
