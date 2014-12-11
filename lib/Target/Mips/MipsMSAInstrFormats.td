@@ -12,7 +12,7 @@ def HasMSA : Predicate<"Subtarget->hasMSA()">,
 
 class MSAInst : MipsInst<(outs), (ins), "", [], NoItinerary, FrmOther> {
   let Predicates = [HasMSA];
-  let Inst{31-26} = 0b011110;
+  let Inst{63-58} = 0b011110;
 }
 
 class MSA64Inst : MSAInst {
@@ -20,15 +20,15 @@ class MSA64Inst : MSAInst {
 }
 
 class MSACBranch : MSAInst {
-  let Inst{31-26} = 0b010001;
+  let Inst{63-58} = 0b010001;
 }
 
 class MSASpecial : MSAInst {
-  let Inst{31-26} = 0b000000;
+  let Inst{63-58} = 0b000000;
 }
 
 class MSA64Special : MSA64Inst {
-  let Inst{31-26} = 0b000000;
+  let Inst{63-58} = 0b000000;
 }
 
 class MSAPseudo<dag outs, dag ins, list<dag> pattern,

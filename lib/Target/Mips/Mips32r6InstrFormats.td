@@ -23,26 +23,26 @@ class MipsR6Inst : MipsInst<(outs), (ins), "", [], NoItinerary, FrmOther>,
 //
 //===----------------------------------------------------------------------===//
 
-class OPGROUP<bits<6> Val> {
-  bits<6> Value = Val;
+class OPGROUP<bits<7> Val> {
+  bits<7> Value = Val;
 }
-def OPGROUP_COP1     : OPGROUP<0b010001>;
-def OPGROUP_COP2     : OPGROUP<0b010010>;
-def OPGROUP_ADDI     : OPGROUP<0b001000>;
-def OPGROUP_AUI      : OPGROUP<0b001111>;
-def OPGROUP_BLEZ     : OPGROUP<0b000110>;
-def OPGROUP_BGTZ     : OPGROUP<0b000111>;
-def OPGROUP_BLEZL    : OPGROUP<0b010110>;
-def OPGROUP_BGTZL    : OPGROUP<0b010111>;
-def OPGROUP_DADDI    : OPGROUP<0b011000>;
-def OPGROUP_DAUI     : OPGROUP<0b011101>;
-def OPGROUP_PCREL    : OPGROUP<0b111011>;
-def OPGROUP_REGIMM   : OPGROUP<0b000001>;
-def OPGROUP_SPECIAL  : OPGROUP<0b000000>;
+def OPGROUP_COP1     : OPGROUP<0b0010001>;
+def OPGROUP_COP2     : OPGROUP<0b0010010>;
+def OPGROUP_ADDI     : OPGROUP<0b0001000>;
+def OPGROUP_AUI      : OPGROUP<0b0001111>;
+def OPGROUP_BLEZ     : OPGROUP<0b0000110>;
+def OPGROUP_BGTZ     : OPGROUP<0b0000111>;
+def OPGROUP_BLEZL    : OPGROUP<0b0010110>;
+def OPGROUP_BGTZL    : OPGROUP<0b0010111>;
+def OPGROUP_DADDI    : OPGROUP<0b0011000>;
+def OPGROUP_DAUI     : OPGROUP<0b0011101>;
+def OPGROUP_PCREL    : OPGROUP<0b0111011>;
+def OPGROUP_REGIMM   : OPGROUP<0b0000001>;
+def OPGROUP_SPECIAL  : OPGROUP<0b0000000>;
 // The spec occasionally names this value LL, LLD, SC, or SCD.
-def OPGROUP_SPECIAL3 : OPGROUP<0b011111>;
+def OPGROUP_SPECIAL3 : OPGROUP<0b0011111>;
 // The spec names this constant LWC2, LDC2, SWC2, and SDC2 in different places.
-def OPGROUP_COP2LDST : OPGROUP<0b010010>;
+def OPGROUP_COP2LDST : OPGROUP<0b0010010>;
 
 class OPCODE2<bits<2> Val> {
   bits<2> Value = Val;
@@ -155,28 +155,28 @@ class DecodeDisambiguatedBy<string Name> : DecodeDisambiguates<Name> {
 //===----------------------------------------------------------------------===//
 
 class AUI_FM : MipsR6Inst {
-  bits<5> rs;
-  bits<5> rt;
-  bits<16> imm;
+  bits<7> rs;
+  bits<7> rt;
+  bits<32> imm;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_AUI.Value;
-  let Inst{25-21} = rs;
-  let Inst{20-16} = rt;
-  let Inst{15-0} = imm;
+  let Inst{63-57} = OPGROUP_AUI.Value;
+  let Inst{49-43} = rs;
+  let Inst{42-36} = rt;
+  let Inst{31-0} = imm;
 }
 
 class DAUI_FM : AUI_FM {
-  let Inst{31-26} = OPGROUP_DAUI.Value;
+  let Inst{63-57} = OPGROUP_DAUI.Value;
 }
 
 class BAL_FM : MipsR6Inst {
   bits<16> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_REGIMM.Value;
+  let Inst{63-57} = OPGROUP_REGIMM.Value;
   let Inst{25-21} = 0b00000;
   let Inst{20-16} = OPCODE5_BGEZAL.Value;
   let Inst{15-0} = offset;
@@ -186,9 +186,9 @@ class COP1_2R_FM<bits<6> funct, FIELD_FMT Format> : MipsR6Inst {
   bits<5> fs;
   bits<5> fd;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_COP1.Value;
+  let Inst{63-57} = OPGROUP_COP1.Value;
   let Inst{25-21} = Format.Value;
   let Inst{20-16} = 0b00000;
   let Inst{15-11} = fs;
@@ -201,9 +201,9 @@ class COP1_3R_FM<bits<6> funct, FIELD_FMT Format> : MipsR6Inst {
   bits<5> fs;
   bits<5> fd;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_COP1.Value;
+  let Inst{63-57} = OPGROUP_COP1.Value;
   let Inst{25-21} = Format.Value;
   let Inst{20-16} = ft;
   let Inst{15-11} = fs;
@@ -215,9 +215,9 @@ class COP1_BCCZ_FM<OPCODE5 Operation> : MipsR6Inst {
   bits<5> ft;
   bits<16> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_COP1.Value;
+  let Inst{63-57} = OPGROUP_COP1.Value;
   let Inst{25-21} = Operation.Value;
   let Inst{20-16} = ft;
   let Inst{15-0} = offset;
@@ -227,9 +227,9 @@ class COP2_BCCZ_FM<OPCODE5 Operation> : MipsR6Inst {
   bits<5> ct;
   bits<16> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_COP2.Value;
+  let Inst{63-57} = OPGROUP_COP2.Value;
   let Inst{25-21} = Operation.Value;
   let Inst{20-16} = ct;
   let Inst{15-0} = offset;
@@ -239,9 +239,9 @@ class PCREL16_FM<OPCODE5 Operation> : MipsR6Inst {
   bits<5> rs;
   bits<16> imm;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_PCREL.Value;
+  let Inst{63-57} = OPGROUP_PCREL.Value;
   let Inst{25-21} = rs;
   let Inst{20-16} = Operation.Value;
   let Inst{15-0} = imm;
@@ -251,9 +251,9 @@ class PCREL19_FM<OPCODE2 Operation> : MipsR6Inst {
   bits<5> rs;
   bits<19> imm;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_PCREL.Value;
+  let Inst{63-57} = OPGROUP_PCREL.Value;
   let Inst{25-21} = rs;
   let Inst{20-19} = Operation.Value;
   let Inst{18-0} = imm;
@@ -263,9 +263,9 @@ class PCREL18_FM<OPCODE3 Operation> : MipsR6Inst {
   bits<5> rs;
   bits<18> imm;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_PCREL.Value;
+  let Inst{63-57} = OPGROUP_PCREL.Value;
   let Inst{25-21} = rs;
   let Inst{20-18} = Operation.Value;
   let Inst{17-0} = imm;
@@ -275,9 +275,9 @@ class SPECIAL3_2R_FM<OPCODE6 Operation> : MipsR6Inst {
   bits<5> rd;
   bits<5> rt;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_SPECIAL3.Value;
+  let Inst{63-57} = OPGROUP_SPECIAL3.Value;
   let Inst{25-21} = 0b00000;
   let Inst{20-16} = rt;
   let Inst{15-11} = rd;
@@ -291,9 +291,9 @@ class SPECIAL3_MEM_FM<OPCODE6 Operation> : MipsR6Inst {
   bits<5> base = addr{20-16};
   bits<9> offset = addr{8-0};
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_SPECIAL3.Value;
+  let Inst{63-57} = OPGROUP_SPECIAL3.Value;
   let Inst{25-21} = base;
   let Inst{20-16} = hint;
   let Inst{15-7}  = offset;
@@ -305,9 +305,9 @@ class SPECIAL_2R_FM<OPCODE6 Operation> : MipsR6Inst {
   bits<5> rd;
   bits<5> rs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_SPECIAL.Value;
+  let Inst{63-57} = OPGROUP_SPECIAL.Value;
   let Inst{25-21} = rs;
   let Inst{20-16} = 0b00000;
   let Inst{15-11} = rd;
@@ -320,9 +320,9 @@ class SPECIAL_3R_FM<bits<5> mulop, bits<6> funct> : MipsR6Inst {
   bits<5> rs;
   bits<5> rt;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_SPECIAL.Value;
+  let Inst{63-57} = OPGROUP_SPECIAL.Value;
   let Inst{25-21} = rs;
   let Inst{20-16} = rt;
   let Inst{15-11} = rd;
@@ -333,9 +333,9 @@ class SPECIAL_3R_FM<bits<5> mulop, bits<6> funct> : MipsR6Inst {
 class SPECIAL_SDBBP_FM : MipsR6Inst {
   bits<20> code_;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_SPECIAL.Value;
+  let Inst{63-57} = OPGROUP_SPECIAL.Value;
   let Inst{25-6}  = code_;
   let Inst{5-0}   = OPCODE6_SDBBP.Value;
 }
@@ -347,9 +347,9 @@ class CMP_BRANCH_2R_OFF16_FM<OPGROUP funct> : MipsR6Inst {
   bits<5> rt;
   bits<16> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = funct.Value;
+  let Inst{63-57} = funct.Value;
   let Inst{25-21} = rs;
   let Inst{20-16} = rt;
   let Inst{15-0} = offset;
@@ -362,9 +362,9 @@ class CMP_BRANCH_1R_RT_OFF16_FM<OPGROUP funct> : MipsR6Inst {
   bits<5> rt;
   bits<16> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = funct.Value;
+  let Inst{63-57} = funct.Value;
   let Inst{25-21} = 0b00000;
   let Inst{20-16} = rt;
   let Inst{15-0} = offset;
@@ -377,42 +377,42 @@ class CMP_BRANCH_1R_BOTH_OFF16_FM<OPGROUP funct> : MipsR6Inst {
   bits<5> rt;
   bits<16> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = funct.Value;
+  let Inst{63-57} = funct.Value;
   let Inst{25-21} = rt;
   let Inst{20-16} = rt;
   let Inst{15-0} = offset;
 }
 
-class CMP_BRANCH_OFF21_FM<bits<6> funct> : MipsR6Inst {
+class CMP_BRANCH_OFF21_FM<bits<7> funct> : MipsR6Inst {
   bits<5> rs; // rs != 0
   bits<21> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = funct;
+  let Inst{63-57} = funct;
   let Inst{25-21} = rs;
   let Inst{20-0} = offset;
 }
 
-class JMP_IDX_COMPACT_FM<bits<6> funct> : MipsR6Inst {
+class JMP_IDX_COMPACT_FM<bits<7> funct> : MipsR6Inst {
   bits<5> rt;
   bits<16> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = funct;
+  let Inst{63-57} = funct;
   let Inst{25-21} = 0b00000;
   let Inst{20-16} = rt;
   let Inst{15-0} = offset;
 }
 
-class BRANCH_OFF26_FM<bits<6> funct> : MipsR6Inst {
-  bits<32> Inst;
+class BRANCH_OFF26_FM<bits<7> funct> : MipsR6Inst {
+  bits<64> Inst;
   bits<26> offset;
 
-  let Inst{31-26} = funct;
+  let Inst{63-57} = funct;
   let Inst{25-0} = offset;
 }
 
@@ -422,9 +422,9 @@ class SPECIAL3_ALIGN_FM<OPCODE6 Operation> : MipsR6Inst {
   bits<5> rt;
   bits<2> bp;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_SPECIAL3.Value;
+  let Inst{63-57} = OPGROUP_SPECIAL3.Value;
   let Inst{25-21} = rs;
   let Inst{20-16} = rt;
   let Inst{15-11} = rd;
@@ -439,9 +439,9 @@ class SPECIAL3_DALIGN_FM<OPCODE6 Operation> : MipsR6Inst {
   bits<5> rt;
   bits<3> bp;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_SPECIAL3.Value;
+  let Inst{63-57} = OPGROUP_SPECIAL3.Value;
   let Inst{25-21} = rs;
   let Inst{20-16} = rt;
   let Inst{15-11} = rd;
@@ -456,9 +456,9 @@ class SPECIAL3_LL_SC_FM<OPCODE6 Operation> : MipsR6Inst {
   bits<5> base = addr{20-16};
   bits<9> offset = addr{8-0};
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_SPECIAL3.Value;
+  let Inst{63-57} = OPGROUP_SPECIAL3.Value;
   let Inst{25-21} = base;
   let Inst{20-16} = rt;
   let Inst{15-7} = offset;
@@ -473,9 +473,9 @@ class SPECIAL_LSA_FM<OPCODE6 Operation> : MipsR6Inst {
   bits<5> rt;
   bits<2> imm2;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_SPECIAL.Value;
+  let Inst{63-57} = OPGROUP_SPECIAL.Value;
   let Inst{25-21} = rs;
   let Inst{20-16} = rt;
   let Inst{15-11} = rd;
@@ -488,9 +488,9 @@ class REGIMM_FM<OPCODE5 Operation> : MipsR6Inst {
   bits<5> rs;
   bits<16> imm;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_REGIMM.Value;
+  let Inst{63-57} = OPGROUP_REGIMM.Value;
   let Inst{25-21} = rs;
   let Inst{20-16} = Operation.Value;
   let Inst{15-0} = imm;
@@ -502,9 +502,9 @@ class COP1_CMP_CONDN_FM<FIELD_CMP_FORMAT Format,
   bits<5> fs;
   bits<5> ft;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_COP1.Value;
+  let Inst{63-57} = OPGROUP_COP1.Value;
   let Inst{25-21} = Format.Value;
   let Inst{20-16} = ft;
   let Inst{15-11} = fs;
@@ -516,9 +516,9 @@ class COP1_CMP_CONDN_FM<FIELD_CMP_FORMAT Format,
 class JR_HB_R6_FM<OPCODE6 Operation> : MipsR6Inst {
   bits<5> rs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_SPECIAL.Value;
+  let Inst{63-57} = OPGROUP_SPECIAL.Value;
   let Inst{25-21} = rs;
   let Inst{20-16} = 0;
   let Inst{15-11} = 0;
@@ -533,9 +533,9 @@ class COP2LDST_FM<OPCODE5 Operation> : MipsR6Inst {
   bits<5> base = addr{20-16};
   bits<11> offset = addr{10-0};
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = OPGROUP_COP2LDST.Value;
+  let Inst{63-57} = OPGROUP_COP2LDST.Value;
   let Inst{25-21} = Operation.Value;
   let Inst{20-16} = rt;
   let Inst{15-11} = base;

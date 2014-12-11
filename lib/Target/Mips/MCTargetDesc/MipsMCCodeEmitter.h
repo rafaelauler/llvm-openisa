@@ -76,21 +76,21 @@ public:
 
   // getUImm5Lsl2Encoding - Return binary encoding of the microMIPS jump
   // target operand.
-  unsigned getUImm5Lsl2Encoding(const MCInst &MI, unsigned OpNo,
+  uint64_t getUImm5Lsl2Encoding(const MCInst &MI, unsigned OpNo,
                                 SmallVectorImpl<MCFixup> &Fixups,
                                 const MCSubtargetInfo &STI) const;
 
-  unsigned getSImm3Lsa2Value(const MCInst &MI, unsigned OpNo,
+  uint64_t getSImm3Lsa2Value(const MCInst &MI, unsigned OpNo,
                              SmallVectorImpl<MCFixup> &Fixups,
                              const MCSubtargetInfo &STI) const;
 
-  unsigned getUImm6Lsl2Encoding(const MCInst &MI, unsigned OpNo,
+  uint64_t getUImm6Lsl2Encoding(const MCInst &MI, unsigned OpNo,
                                 SmallVectorImpl<MCFixup> &Fixups,
                                 const MCSubtargetInfo &STI) const;
 
   // getSImm9AddiuspValue - Return binary encoding of the microMIPS addiusp
   // instruction immediate operand.
-  unsigned getSImm9AddiuspValue(const MCInst &MI, unsigned OpNo,
+  uint64_t getSImm9AddiuspValue(const MCInst &MI, unsigned OpNo,
                                 SmallVectorImpl<MCFixup> &Fixups,
                                 const MCSubtargetInfo &STI) const;
 
@@ -138,59 +138,59 @@ public:
 
   // getMachineOpValue - Return binary encoding of operand. If the machin
   // operand requires relocation, record the relocation and return zero.
-  unsigned getMachineOpValue(const MCInst &MI, const MCOperand &MO,
+  uint64_t getMachineOpValue(const MCInst &MI, const MCOperand &MO,
                              SmallVectorImpl<MCFixup> &Fixups,
                              const MCSubtargetInfo &STI) const;
 
-  unsigned getMSAMemEncoding(const MCInst &MI, unsigned OpNo,
+  uint64_t getMSAMemEncoding(const MCInst &MI, unsigned OpNo,
                              SmallVectorImpl<MCFixup> &Fixups,
                              const MCSubtargetInfo &STI) const;
 
-  unsigned getMemEncoding(const MCInst &MI, unsigned OpNo,
+  uint64_t getMemEncoding(const MCInst &MI, unsigned OpNo,
                           SmallVectorImpl<MCFixup> &Fixups,
                           const MCSubtargetInfo &STI) const;
-  unsigned getMemEncodingMMImm4(const MCInst &MI, unsigned OpNo,
+  uint64_t getMemEncodingMMImm4(const MCInst &MI, unsigned OpNo,
                                 SmallVectorImpl<MCFixup> &Fixups,
                                 const MCSubtargetInfo &STI) const;
-  unsigned getMemEncodingMMImm4Lsl1(const MCInst &MI, unsigned OpNo,
+  uint64_t getMemEncodingMMImm4Lsl1(const MCInst &MI, unsigned OpNo,
                                     SmallVectorImpl<MCFixup> &Fixups,
                                     const MCSubtargetInfo &STI) const;
-  unsigned getMemEncodingMMImm4Lsl2(const MCInst &MI, unsigned OpNo,
+  uint64_t getMemEncodingMMImm4Lsl2(const MCInst &MI, unsigned OpNo,
                                     SmallVectorImpl<MCFixup> &Fixups,
                                     const MCSubtargetInfo &STI) const;
-  unsigned getMemEncodingMMSPImm5Lsl2(const MCInst &MI, unsigned OpNo,
+  uint64_t getMemEncodingMMSPImm5Lsl2(const MCInst &MI, unsigned OpNo,
                                       SmallVectorImpl<MCFixup> &Fixups,
                                       const MCSubtargetInfo &STI) const;
-  unsigned getMemEncodingMMImm12(const MCInst &MI, unsigned OpNo,
+  uint64_t getMemEncodingMMImm12(const MCInst &MI, unsigned OpNo,
                                  SmallVectorImpl<MCFixup> &Fixups,
                                  const MCSubtargetInfo &STI) const;
-  unsigned getMemEncodingMMImm4sp(const MCInst &MI, unsigned OpNo,
+  uint64_t getMemEncodingMMImm4sp(const MCInst &MI, unsigned OpNo,
                                   SmallVectorImpl<MCFixup> &Fixups,
                                   const MCSubtargetInfo &STI) const;
-  unsigned getSizeExtEncoding(const MCInst &MI, unsigned OpNo,
+  uint64_t getSizeExtEncoding(const MCInst &MI, unsigned OpNo,
                               SmallVectorImpl<MCFixup> &Fixups,
                               const MCSubtargetInfo &STI) const;
-  unsigned getSizeInsEncoding(const MCInst &MI, unsigned OpNo,
+  uint64_t getSizeInsEncoding(const MCInst &MI, unsigned OpNo,
                               SmallVectorImpl<MCFixup> &Fixups,
                               const MCSubtargetInfo &STI) const;
 
   // getLSAImmEncoding - Return binary encoding of LSA immediate.
-  unsigned getLSAImmEncoding(const MCInst &MI, unsigned OpNo,
+  uint64_t getLSAImmEncoding(const MCInst &MI, unsigned OpNo,
                              SmallVectorImpl<MCFixup> &Fixups,
                              const MCSubtargetInfo &STI) const;
 
-  unsigned getSimm19Lsl2Encoding(const MCInst &MI, unsigned OpNo,
+  uint64_t getSimm19Lsl2Encoding(const MCInst &MI, unsigned OpNo,
                                  SmallVectorImpl<MCFixup> &Fixups,
                                  const MCSubtargetInfo &STI) const;
 
-  unsigned getSimm18Lsl3Encoding(const MCInst &MI, unsigned OpNo,
+  uint64_t getSimm18Lsl3Encoding(const MCInst &MI, unsigned OpNo,
                                  SmallVectorImpl<MCFixup> &Fixups,
                                  const MCSubtargetInfo &STI) const;
 
-  unsigned getUImm3Mod8Encoding(const MCInst &MI, unsigned OpNo,
+  uint64_t getUImm3Mod8Encoding(const MCInst &MI, unsigned OpNo,
                                 SmallVectorImpl<MCFixup> &Fixups,
                                 const MCSubtargetInfo &STI) const;
-  unsigned getUImm4AndValue(const MCInst &MI, unsigned OpNo,
+  uint64_t getUImm4AndValue(const MCInst &MI, unsigned OpNo,
                             SmallVectorImpl<MCFixup> &Fixups,
                             const MCSubtargetInfo &STI) const;
 
@@ -198,7 +198,7 @@ public:
                                   SmallVectorImpl<MCFixup> &Fixups,
                                   const MCSubtargetInfo &STI) const;
 
-  unsigned getExprOpValue(const MCExpr *Expr, SmallVectorImpl<MCFixup> &Fixups,
+  uint64_t getExprOpValue(const MCExpr *Expr, SmallVectorImpl<MCFixup> &Fixups,
                           const MCSubtargetInfo &STI) const;
 
   unsigned getRegisterListOpValue(const MCInst &MI, unsigned OpNo,

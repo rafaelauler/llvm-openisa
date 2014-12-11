@@ -167,7 +167,7 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
   }
 
   unsigned long N = Fixups.size();
-  uint32_t Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
+  uint64_t Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
 
   // Check for unimplemented opcodes.
   // Unfortunately in MIPS both NOP and SLL will come in with Binary == 0
@@ -367,7 +367,7 @@ getJumpTargetOpValueMM(const MCInst &MI, unsigned OpNo,
   return 0;
 }
 
-unsigned MipsMCCodeEmitter::
+uint64_t MipsMCCodeEmitter::
 getUImm5Lsl2Encoding(const MCInst &MI, unsigned OpNo,
                      SmallVectorImpl<MCFixup> &Fixups,
                      const MCSubtargetInfo &STI) const {
@@ -375,7 +375,7 @@ getUImm5Lsl2Encoding(const MCInst &MI, unsigned OpNo,
   const MCOperand &MO = MI.getOperand(OpNo);
   if (MO.isImm()) {
     // The immediate is encoded as 'immediate << 2'.
-    unsigned Res = getMachineOpValue(MI, MO, Fixups, STI);
+    uint64_t Res = getMachineOpValue(MI, MO, Fixups, STI);
     assert((Res & 3) == 0);
     return Res >> 2;
   }
@@ -386,49 +386,49 @@ getUImm5Lsl2Encoding(const MCInst &MI, unsigned OpNo,
   return 0;
 }
 
-unsigned MipsMCCodeEmitter::
+uint64_t MipsMCCodeEmitter::
 getSImm3Lsa2Value(const MCInst &MI, unsigned OpNo,
                   SmallVectorImpl<MCFixup> &Fixups,
                   const MCSubtargetInfo &STI) const {
 
   const MCOperand &MO = MI.getOperand(OpNo);
   if (MO.isImm()) {
-    int Value = MO.getImm();
+    int64_t Value = MO.getImm();
     return Value >> 2;
   }
 
   return 0;
 }
 
-unsigned MipsMCCodeEmitter::
+uint64_t MipsMCCodeEmitter::
 getUImm6Lsl2Encoding(const MCInst &MI, unsigned OpNo,
                      SmallVectorImpl<MCFixup> &Fixups,
                      const MCSubtargetInfo &STI) const {
 
   const MCOperand &MO = MI.getOperand(OpNo);
   if (MO.isImm()) {
-    unsigned Value = MO.getImm();
+    uint64_t Value = MO.getImm();
     return Value >> 2;
   }
 
   return 0;
 }
 
-unsigned MipsMCCodeEmitter::
+uint64_t MipsMCCodeEmitter::
 getSImm9AddiuspValue(const MCInst &MI, unsigned OpNo,
                      SmallVectorImpl<MCFixup> &Fixups,
                      const MCSubtargetInfo &STI) const {
 
   const MCOperand &MO = MI.getOperand(OpNo);
   if (MO.isImm()) {
-    unsigned Binary = (MO.getImm() >> 2) & 0x0000ffff;
+    uint64_t Binary = (MO.getImm() >> 2) & 0x0000ffff;
     return (((Binary & 0x8000) >> 7) | (Binary & 0x00ff));
   }
 
   return 0;
 }
 
-unsigned MipsMCCodeEmitter::
+uint64_t MipsMCCodeEmitter::
 getExprOpValue(const MCExpr *Expr,SmallVectorImpl<MCFixup> &Fixups,
                const MCSubtargetInfo &STI) const {
   int64_t Res;
@@ -442,7 +442,7 @@ getExprOpValue(const MCExpr *Expr,SmallVectorImpl<MCFixup> &Fixups,
   }
 
   if (Kind == MCExpr::Binary) {
-    unsigned Res = getExprOpValue(cast<MCBinaryExpr>(Expr)->getLHS(), Fixups, STI);
+    uint64_t Res = getExprOpValue(cast<MCBinaryExpr>(Expr)->getLHS(), Fixups, STI);
     Res += getExprOpValue(cast<MCBinaryExpr>(Expr)->getRHS(), Fixups, STI);
     return Res;
   }
@@ -580,7 +580,7 @@ getExprOpValue(const MCExpr *Expr,SmallVectorImpl<MCFixup> &Fixups,
 
 /// getMachineOpValue - Return binary encoding of operand. If the machine
 /// operand requires relocation, record the relocation and return zero.
-unsigned MipsMCCodeEmitter::
+uint64_t MipsMCCodeEmitter::
 getMachineOpValue(const MCInst &MI, const MCOperand &MO,
                   SmallVectorImpl<MCFixup> &Fixups,
                   const MCSubtargetInfo &STI) const {
@@ -589,9 +589,9 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
     unsigned RegNo = Ctx.getRegisterInfo()->getEncodingValue(Reg);
     return RegNo;
   } else if (MO.isImm()) {
-    return static_cast<unsigned>(MO.getImm());
+    return static_cast<uint64_t>(MO.getImm());
   } else if (MO.isFPImm()) {
-    return static_cast<unsigned>(APFloat(MO.getFPImm())
+    return static_cast<uint64_t>(APFloat(MO.getFPImm())
         .bitcastToAPInt().getHiBits(32).getLimitedValue());
   }
   // MO must be an Expr.
@@ -601,14 +601,14 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
 
 /// getMSAMemEncoding - Return binary encoding of memory operand for LD/ST
 /// instructions.
-unsigned
+uint64_t
 MipsMCCodeEmitter::getMSAMemEncoding(const MCInst &MI, unsigned OpNo,
                                      SmallVectorImpl<MCFixup> &Fixups,
                                      const MCSubtargetInfo &STI) const {
   // Base register is encoded in bits 20-16, offset is encoded in bits 15-0.
   assert(MI.getOperand(OpNo).isReg());
-  unsigned RegBits = getMachineOpValue(MI, MI.getOperand(OpNo),Fixups, STI) << 16;
-  unsigned OffBits = getMachineOpValue(MI, MI.getOperand(OpNo+1), Fixups, STI);
+  uint64_t RegBits = getMachineOpValue(MI, MI.getOperand(OpNo),Fixups, STI) << 16;
+  uint64_t OffBits = getMachineOpValue(MI, MI.getOperand(OpNo+1), Fixups, STI);
 
   // The immediate field of an LD/ST instruction is scaled which means it must
   // be divided (when encoding) by the size (in bytes) of the instructions'
@@ -645,19 +645,19 @@ MipsMCCodeEmitter::getMSAMemEncoding(const MCInst &MI, unsigned OpNo,
 
 /// getMemEncoding - Return binary encoding of memory related operand.
 /// If the offset operand requires relocation, record the relocation.
-unsigned
+uint64_t
 MipsMCCodeEmitter::getMemEncoding(const MCInst &MI, unsigned OpNo,
                                   SmallVectorImpl<MCFixup> &Fixups,
                                   const MCSubtargetInfo &STI) const {
-  // Base register is encoded in bits 20-16, offset is encoded in bits 15-0.
+  // Base register is encoded in bits 38-32, offset is encoded in bits 31-0.
   assert(MI.getOperand(OpNo).isReg());
-  unsigned RegBits = getMachineOpValue(MI, MI.getOperand(OpNo),Fixups, STI) << 16;
-  unsigned OffBits = getMachineOpValue(MI, MI.getOperand(OpNo+1), Fixups, STI);
+  uint64_t RegBits = getMachineOpValue(MI, MI.getOperand(OpNo),Fixups, STI) << 32;
+  uint64_t OffBits = getMachineOpValue(MI, MI.getOperand(OpNo+1), Fixups, STI);
 
-  return (OffBits & 0xFFFF) | RegBits;
+  return (OffBits & 0xFFFFFFFFULL) | RegBits;
 }
 
-unsigned MipsMCCodeEmitter::
+uint64_t MipsMCCodeEmitter::
 getMemEncodingMMImm4(const MCInst &MI, unsigned OpNo,
                      SmallVectorImpl<MCFixup> &Fixups,
                      const MCSubtargetInfo &STI) const {
@@ -671,7 +671,7 @@ getMemEncodingMMImm4(const MCInst &MI, unsigned OpNo,
   return (OffBits & 0xF) | RegBits;
 }
 
-unsigned MipsMCCodeEmitter::
+uint64_t MipsMCCodeEmitter::
 getMemEncodingMMImm4Lsl1(const MCInst &MI, unsigned OpNo,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const {
@@ -685,7 +685,7 @@ getMemEncodingMMImm4Lsl1(const MCInst &MI, unsigned OpNo,
   return (OffBits & 0xF) | RegBits;
 }
 
-unsigned MipsMCCodeEmitter::
+uint64_t MipsMCCodeEmitter::
 getMemEncodingMMImm4Lsl2(const MCInst &MI, unsigned OpNo,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const {
@@ -699,7 +699,7 @@ getMemEncodingMMImm4Lsl2(const MCInst &MI, unsigned OpNo,
   return (OffBits & 0xF) | RegBits;
 }
 
-unsigned MipsMCCodeEmitter::
+uint64_t MipsMCCodeEmitter::
 getMemEncodingMMSPImm5Lsl2(const MCInst &MI, unsigned OpNo,
                            SmallVectorImpl<MCFixup> &Fixups,
                            const MCSubtargetInfo &STI) const {
@@ -713,7 +713,7 @@ getMemEncodingMMSPImm5Lsl2(const MCInst &MI, unsigned OpNo,
   return OffBits & 0x1F;
 }
 
-unsigned MipsMCCodeEmitter::
+uint64_t MipsMCCodeEmitter::
 getMemEncodingMMImm12(const MCInst &MI, unsigned OpNo,
                       SmallVectorImpl<MCFixup> &Fixups,
                       const MCSubtargetInfo &STI) const {
@@ -730,13 +730,13 @@ getMemEncodingMMImm12(const MCInst &MI, unsigned OpNo,
 
   // Base register is encoded in bits 20-16, offset is encoded in bits 11-0.
   assert(MI.getOperand(OpNo).isReg());
-  unsigned RegBits = getMachineOpValue(MI, MI.getOperand(OpNo), Fixups, STI) << 16;
-  unsigned OffBits = getMachineOpValue(MI, MI.getOperand(OpNo+1), Fixups, STI);
+  uint64_t RegBits = getMachineOpValue(MI, MI.getOperand(OpNo), Fixups, STI) << 16;
+  uint64_t OffBits = getMachineOpValue(MI, MI.getOperand(OpNo+1), Fixups, STI);
 
   return (OffBits & 0x0FFF) | RegBits;
 }
 
-unsigned MipsMCCodeEmitter::
+uint64_t MipsMCCodeEmitter::
 getMemEncodingMMImm4sp(const MCInst &MI, unsigned OpNo,
                        SmallVectorImpl<MCFixup> &Fixups,
                        const MCSubtargetInfo &STI) const {
@@ -760,30 +760,30 @@ getMemEncodingMMImm4sp(const MCInst &MI, unsigned OpNo,
   return ((OffBits >> 2) & 0x0F);
 }
 
-unsigned
+uint64_t
 MipsMCCodeEmitter::getSizeExtEncoding(const MCInst &MI, unsigned OpNo,
                                       SmallVectorImpl<MCFixup> &Fixups,
                                       const MCSubtargetInfo &STI) const {
   assert(MI.getOperand(OpNo).isImm());
-  unsigned SizeEncoding = getMachineOpValue(MI, MI.getOperand(OpNo), Fixups, STI);
+  uint64_t SizeEncoding = getMachineOpValue(MI, MI.getOperand(OpNo), Fixups, STI);
   return SizeEncoding - 1;
 }
 
 // FIXME: should be called getMSBEncoding
 //
-unsigned
+uint64_t
 MipsMCCodeEmitter::getSizeInsEncoding(const MCInst &MI, unsigned OpNo,
                                       SmallVectorImpl<MCFixup> &Fixups,
                                       const MCSubtargetInfo &STI) const {
   assert(MI.getOperand(OpNo-1).isImm());
   assert(MI.getOperand(OpNo).isImm());
-  unsigned Position = getMachineOpValue(MI, MI.getOperand(OpNo-1), Fixups, STI);
-  unsigned Size = getMachineOpValue(MI, MI.getOperand(OpNo), Fixups, STI);
+  uint64_t Position = getMachineOpValue(MI, MI.getOperand(OpNo-1), Fixups, STI);
+  uint64_t Size = getMachineOpValue(MI, MI.getOperand(OpNo), Fixups, STI);
 
   return Position + Size - 1;
 }
 
-unsigned
+uint64_t
 MipsMCCodeEmitter::getLSAImmEncoding(const MCInst &MI, unsigned OpNo,
                                      SmallVectorImpl<MCFixup> &Fixups,
                                      const MCSubtargetInfo &STI) const {
@@ -792,14 +792,14 @@ MipsMCCodeEmitter::getLSAImmEncoding(const MCInst &MI, unsigned OpNo,
   return getMachineOpValue(MI, MI.getOperand(OpNo), Fixups, STI) - 1;
 }
 
-unsigned
+uint64_t
 MipsMCCodeEmitter::getSimm19Lsl2Encoding(const MCInst &MI, unsigned OpNo,
                                          SmallVectorImpl<MCFixup> &Fixups,
                                          const MCSubtargetInfo &STI) const {
   const MCOperand &MO = MI.getOperand(OpNo);
   if (MO.isImm()) {
     // The immediate is encoded as 'immediate << 2'.
-    unsigned Res = getMachineOpValue(MI, MO, Fixups, STI);
+    uint64_t Res = getMachineOpValue(MI, MO, Fixups, STI);
     assert((Res & 3) == 0);
     return Res >> 2;
   }
@@ -813,14 +813,14 @@ MipsMCCodeEmitter::getSimm19Lsl2Encoding(const MCInst &MI, unsigned OpNo,
   return 0;
 }
 
-unsigned
+uint64_t
 MipsMCCodeEmitter::getSimm18Lsl3Encoding(const MCInst &MI, unsigned OpNo,
                                          SmallVectorImpl<MCFixup> &Fixups,
                                          const MCSubtargetInfo &STI) const {
   const MCOperand &MO = MI.getOperand(OpNo);
   if (MO.isImm()) {
     // The immediate is encoded as 'immediate << 3'.
-    unsigned Res = getMachineOpValue(MI, MI.getOperand(OpNo), Fixups, STI);
+    uint64_t Res = getMachineOpValue(MI, MI.getOperand(OpNo), Fixups, STI);
     assert((Res & 7) == 0);
     return Res >> 3;
   }
@@ -834,7 +834,7 @@ MipsMCCodeEmitter::getSimm18Lsl3Encoding(const MCInst &MI, unsigned OpNo,
   return 0;
 }
 
-unsigned
+uint64_t
 MipsMCCodeEmitter::getUImm3Mod8Encoding(const MCInst &MI, unsigned OpNo,
                                         SmallVectorImpl<MCFixup> &Fixups,
                                         const MCSubtargetInfo &STI) const {
@@ -843,13 +843,13 @@ MipsMCCodeEmitter::getUImm3Mod8Encoding(const MCInst &MI, unsigned OpNo,
   return MO.getImm() % 8;
 }
 
-unsigned
+uint64_t
 MipsMCCodeEmitter::getUImm4AndValue(const MCInst &MI, unsigned OpNo,
                                     SmallVectorImpl<MCFixup> &Fixups,
                                     const MCSubtargetInfo &STI) const {
   assert(MI.getOperand(OpNo).isImm());
   const MCOperand &MO = MI.getOperand(OpNo);
-  unsigned Value = MO.getImm();
+  uint64_t Value = MO.getImm();
   switch (Value) {
     case 128:   return 0x0;
     case 1:     return 0x1;

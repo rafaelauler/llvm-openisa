@@ -327,11 +327,14 @@ namespace llvm {
     template<class NodeTy>
     SDValue getAddrNonPIC(NodeTy *N, EVT Ty, SelectionDAG &DAG) const {
       SDLoc DL(N);
-      SDValue Hi = getTargetNode(N, Ty, DAG, MipsII::MO_ABS_HI);
+      //      SDValue Hi = getTargetNode(N, Ty, DAG, MipsII::MO_ABS_HI);
+      SDValue ZeroReg = DAG.getRegister(Mips::ZERO, Ty);
       SDValue Lo = getTargetNode(N, Ty, DAG, MipsII::MO_ABS_LO);
-      return DAG.getNode(ISD::ADD, DL, Ty,
-                         DAG.getNode(MipsISD::Hi, DL, Ty, Hi),
-                         DAG.getNode(MipsISD::Lo, DL, Ty, Lo));
+      return DAG.getNode(ISD::ADD, DL, Ty, DAG.getNode(MipsISD::Hi, DL, Ty, ZeroReg),
+			 DAG.getNode(MipsISD::Lo, DL, Ty, Lo));
+      //return DAG.getNode(ISD::ADD, DL, Ty,
+      //                   DAG.getNode(MipsISD::Hi, DL, Ty, Hi),
+      //                   DAG.getNode(MipsISD::Lo, DL, Ty, Lo));
     }
 
     // This method creates the following nodes, which are necessary for

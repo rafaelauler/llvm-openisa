@@ -252,7 +252,7 @@ class ADD_FM_MM<bits<6> op, bits<10> funct> : MMArch {
   bits<5> rs;
   bits<5> rd;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = op;
   let Inst{25-21} = rt;
@@ -267,7 +267,7 @@ class ADDI_FM_MM<bits<6> op> : MMArch {
   bits<5>  rt;
   bits<16> imm16;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = op;
   let Inst{25-21} = rt;
@@ -280,7 +280,7 @@ class SLTI_FM_MM<bits<6> op> : MMArch {
   bits<5> rs;
   bits<16> imm16;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = op;
   let Inst{25-21} = rt;
@@ -292,7 +292,7 @@ class LUI_FM_MM : MMArch {
   bits<5> rt;
   bits<16> imm16;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x10;
   let Inst{25-21} = 0xd;
@@ -304,7 +304,7 @@ class MULT_FM_MM<bits<10> funct> : MMArch {
   bits<5>  rs;
   bits<5>  rt;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x00;
   let Inst{25-21} = rt;
@@ -318,7 +318,7 @@ class SRA_FM_MM<bits<10> funct, bit rotate> : MMArch {
   bits<5> rt;
   bits<5> shamt;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0;
   let Inst{25-21} = rd;
@@ -333,7 +333,7 @@ class SRLV_FM_MM<bits<10> funct, bit rotate> : MMArch {
   bits<5> rt;
   bits<5> rs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0;
   let Inst{25-21} = rt;
@@ -347,7 +347,7 @@ class LW_FM_MM<bits<6> op> : MMArch {
   bits<5> rt;
   bits<21> addr;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = op;
   let Inst{25-21} = rt;
@@ -359,7 +359,7 @@ class LWL_FM_MM<bits<4> funct> {
   bits<5> rt;
   bits<21> addr;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x18;
   let Inst{25-21} = rt;
@@ -373,7 +373,7 @@ class CMov_F_I_FM_MM<bits<7> func> : MMArch {
   bits<5> rs;
   bits<3> fcc;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x15;
   let Inst{25-21} = rd;
@@ -386,7 +386,7 @@ class CMov_F_I_FM_MM<bits<7> func> : MMArch {
 class MTLO_FM_MM<bits<10> funct> : MMArch {
   bits<5> rs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x00;
   let Inst{25-21} = 0x00;
@@ -398,7 +398,7 @@ class MTLO_FM_MM<bits<10> funct> : MMArch {
 class MFLO_FM_MM<bits<10> funct> : MMArch {
   bits<5> rd;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x00;
   let Inst{25-21} = 0x00;
@@ -411,7 +411,7 @@ class CLO_FM_MM<bits<10> funct> : MMArch {
   bits<5> rd;
   bits<5> rs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x00;
   let Inst{25-21} = rd;
@@ -424,7 +424,7 @@ class SEB_FM_MM<bits<10> funct> : MMArch {
   bits<5> rd;
   bits<5> rt;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x00;
   let Inst{25-21} = rd;
@@ -439,7 +439,7 @@ class EXT_FM_MM<bits<6> funct> : MMArch {
   bits<5> pos;
   bits<5> size;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x00;
   let Inst{25-21} = rt;
@@ -452,7 +452,7 @@ class EXT_FM_MM<bits<6> funct> : MMArch {
 class J_FM_MM<bits<6> op> : MMArch {
   bits<26> target;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = op;
   let Inst{25-0}  = target;
@@ -461,7 +461,7 @@ class J_FM_MM<bits<6> op> : MMArch {
 class JR_FM_MM<bits<8> funct> : MMArch {
   bits<5> rs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-21} = 0x00;
   let Inst{20-16} = rs;
@@ -474,7 +474,7 @@ class JALR_FM_MM<bits<10> funct> {
   bits<5> rs;
   bits<5> rd;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x00;
   let Inst{25-21} = rd;
@@ -488,7 +488,7 @@ class BEQ_FM_MM<bits<6> op> : MMArch {
   bits<5>  rt;
   bits<16> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = op;
   let Inst{25-21} = rt;
@@ -500,7 +500,7 @@ class BGEZ_FM_MM<bits<5> funct> : MMArch {
   bits<5>  rs;
   bits<16> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x10;
   let Inst{25-21} = funct;
@@ -512,7 +512,7 @@ class BGEZAL_FM_MM<bits<5> funct> : MMArch {
   bits<5>  rs;
   bits<16> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x10;
   let Inst{25-21} = funct;
@@ -523,7 +523,7 @@ class BGEZAL_FM_MM<bits<5> funct> : MMArch {
 class SYNC_FM_MM : MMArch {
   bits<5> stype;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x00;
   let Inst{25-21} = 0x0;
@@ -535,7 +535,7 @@ class SYNC_FM_MM : MMArch {
 class BRK_FM_MM : MMArch {
   bits<10> code_1;
   bits<10> code_2;
-  bits<32> Inst;
+  bits<64> Inst;
   let Inst{31-26} = 0x0;
   let Inst{25-16} = code_1;
   let Inst{15-6}  = code_2;
@@ -544,7 +544,7 @@ class BRK_FM_MM : MMArch {
 
 class SYS_FM_MM : MMArch {
   bits<10> code_;
-  bits<32> Inst;
+  bits<64> Inst;
   let Inst{31-26} = 0x0;
   let Inst{25-16} = code_;
   let Inst{15-6}  = 0x22d;
@@ -553,7 +553,7 @@ class SYS_FM_MM : MMArch {
 
 class WAIT_FM_MM {
   bits<10> code_;
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x00;
   let Inst{25-16} = code_;
@@ -562,7 +562,7 @@ class WAIT_FM_MM {
 }
 
 class ER_FM_MM<bits<10> funct> : MMArch {
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x00;
   let Inst{25-16} = 0x00;
@@ -571,7 +571,7 @@ class ER_FM_MM<bits<10> funct> : MMArch {
 }
 
 class EI_FM_MM<bits<10> funct> : MMArch {
-  bits<32> Inst;
+  bits<64> Inst;
   bits<5> rt;
 
   let Inst{31-26} = 0x00;
@@ -586,7 +586,7 @@ class TEQ_FM_MM<bits<6> funct> : MMArch {
   bits<5> rt;
   bits<4> code_;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x00;
   let Inst{25-21} = rt;
@@ -600,7 +600,7 @@ class TEQI_FM_MM<bits<5> funct> : MMArch {
   bits<5> rs;
   bits<16> imm16;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x10;
   let Inst{25-21} = funct;
@@ -612,7 +612,7 @@ class LL_FM_MM<bits<4> funct> {
   bits<5> rt;
   bits<21> addr;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x18;
   let Inst{25-21} = rt;
@@ -626,7 +626,7 @@ class ADDS_FM_MM<bits<2> fmt, bits<8> funct> : MMArch {
   bits<5> fs;
   bits<5> fd;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x15;
   let Inst{25-21} = ft;
@@ -644,7 +644,7 @@ class LWXC1_FM_MM<bits<9> funct> : MMArch {
   bits<5> base;
   bits<5> index;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x15;
   let Inst{25-21} = index;
@@ -659,7 +659,7 @@ class SWXC1_FM_MM<bits<9> funct> : MMArch {
   bits<5> base;
   bits<5> index;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x15;
   let Inst{25-21} = index;
@@ -674,7 +674,7 @@ class CEQS_FM_MM<bits<2> fmt> : MMArch {
   bits<5> ft;
   bits<4> cond;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x15;
   let Inst{25-21} = ft;
@@ -689,7 +689,7 @@ class CEQS_FM_MM<bits<2> fmt> : MMArch {
 class BC1F_FM_MM<bits<5> tf> : MMArch {
   bits<16> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x10;
   let Inst{25-21} = tf;
@@ -702,7 +702,7 @@ class ROUND_W_FM_MM<bits<1> fmt, bits<8> funct> : MMArch {
   bits<5> fd;
   bits<5> fs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x15;
   let Inst{25-21} = fd;
@@ -717,7 +717,7 @@ class ABS_FM_MM<bits<2> fmt, bits<7> funct> : MMArch {
   bits<5> fd;
   bits<5> fs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x15;
   let Inst{25-21} = fd;
@@ -732,7 +732,7 @@ class CMov_F_F_FM_MM<bits<9> func, bits<2> fmt> : MMArch {
   bits<5> fd;
   bits<5> fs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x15;
   let Inst{25-21} = fd;
@@ -748,7 +748,7 @@ class CMov_I_F_FM_MM<bits<8> funct, bits<2> fmt> : MMArch {
   bits<5> fs;
   bits<5> rt;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x15;
   let Inst{25-21} = rt;
@@ -762,7 +762,7 @@ class MFC1_FM_MM<bits<8> funct> : MMArch {
   bits<5> rt;
   bits<5> fs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x15;
   let Inst{25-21} = rt;
@@ -778,7 +778,7 @@ class MADDS_FM_MM<bits<6> funct>: MMArch {
   bits<5> fd;
   bits<5> fr;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x15;
   let Inst{25-21} = ft;
@@ -792,7 +792,7 @@ class COMPACT_BRANCH_FM_MM<bits<5> funct> {
   bits<5>  rs;
   bits<16> offset;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x10;
   let Inst{25-21} = funct;
@@ -801,7 +801,7 @@ class COMPACT_BRANCH_FM_MM<bits<5> funct> {
 }
 
 class COP0_TLB_FM_MM<bits<10> op> : MMArch {
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x0;
   let Inst{25-16} = 0x0;

@@ -238,7 +238,7 @@ class C_COND_FT<string CondStr, string Typestr, RegisterOperand RC,
           !strconcat("c.", CondStr, ".", Typestr, "\t$fs, $ft"), [], itin,
           FrmFR>;
 
-multiclass C_COND_M<string TypeStr, RegisterOperand RC, bits<5> fmt,
+multiclass C_COND_M<string TypeStr, RegisterOperand RC, bits<7> fmt,
                     InstrItinClass itin> {
   def C_F_#NAME : C_COND_FT<"f", TypeStr, RC, itin>, C_COND_FM<fmt, 0>;
   def C_UN_#NAME : C_COND_FT<"un", TypeStr, RC, itin>, C_COND_FM<fmt, 1>;

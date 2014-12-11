@@ -28,14 +28,14 @@ void MipsAnalyzeImmediate::AddInstr(InstSeqLs &SeqLs, const Inst &I) {
 
 void MipsAnalyzeImmediate::GetInstSeqLsADDiu(uint64_t Imm, unsigned RemSize,
                                              InstSeqLs &SeqLs) {
-  GetInstSeqLs((Imm + 0x8000ULL) & 0xffffffffffff0000ULL, RemSize, SeqLs);
-  AddInstr(SeqLs, Inst(ADDiu, Imm & 0xffffULL));
+  GetInstSeqLs((Imm + 0x80000000ULL) & 0xffffffffffff0000ULL, RemSize, SeqLs);
+  AddInstr(SeqLs, Inst(ADDiu, Imm & 0xffffffffULL));
 }
 
 void MipsAnalyzeImmediate::GetInstSeqLsORi(uint64_t Imm, unsigned RemSize,
                                            InstSeqLs &SeqLs) {
-  GetInstSeqLs(Imm & 0xffffffffffff0000ULL, RemSize, SeqLs);
-  AddInstr(SeqLs, Inst(ORi, Imm & 0xffffULL));
+  GetInstSeqLs(Imm & 0xffffffff00000000ULL, RemSize, SeqLs);
+  AddInstr(SeqLs, Inst(ORi, Imm & 0xffffffffULL));
 }
 
 void MipsAnalyzeImmediate::GetInstSeqLsSLL(uint64_t Imm, unsigned RemSize,
@@ -53,23 +53,23 @@ void MipsAnalyzeImmediate::GetInstSeqLs(uint64_t Imm, unsigned RemSize,
   if (!MaskedImm)
     return;
 
-  // A single ADDiu will do if RemSize <= 16.
-  if (RemSize <= 16) {
+  // A single ADDiu will do if RemSize <= 32.
+  if (RemSize <= 32) {
     AddInstr(SeqLs, Inst(ADDiu, MaskedImm));
     return;
   }
 
-  // Shift if the lower 16-bit is cleared.
-  if (!(Imm & 0xffff)) {
+  // Shift if the lower 32-bit is cleared.
+  if (!(Imm & 0xffffffff)) {
     GetInstSeqLsSLL(Imm, RemSize, SeqLs);
     return;
   }
 
   GetInstSeqLsADDiu(Imm, RemSize, SeqLs);
 
-  // If bit 15 is cleared, it doesn't make a difference whether the last
+  // If bit 31 is cleared, it doesn't make a difference whether the last
   // instruction is an ADDiu or ORi. In that case, do not call GetInstSeqLsORi.
-  if (Imm & 0x8000) {
+  if (Imm & 0x80000000) {
     InstSeqLs SeqLsORi;
     GetInstSeqLsORi(Imm, RemSize, SeqLsORi);
     SeqLs.append(std::make_move_iterator(SeqLsORi.begin()),

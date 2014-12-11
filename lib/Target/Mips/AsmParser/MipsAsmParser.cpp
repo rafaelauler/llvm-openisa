@@ -1248,40 +1248,6 @@ bool MipsAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     return false;
   }
 
-  if (MCID.mayLoad() || MCID.mayStore()) {
-    // Check the offset of memory operand, if it is a symbol
-    // reference or immediate we may have to expand instructions.
-    for (unsigned i = 0; i < MCID.getNumOperands(); i++) {
-      const MCOperandInfo &OpInfo = MCID.OpInfo[i];
-      if ((OpInfo.OperandType == MCOI::OPERAND_MEMORY) ||
-          (OpInfo.OperandType == MCOI::OPERAND_UNKNOWN)) {
-        MCOperand &Op = Inst.getOperand(i);
-        if (Op.isImm()) {
-          int MemOffset = Op.getImm();
-          if (MemOffset < -32768 || MemOffset > 32767) {
-            // Offset can't exceed 16bit value.
-            expandMemInst(Inst, IDLoc, Instructions, MCID.mayLoad(), true);
-            return false;
-          }
-        } else if (Op.isExpr()) {
-          const MCExpr *Expr = Op.getExpr();
-          if (Expr->getKind() == MCExpr::SymbolRef) {
-            const MCSymbolRefExpr *SR =
-                static_cast<const MCSymbolRefExpr *>(Expr);
-            if (SR->getKind() == MCSymbolRefExpr::VK_None) {
-              // Expand symbol.
-              expandMemInst(Inst, IDLoc, Instructions, MCID.mayLoad(), false);
-              return false;
-            }
-          } else if (!isEvaluated(Expr)) {
-            expandMemInst(Inst, IDLoc, Instructions, MCID.mayLoad(), false);
-            return false;
-          }
-        }
-      }
-    } // for
-  }   // if load/store
-
   // TODO: Handle this with the AsmOperandClass.PredicateMethod.
   if (inMicroMipsMode()) {
     MCOperand Opnd;
@@ -1408,16 +1374,7 @@ bool MipsAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
 }
 
 bool MipsAsmParser::needsExpansion(MCInst &Inst) {
-
-  switch (Inst.getOpcode()) {
-  case Mips::LoadImm32Reg:
-  case Mips::LoadAddr32Imm:
-  case Mips::LoadAddr32Reg:
-  case Mips::LoadImm64Reg:
-    return true;
-  default:
     return false;
-  }
 }
 
 bool MipsAsmParser::expandInstruction(MCInst &Inst, SMLoc IDLoc,

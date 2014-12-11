@@ -569,35 +569,35 @@ class RDHWR_FM : StdArch {
 }
 
 class TEQ_FM<bits<6> funct> : StdArch {
-  bits<5> rs;
-  bits<5> rt;
+  bits<7> rs;
+  bits<7> rt;
   bits<10> code_;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 0;
-  let Inst{25-21} = rs;
-  let Inst{20-16} = rt;
+  let Inst{63-58} = 0;
+  let Inst{57-51} = rs;
+  let Inst{50-44} = rt;
   let Inst{15-6}  = code_;
   let Inst{5-0}   = funct;
 }
 
 class TEQI_FM<bits<5> funct> : StdArch {
-  bits<5> rs;
-  bits<16> imm16;
+  bits<7> rs;
+  bits<32> imm32;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 1;
-  let Inst{25-21} = rs;
-  let Inst{20-16}   = funct;
-  let Inst{15-0}  = imm16;
+  let Inst{63-58} = 1;
+  let Inst{57-51} = rs;
+  let Inst{48-44} = funct;
+  let Inst{31-0}  = imm32;
 }
 
 class WAIT_FM : StdArch {
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 0x10;
+  let Inst{63-58} = 0x10;
   let Inst{25}    = 1;
   let Inst{24-6}  = 0;
   let Inst{5-0}   = 0x20;
@@ -609,9 +609,9 @@ class EXTS_FM<bits<6> funct> : StdArch {
   bits<5> pos;
   bits<5> lenm1;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 0x1c;
+  let Inst{63-58} = 0x1c;
   let Inst{25-21} = rs;
   let Inst{20-16} = rt;
   let Inst{15-11} = lenm1;
@@ -622,9 +622,9 @@ class EXTS_FM<bits<6> funct> : StdArch {
 class MTMR_FM<bits<6> funct> : StdArch {
   bits<5> rs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 0x1c;
+  let Inst{63-58} = 0x1c;
   let Inst{25-21} = rs;
   let Inst{20-6}  = 0;
   let Inst{5-0}   = funct;
@@ -634,9 +634,9 @@ class POP_FM<bits<6> funct> : StdArch {
   bits<5> rd;
   bits<5> rs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 0x1c;
+  let Inst{63-58} = 0x1c;
   let Inst{25-21} = rs;
   let Inst{20-16} = 0;
   let Inst{15-11} = rd;
@@ -649,9 +649,9 @@ class SEQ_FM<bits<6> funct> : StdArch {
   bits<5> rs;
   bits<5> rt;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 0x1c;
+  let Inst{63-58} = 0x1c;
   let Inst{25-21} = rs;
   let Inst{20-16} = rt;
   let Inst{15-11} = rd;
@@ -664,9 +664,9 @@ class SEQI_FM<bits<6> funct> : StdArch {
   bits<5> rt;
   bits<10> imm10;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 0x1c;
+  let Inst{63-58} = 0x1c;
   let Inst{25-21} = rs;
   let Inst{20-16} = rt;
   let Inst{15-6}  = imm10;
@@ -680,8 +680,8 @@ class SEQI_FM<bits<6> funct> : StdArch {
 class SYS_FM<bits<6> funct> : StdArch
 {
   bits<20> code_;
-  bits<32> Inst;
-  let Inst{31-26} = 0x0;
+  bits<64> Inst;
+  let Inst{63-58} = 0x0;
   let Inst{25-6} = code_;
   let Inst{5-0}  = funct;
 }
@@ -694,8 +694,8 @@ class BRK_FM<bits<6> funct> : StdArch
 {
   bits<10> code_1;
   bits<10> code_2;
-  bits<32> Inst;
-  let Inst{31-26} = 0x0;
+  bits<64> Inst;
+  let Inst{63-58} = 0x0;
   let Inst{25-16} = code_1;
   let Inst{15-6}  = code_2;
   let Inst{5-0}   = funct;
@@ -707,8 +707,8 @@ class BRK_FM<bits<6> funct> : StdArch
 
 class ER_FM<bits<6> funct> : StdArch
 {
-  bits<32> Inst;
-  let Inst{31-26} = 0x10;
+  bits<64> Inst;
+  let Inst{63-58} = 0x10;
   let Inst{25}    = 1;
   let Inst{24-6}  = 0;
   let Inst{5-0}   = funct;
@@ -721,9 +721,9 @@ class ER_FM<bits<6> funct> : StdArch
 
 class EI_FM<bits<1> sc> : StdArch
 {
-  bits<32> Inst;
+  bits<64> Inst;
   bits<5> rt;
-  let Inst{31-26} = 0x10;
+  let Inst{63-58} = 0x10;
   let Inst{25-21} = 0xb;
   let Inst{20-16} = rt;
   let Inst{15-11} = 0xc;
@@ -948,9 +948,9 @@ class CMov_F_F_FM<bits<7> fmt, bit tf> {
 }
 
 class BARRIER_FM<bits<5> op> : StdArch {
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 0; // SPECIAL
+  let Inst{63-58} = 0; // SPECIAL
   let Inst{25-21} = 0;
   let Inst{20-16} = 0; // rt = 0
   let Inst{15-11} = 0; // rd = 0
@@ -961,9 +961,9 @@ class BARRIER_FM<bits<5> op> : StdArch {
 class SDBBP_FM : StdArch {
   bits<20> code_;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 0b011100; // SPECIAL2
+  let Inst{63-58} = 0b011100; // SPECIAL2
   let Inst{25-6} = code_;
   let Inst{5-0} = 0b111111;   // SDBBP
 }
@@ -971,9 +971,9 @@ class SDBBP_FM : StdArch {
 class JR_HB_FM<bits<6> op> : StdArch{
   bits<5> rs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 0; // SPECIAL
+  let Inst{63-58} = 0; // SPECIAL
   let Inst{25-21} = rs;
   let Inst{20-11} = 0;
   let Inst{10} = 1;
@@ -985,9 +985,9 @@ class JALR_HB_FM<bits<6> op> : StdArch {
   bits<5> rd;
   bits<5> rs;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 0; // SPECIAL
+  let Inst{63-58} = 0; // SPECIAL
   let Inst{25-21} = rs;
   let Inst{20-16} = 0;
   let Inst{15-11} = rd;
@@ -997,9 +997,9 @@ class JALR_HB_FM<bits<6> op> : StdArch {
 }
 
 class COP0_TLB_FM<bits<6> op> : StdArch {
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = 0x10; // COP0
+  let Inst{63-58} = 0x10; // COP0
   let Inst{25} = 1;       // CO
   let Inst{24-6} = 0;
   let Inst{5-0} = op;     // Operation
@@ -1011,9 +1011,9 @@ class CACHEOP_FM<bits<6> op> : StdArch {
   bits<5> base = addr{20-16};
   bits<16> offset = addr{15-0};
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{31-26} = op;
+  let Inst{63-58} = op;
   let Inst{25-21} = base;
   let Inst{20-16} = hint;
   let Inst{15-0}  = offset;
