@@ -56,7 +56,7 @@ void OiInstTranslate::FinishModule() {
 }
 
 Module* OiInstTranslate::takeModule() {
-  return IREmitter.TheModule.take();
+  return IREmitter.TheModule.release();
 }
 
 bool OiInstTranslate::HandleAluSrcOperand(const MCOperand &o, Value *&V, Value **First) {
@@ -494,7 +494,7 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V, Value **Fi
         return IREmitter.HandleLocalCall(o.getImm() + targetaddr, V, First);
       return IREmitter.HandleLocalCall(o.getImm(), V, First);
     } else { // Need to handle the relocation to find the correct jump address
-      relocation_iterator ri = (*IREmitter.CurSection)->end_relocations();
+      relocation_iterator ri = (*IREmitter.CurSection).relocation_end();
       StringRef val;
       if (RelocReader.CheckRelocation(ri, val)) {
         if (val == "write") 
@@ -790,10 +790,10 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
 #endif
 
   switch (MI->getOpcode()) {
-  case Oi::ADDiu:
-  case Oi::ADDi:
-  case Oi::ADDu:
-  case Oi::ADD:
+  case Mips::ADDiu:
+  case Mips::ADDi:
+  case Mips::ADDu:
+  case Mips::ADD:
     {
       DebugOut << "Handling ADDiu, ADDi, ADDu, ADD\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -814,8 +814,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::SUBu:
-  case Oi::SUB:
+  case Mips::SUBu:
+  case Mips::SUB:
     {
       DebugOut << "Handling SUBu, SUB\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -830,7 +830,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::MUL:
+  case Mips::MUL:
     {
       DebugOut << "Handling MUL\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -845,7 +845,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::MULT:
+  case Mips::MULT:
     {
       DebugOut << "Handling MULT\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -868,8 +868,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::SDIV:
-  case Oi::UDIV:
+  case Mips::SDIV:
+  case Mips::UDIV:
     {
       DebugOut << "Handling DIV\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -877,7 +877,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
           HandleAluSrcOperand(MI->getOperand(1), o1, &first)) {      
         Value *vdiv;
         Value *vmod; 
-        if (MI->getOpcode() == Oi::SDIV) {
+        if (MI->getOpcode() == Mips::SDIV) {
           vdiv = Builder.CreateSDiv(o0, o1);
           vmod = Builder.CreateSRem(o0, o1);
         } else {
@@ -894,7 +894,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::MFHI:
+  case Mips::MFHI:
     {
       DebugOut << "Handling MFHI\n";
       Value *o0;
@@ -908,7 +908,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::MFLO:
+  case Mips::MFLO:
     {
       DebugOut << "Handling MFLO\n";
       Value *o0;
@@ -922,7 +922,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::LDC1:
+  case Mips::LDC1:
     {
       DebugOut << "Handling LDC1\n";
       Value *dst, *src, *first = 0;
@@ -934,7 +934,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::LWC1:
+  case Mips::LWC1:
     {
       DebugOut << "Handling LWC1\n";
       Value *dst, *src, *first = 0;
@@ -946,7 +946,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::SDC1:
+  case Mips::SDC1:
     {
       DebugOut << "Handling SDC1\n";
       Value *dst, *src, *first = 0;
@@ -958,7 +958,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::SWC1:
+  case Mips::SWC1:
     {
       DebugOut << "Handling SWC1\n";
       Value *dst, *src, *first = 0;
@@ -975,7 +975,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   // XXX: Note for FCMP and MOVT: MIPS IV defines several FCC, floating-point
   // codes. We always use the 0th bit (MIPS I mode).
   // TODO: Implement all 8 CC bits.
-  case Oi::FCMP_D32:
+  case Mips::FCMP_D32:
     {
       DebugOut << "Handling FCMP_D32\n";
       uint32_t cond;
@@ -995,7 +995,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::FCMP_S32:
+  case Mips::FCMP_S32:
     {
       DebugOut << "Handling FCMP_S32\n";
       uint32_t cond;
@@ -1015,7 +1015,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::MOVT_I:
+  case Mips::MOVT_I:
     {
       DebugOut << "Handling MOVT\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -1035,8 +1035,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::FSUB_D32:
-  case Oi::FADD_D32:
+  case Mips::FSUB_D32:
+  case Mips::FADD_D32:
     {
       DebugOut << "Handling FADD_D32 FSUB_D32\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -1044,7 +1044,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
           HandleDoubleSrcOperand(MI->getOperand(2), o2) &&       
           HandleDoubleDstOperand(MI->getOperand(0), o0)) {      
         Value *V;
-        if (MI->getOpcode() == Oi::FADD_D32)
+        if (MI->getOpcode() == Mips::FADD_D32)
           V = Builder.CreateFAdd(o1, o2);
         else
           V = Builder.CreateFSub(o1, o2);
@@ -1054,10 +1054,10 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }      
       break;
     }
-  case Oi::FSUB_S:
-  case Oi::FADD_S:
-  case Oi::FMUL_S:
-  case Oi::FDIV_S:
+  case Mips::FSUB_S:
+  case Mips::FADD_S:
+  case Mips::FMUL_S:
+  case Mips::FDIV_S:
     {
       DebugOut << "Handling FADD_S FSUB_S FMUL_S FDIV_S\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -1066,11 +1066,11 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
           HandleFloatDstOperand(MI->getOperand(0), o0)) {      
         Value *v;
         Value *V;
-        if (MI->getOpcode() == Oi::FADD_S)
+        if (MI->getOpcode() == Mips::FADD_S)
           V = Builder.CreateFAdd(o1, o2);
-        else if (MI->getOpcode() == Oi::FSUB_S)
+        else if (MI->getOpcode() == Mips::FSUB_S)
           V = Builder.CreateFSub(o1, o2);
-        else if (MI->getOpcode() == Oi::FMUL_S)
+        else if (MI->getOpcode() == Mips::FMUL_S)
           V = Builder.CreateFMul(o1, o2);
         else
           V = Builder.CreateFDiv(o1, o2);
@@ -1081,7 +1081,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }      
       break;
     }
-  case Oi::FMOV_D32:
+  case Mips::FMOV_D32:
     {
       DebugOut << "Handling FMOV\n";
       Value *o0, *o1, *first = 0;
@@ -1094,7 +1094,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }      
       break;
     }
-  case Oi::FMUL_D32:
+  case Mips::FMUL_D32:
     {
       DebugOut << "Handling FMUL\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -1108,7 +1108,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }      
       break;
     }
-  case Oi::FDIV_D32:
+  case Mips::FDIV_D32:
     {
       DebugOut << "Handling FDIV\n";
       Value *o0, *o0lo, *o0hi, *o1, *o2, *first = 0;
@@ -1122,7 +1122,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }      
       break;
     }
-  case Oi::CVT_D32_W:
+  case Mips::CVT_D32_W:
     {
       DebugOut << "Handling CVT.D.W\n";
       Value *o0, *o1;
@@ -1145,7 +1145,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }      
       break;
     }
-  case Oi::CVT_S_W:
+  case Mips::CVT_S_W:
     {
       DebugOut << "Handling CVT.S.W\n";
       Value *o0, *o1, *first = 0;
@@ -1161,7 +1161,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }      
       break;
     }
-  case Oi::CVT_D32_S:
+  case Mips::CVT_D32_S:
     {
       DebugOut << "Handling CVT.D.S\n";
       Value *o0, *o1, *first = 0;
@@ -1175,7 +1175,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }      
       break;
     }
-  case Oi::CVT_S_D32:
+  case Mips::CVT_S_D32:
     {
       DebugOut << "Handling CVT.S.D\n";
       Value *o0, *o1, *first = 0, *v;
@@ -1189,7 +1189,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::TRUNC_W_D32:
+  case Mips::TRUNC_W_D32:
     {
       DebugOut << "Handling TRUNC.W.D\n";
       Value *o0, *o1, *first = 0;
@@ -1205,7 +1205,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }      
       break;
     }
-  case Oi::TRUNC_W_S:
+  case Mips::TRUNC_W_S:
     {
       DebugOut << "Handling TRUNC.W.S\n";
       Value *o0, *o1, *first = 0;
@@ -1222,7 +1222,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }      
       break;
     }
-  case Oi::MFC1:
+  case Mips::MFC1:
     {
       DebugOut << "Handling MFC1\n";
       Value *o0, *o1;
@@ -1241,7 +1241,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::MTC1:
+  case Mips::MTC1:
     {
       DebugOut << "Handling MTC1\n";
       Value *o0, *o1, *first = 0;
@@ -1268,14 +1268,14 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::BC1T:
-  case Oi::BC1F:
+  case Mips::BC1T:
+  case Mips::BC1F:
     {
       DebugOut << "Handling BC1F, BC1T\n";
       BasicBlock *True = 0;
       if (HandleBranchTarget(MI->getOperand(0), True)) {
         Value *cmp;
-        if (MI->getOpcode() == Oi::BC1T) {
+        if (MI->getOpcode() == Mips::BC1T) {
           ReadMap[258] = true;
           cmp = Builder.CreateSExtOrTrunc(Builder.CreateLoad(IREmitter.Regs[258]),
                                     Type::getInt1Ty(getGlobalContext()));
@@ -1293,7 +1293,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::J:
+  case Mips::J:
     {
       DebugOut << "Handling J\n";
       Value *o1;
@@ -1305,7 +1305,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::SRA:
+  case Mips::SRA:
     {
       DebugOut << "Handling SRA\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -1320,8 +1320,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::SRL:
-  case Oi::SRLV:
+  case Mips::SRL:
+  case Mips::SRLV:
     {
       DebugOut << "Handling SRL SRLV\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -1330,7 +1330,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
           HandleAluDstOperand(MI->getOperand(0), o0)) {      
         Value *v;
         //XXX: SRLV is decoded with operands inverted!
-        if (MI->getOpcode() == Oi::SRLV)
+        if (MI->getOpcode() == Mips::SRLV)
           v = Builder.CreateLShr(o2, o1);
         else
           v = Builder.CreateLShr(o1, o2);
@@ -1341,8 +1341,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::SLL:
-  case Oi::SLLV:
+  case Mips::SLL:
+  case Mips::SLLV:
     {
       DebugOut << "Handling SLL SLLV";
       Value *o0, *o1, *o2, *first = 0;
@@ -1362,7 +1362,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
           HandleAluDstOperand(MI->getOperand(0), o0)) {      
         Value *v;
         //XXX: SLLV is decoded with operands inverted!
-        if (MI->getOpcode() == Oi::SLLV)
+        if (MI->getOpcode() == Mips::SLLV)
           v = Builder.CreateShl(o2, o1);
         else
           v = Builder.CreateShl(o1, o2);
@@ -1373,8 +1373,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::MOVN_I_I:
-  case Oi::MOVZ_I_I:
+  case Mips::MOVN_I_I:
+  case Mips::MOVZ_I_I:
     {
       DebugOut << "Handling MOVN, MOVZ\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -1383,7 +1383,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
           HandleAluDstOperand(MI->getOperand(0), o0)) {        
         Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
         Value *cmp;
-        if (MI->getOpcode() == Oi::MOVN_I_I) {
+        if (MI->getOpcode() == Mips::MOVN_I_I) {
           cmp = Builder.CreateICmpNE(o2, zero);
         } else {
           cmp = Builder.CreateICmpEQ(o2, zero);
@@ -1397,8 +1397,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::ORi:
-  case Oi::OR:
+  case Mips::ORi:
+  case Mips::OR:
     {
       DebugOut << "Handling ORi, OR\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -1413,7 +1413,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::NOR:
+  case Mips::NOR:
     {
       DebugOut << "Handling NORi, NOR\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -1429,8 +1429,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::ANDi:
-  case Oi::AND:
+  case Mips::ANDi:
+  case Mips::AND:
     {
       DebugOut << "Handling ANDi, AND\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -1445,8 +1445,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::XORi:
-  case Oi::XOR:
+  case Mips::XORi:
+  case Mips::XOR:
     {
       DebugOut << "Handling XORi, XOR\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -1461,10 +1461,10 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::SLTiu:
-  case Oi::SLTu:
-  case Oi::SLTi:
-  case Oi::SLT:
+  case Mips::SLTiu:
+  case Mips::SLTu:
+  case Mips::SLTi:
+  case Mips::SLT:
     {
       DebugOut << "Handling SLT\n";
       Value *o0, *o1, *o2, *first = 0;
@@ -1479,8 +1479,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
                                             + GetInstructionSize());
 
         Value *cmp = 0;
-        if (MI->getOpcode() == Oi::SLTiu ||
-            MI->getOpcode() == Oi::SLTu)
+        if (MI->getOpcode() == Mips::SLTiu ||
+            MI->getOpcode() == Mips::SLTu)
           cmp = Builder.CreateICmpULT(o1, o2);
         else
           cmp = Builder.CreateICmpSLT(o1, o2);
@@ -1504,34 +1504,34 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }      
       break;
     }
-  case Oi::BEQ:
-  case Oi::BNE:
-  case Oi::BLTZ:
-  case Oi::BGTZ:
-  case Oi::BLEZ:
+  case Mips::BEQ:
+  case Mips::BNE:
+  case Mips::BLTZ:
+  case Mips::BGTZ:
+  case Mips::BLEZ:
     {
       DebugOut << "Handling BEQ, BNE, BLTZ\n";
       Value *o1, *o2, *first = 0;
       BasicBlock *True = 0;
       if (HandleAluSrcOperand(MI->getOperand(0), o1, &first)) {
         Value *cmp;
-        if (MI->getOpcode() == Oi::BEQ) {
+        if (MI->getOpcode() == Mips::BEQ) {
           HandleAluSrcOperand(MI->getOperand(1), o2);
           HandleBranchTarget(MI->getOperand(2), True);
           cmp = Builder.CreateICmpEQ(o1, o2);
-        } else if (MI->getOpcode() == Oi::BNE) {
+        } else if (MI->getOpcode() == Mips::BNE) {
           HandleAluSrcOperand(MI->getOperand(1), o2);
           HandleBranchTarget(MI->getOperand(2), True);
           cmp = Builder.CreateICmpNE(o1, o2);
-        } else if (MI->getOpcode() == Oi::BLTZ) {
+        } else if (MI->getOpcode() == Mips::BLTZ) {
           o2 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
           HandleBranchTarget(MI->getOperand(1), True);
           cmp = Builder.CreateICmpSLT(o1, o2);
-        } else if (MI->getOpcode() == Oi::BLEZ) {
+        } else if (MI->getOpcode() == Mips::BLEZ) {
           o2 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
           HandleBranchTarget(MI->getOperand(1), True);
           cmp = Builder.CreateICmpSLE(o1, o2);
-        } else { /*  Oi::BGTZ  */
+        } else { /*  Mips::BGTZ  */
           o2 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
           HandleBranchTarget(MI->getOperand(1), True);
           cmp = Builder.CreateICmpSGT(o1, o2);
@@ -1545,8 +1545,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }
       break;
     }
-  case Oi::LUi:
-  case Oi::LUi64: {
+  case Mips::LUi:
+  case Mips::LUi64: {
     DebugOut << "Handling LUi\n";
     Value *dst, *src, *first = 0;
     if (HandleAluDstOperand(MI->getOperand(0),dst) &&
@@ -1559,8 +1559,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Oi::LW:
-  case Oi::LW64: {
+  case Mips::LW:
+  case Mips::LW64: {
     DebugOut << "Handling LW\n";
     Value *dst, *src, *first = 0;
     if (HandleAluDstOperand(MI->getOperand(0),dst) &&
@@ -1571,39 +1571,39 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Oi::SPILLLW: {
-    DebugOut << "Handling SPILLLW\n";
-    Value *dst, *src, *first = 0;
-    if (HandleAluDstOperand(MI->getOperand(0),dst) &&
-        HandleSpilledOperand(MI->getOperand(1), MI->getOperand(2), src, &first, true)) {
-      Value *v = Builder.CreateStore(src, dst);
-      if (!isa<Instruction>(first))
-        first = v;
-      assert(isa<Instruction>(first) && "Need to rework map logic");
-      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
-    }
-    break;
-  }
-  case Oi::SPILLSW: {
-    DebugOut << "Handling SPILLSW\n";
-    Value *dst, *src, *first = 0;
-    if (HandleAluSrcOperand(MI->getOperand(0),src) &&
-        HandleSpilledOperand(MI->getOperand(1), MI->getOperand(2), dst, &first, false)) {
-      Value *v = Builder.CreateStore(src, dst);
-      first = GetFirstInstruction(src, first);
-      assert(isa<Instruction>(first) && "Need to rework map logic");
-      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
-    }
-    break;
-  }
-  case Oi::LH:
-  case Oi::LHu: {
+//  case Mips::SPILLLW: {
+//    DebugOut << "Handling SPILLLW\n";
+//    Value *dst, *src, *first = 0;
+//    if (HandleAluDstOperand(MI->getOperand(0),dst) &&
+//        HandleSpilledOperand(MI->getOperand(1), MI->getOperand(2), src, &first, true)) {
+//      Value *v = Builder.CreateStore(src, dst);
+//      if (!isa<Instruction>(first))
+//        first = v;
+//      assert(isa<Instruction>(first) && "Need to rework map logic");
+//      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+//    }
+//    break;
+//  }
+//  case Mips::SPILLSW: {
+//    DebugOut << "Handling SPILLSW\n";
+//    Value *dst, *src, *first = 0;
+//    if (HandleAluSrcOperand(MI->getOperand(0),src) &&
+//        HandleSpilledOperand(MI->getOperand(1), MI->getOperand(2), dst, &first, false)) {
+//      Value *v = Builder.CreateStore(src, dst);
+//      first = GetFirstInstruction(src, first);
+//      assert(isa<Instruction>(first) && "Need to rework map logic");
+//      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+//    }
+//    break;
+//  }
+  case Mips::LH:
+  case Mips::LHu: {
     DebugOut << "Handling LH\n";
     Value *dst, *src, *first = 0;
     if (HandleAluDstOperand(MI->getOperand(0),dst) &&
         HandleMemOperand(MI->getOperand(1), MI->getOperand(2), src, &first, true, 16)) {
       Value *ext;
-      if (MI->getOpcode() == Oi::LH) 
+      if (MI->getOpcode() == Mips::LH) 
         ext = Builder.CreateSExt(src, Type::getInt32Ty(getGlobalContext()));
       else
         ext = Builder.CreateZExt(src, Type::getInt32Ty(getGlobalContext()));
@@ -1613,14 +1613,14 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }    
     break;
   }
-  case Oi::LB:
-  case Oi::LBu: {
+  case Mips::LB:
+  case Mips::LBu: {
     DebugOut << "Handling LB\n";
     Value *dst, *src, *first = 0;
     if (HandleAluDstOperand(MI->getOperand(0),dst) &&
         HandleMemOperand(MI->getOperand(1), MI->getOperand(2), src, &first, true, 8)) {
       Value *ext;
-      if (MI->getOpcode() == Oi::LB) 
+      if (MI->getOpcode() == Mips::LB) 
         ext = Builder.CreateSExt(src, Type::getInt32Ty(getGlobalContext()));
       else
         ext = Builder.CreateZExt(src, Type::getInt32Ty(getGlobalContext()));
@@ -1630,8 +1630,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }    
     break;
   }
-  case Oi::SW:
-  case Oi::SW64: {
+  case Mips::SW:
+  case Mips::SW64: {
     DebugOut << "Handling SW\n";
     Value *dst, *src, *first1 = 0, *first2 = 0, *first = 0;
     if (HandleAluSrcOperand(MI->getOperand(0),src, &first1) &&
@@ -1643,7 +1643,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Oi::SB: {
+  case Mips::SB: {
     DebugOut << "Handling SB\n";
     Value *dst, *src, *first1 = 0, *first2 = 0, *first = 0;
     if (HandleAluSrcOperand(MI->getOperand(0),src, &first1) &&
@@ -1656,7 +1656,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Oi::SH: {
+  case Mips::SH: {
     DebugOut << "Handling SH\n";
     Value *dst, *src, *first1 = 0, *first2 = 0, *first = 0;
     if (HandleAluSrcOperand(MI->getOperand(0),src, &first1) &&
@@ -1669,8 +1669,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Oi::JALR64:
-  case Oi::JALR: {
+  case Mips::JALR64:
+  case Mips::JALR: {
     assert(OneRegion && "Can't handle indirect calls without -oneregion yet.");
     Value *src, *first = 0;
     if (HandleAluSrcOperand(MI->getOperand(0), src, &first) &&
@@ -1682,7 +1682,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Oi::JAL: {
+  case Mips::JAL: {
     DebugOut << "Handling JAL\n";
     Value *call, *first = 0;
     if(HandleCallTarget(MI->getOperand(0), call, &first)) {
@@ -1691,16 +1691,16 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Oi::JR64:
-  case Oi::JR: {
+  case Mips::JR64:
+  case Mips::JR: {
     DebugOut << "Handling JR\n";
     Value *first = 0;
     // Do not create a checkpoint at the end of the main function. Since
     // the program is terminating, it is not neccessary.
     if (!NoLocals && !OneRegion && IREmitter.CurFunAddr != 0x34)
       IREmitter.HandleFunctionExitPoint(&first);
-    if (MI->getOperand(0).getReg() == Oi::RA
-        || MI->getOperand(0).getReg() == Oi::RA_64) {
+    if (MI->getOperand(0).getReg() == Mips::RA
+        || MI->getOperand(0).getReg() == Mips::RA_64) {
       Value *v = Builder.CreateRetVoid();
       if (!first)
         first = v;
@@ -1726,7 +1726,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Oi::NOP:
+  case Mips::NOP:
     DebugOut << "Handling NOP\n";
     break;
   default: 
@@ -1756,8 +1756,8 @@ void OiInstTranslate::printInst(const MCInst *MI, raw_ostream &O,
   switch (MI->getOpcode()) {
   default:
     break;
-  case Oi::RDHWR:
-  case Oi::RDHWR64:
+  case Mips::RDHWR:
+  case Mips::RDHWR64:
     O << "\t.set\tpush\n";
     O << "\t.set\toi32r2\n";
   }
@@ -1770,8 +1770,8 @@ void OiInstTranslate::printInst(const MCInst *MI, raw_ostream &O,
   switch (MI->getOpcode()) {
   default:
     break;
-  case Oi::RDHWR:
-  case Oi::RDHWR64:
+  case Mips::RDHWR:
+  case Mips::RDHWR64:
     O << "\n\t.set\tpop";
   }
 }
@@ -1890,5 +1890,5 @@ printMemOperandEA(const MCInst *MI, int opNum, raw_ostream &O) {
 void OiInstTranslate::
 printFCCOperand(const MCInst *MI, int opNum, raw_ostream &O) {
   const MCOperand& MO = MI->getOperand(opNum);
-  O << OiFCCToString((Oi::CondCode)MO.getImm());
+  O << MipsFCCToString((Mips::CondCode)MO.getImm());
 }
