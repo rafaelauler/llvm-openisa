@@ -51,7 +51,7 @@ public:
     DblGlobalRegs(SmallVector<Value*,64>(64)),
     SpilledRegs(),
     FirstFunction(true), CurAddr(0),
-    CurSection(0), BBMap(), InsMap(), ReadMap(), WriteMap(), DblReadMap(),
+    CurSection(nullptr), BBMap(), InsMap(), ReadMap(), WriteMap(), DblReadMap(),
     DblWriteMap(), FunctionCallMap(),
     FunctionRetMap(), IndirectCallMap(), CurFunAddr(0), CurBlockAddr(0),
     StackSize(Stacksz), IndirectDestinations(), IndirectDestinationsAddrs()
@@ -68,10 +68,10 @@ public:
   SpilledRegsTy SpilledRegs;
   bool FirstFunction;
   uint64_t CurAddr;
-  section_iterator* CurSection;
+  const SectionRef *CurSection;
   StringMap<BasicBlock*> BBMap;
   DenseMap<int64_t, Instruction*> InsMap;
-  DenseMap<int32_t, bool> ReadMap, WriteMap, DblReadMap, DblWriteMap;;
+  DenseMap<int32_t, bool> ReadMap, WriteMap, DblReadMap, DblWriteMap;
   FunctionCallMapTy FunctionCallMap; // Used only in one-region mode
   FunctionRetMapTy FunctionRetMap; // Used only in one-region mode
   IndirectCallMapTy IndirectCallMap;
@@ -111,7 +111,7 @@ public:
     CurAddr = val;
     UpdateInsertPoint();
   }
-  void SetCurSection(section_iterator *i) {
+  void SetCurSection(const SectionRef *i) {
     CurSection = i;
   }
 private:

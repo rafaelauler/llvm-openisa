@@ -16,7 +16,7 @@
 
 #define DEBUG_TYPE "staticbt"
 #include "OiInstTranslate.h"
-#include "OiInstrInfo.h"
+#include "../lib/Target/Mips/MipsInstrInfo.h"
 #include "StringRefMemoryObject.h"
 #include "SBTUtils.h"
 #include "llvm/ADT/StringExtras.h"

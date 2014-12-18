@@ -37,7 +37,7 @@ class SyscallsIface {
 
  private:
   OiIREmitter &IREmitter;
-  OwningPtr<Module> &TheModule;
+  std::unique_ptr<Module> &TheModule;
   IRBuilder<> &Builder;
   DenseMap<int32_t, bool> &ReadMap, &WriteMap;
 };

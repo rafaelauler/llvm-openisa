@@ -59,7 +59,7 @@ public:
   void UpdateCurAddr(uint64_t val) {
     IREmitter.UpdateCurAddr(val);
   }
-  void SetCurSection(section_iterator *i) {
+  void SetCurSection(const SectionRef *i) {
     IREmitter.SetCurSection(i);
   }
 

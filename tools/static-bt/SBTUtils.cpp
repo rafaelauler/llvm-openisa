@@ -535,35 +535,32 @@ unsigned ConvToDirectiveDbl(unsigned regnum) {
   return (ConvToDirective(regnum) - 34) >> 1;
 }
 
-uint64_t GetELFOffset(section_iterator &i) {
-  DataRefImpl Sec = i->getRawDataRefImpl();
+uint64_t GetELFOffset(const SectionRef &i) {
+  DataRefImpl Sec = i.getRawDataRefImpl();
   const object::Elf_Shdr_Impl<object::ELFType<support::little, 2, false> > *sec =
     reinterpret_cast<const object::Elf_Shdr_Impl<object::ELFType<support::little, 2, false> > *>(Sec.p);
   return sec->sh_offset;
 }
 
 
-std::vector<std::pair<uint64_t, StringRef> > GetSymbolsList(const ObjectFile *Obj, section_iterator &i) {
-  uint64_t SectionAddr;
-  if (error(i->getAddress(SectionAddr))) llvm_unreachable("");
+std::vector<std::pair<uint64_t, StringRef> > GetSymbolsList(const ObjectFile *Obj, const SectionRef &i) {
+  uint64_t SectionAddr = i.getAddress();
 
-  error_code ec;
+  std::error_code ec;
   // Make a list of all the symbols in this section.
   std::vector<std::pair<uint64_t, StringRef> > Symbols;
-  for (symbol_iterator si = Obj->begin_symbols(),
-         se = Obj->end_symbols();
-       si != se; si.increment(ec)) {
-    bool contains;
-    if (!error(i->containsSymbol(*si, contains)) && contains) {
-      uint64_t Address;
-      if (error(si->getAddress(Address))) break;
-      if (Address == UnknownAddressOrSize) continue;
-      Address -= SectionAddr;
+  for (auto si : Obj->symbols()) {
+    if (!i.containsSymbol(si))
+      continue;
 
-      StringRef Name;
-      if (error(si->getName(Name))) break;
-      Symbols.push_back(std::make_pair(Address, Name));
-    }
+    uint64_t Address;
+    if (error(si.getAddress(Address))) break;
+    if (Address == UnknownAddressOrSize) continue;
+    Address -= SectionAddr;
+
+    StringRef Name;
+    if (error(si.getName(Name))) break;
+    Symbols.push_back(std::make_pair(Address, Name));    
   }
 
   // Sort the symbols by address, just in case they didn't come in that way.

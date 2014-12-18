@@ -20,7 +20,7 @@ using namespace object;
 
 class RelocationReader {
  public:
- RelocationReader(const ObjectFile *obj, section_iterator *&secptr,
+ RelocationReader(const ObjectFile *obj, const SectionRef *&secptr,
                   uint64_t &addrptr): Obj(obj), CurSection(secptr),
     CurAddr(addrptr){
   }
@@ -29,7 +29,7 @@ class RelocationReader {
   
  private:
   const ObjectFile *Obj;
-  section_iterator* &CurSection;
+  const SectionRef* &CurSection;
   uint64_t &CurAddr;
 };
 
