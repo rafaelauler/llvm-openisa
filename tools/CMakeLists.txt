@@ -29,6 +29,8 @@ add_llvm_tool_subdirectory(llvm-profdata)
 add_llvm_tool_subdirectory(llvm-link)
 add_llvm_tool_subdirectory(lli)
 
+add_llvm_tool_subdirectory(static-bt)
+
 add_llvm_tool_subdirectory(llvm-extract)
 add_llvm_tool_subdirectory(llvm-diff)
 add_llvm_tool_subdirectory(macho-dump)
