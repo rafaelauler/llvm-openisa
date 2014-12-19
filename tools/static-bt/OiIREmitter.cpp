@@ -40,18 +40,16 @@ NoShadow("noshadow", cl::desc("Avoid adding shadowimage offset to every memory a
 }
 
 bool OiIREmitter::FindTextOffset(uint64_t &SectionAddr) {
-  error_code ec;
+  std::error_code ec;
   // Find through all sections relocations against the .text section
-  for (section_iterator i = Obj->begin_sections(),
-         e = Obj->end_sections();
-       i != e; i.increment(ec)) {
+  for (auto &i : Obj->sections()) {
     if (error(ec)) return false;
     StringRef Name;
-    if (error(i->getName(Name))) return false;
+    if (error(i.getName(Name))) return false;
     if (Name != ".text")
       continue;
 
-    if (error(i->getAddress(SectionAddr))) return false;
+    SectionAddr = i.getAddress();
     
     //Relocatable file
     if (SectionAddr == 0)
@@ -64,38 +62,30 @@ bool OiIREmitter::FindTextOffset(uint64_t &SectionAddr) {
 
 bool OiIREmitter::ProcessIndirectJumps() {
   uint64_t FinalAddr = 0xFFFFFFFFUL;
-  error_code ec;
+  std::error_code ec;
   std::vector<Constant*> IndirectJumpTable;
   uint64_t TextOffset;
   if (!FindTextOffset(TextOffset)) return false;
 
   // Find through all sections relocations against the .text section
-  for (section_iterator i = Obj->begin_sections(),
-         e = Obj->end_sections();
-       i != e; i.increment(ec)) {
+  for (auto &i : Obj->sections()) {
     if (error(ec)) break;
-    uint64_t SectionAddr;
-    if (error(i->getAddress(SectionAddr))) break;
+    uint64_t SectionAddr = i.getAddress();
 
     // Relocatable file
     if (SectionAddr == 0) {
       SectionAddr = GetELFOffset(i);
     }
 
-    for (relocation_iterator ri = i->begin_relocations(),
-           re = i->end_relocations();
-         ri != re; ri.increment(ec)) {
+    for (auto &ri : i.relocations()) {
       if (error(ec)) break;
       uint64_t Type;
-      if (error(ri->getType(Type)))
+      if (error(ri.getType(Type)))
         llvm_unreachable("Error getting relocation type");
       if (Type != ELF::R_MIPS_32)
         continue;
-      SymbolRef symb;
+      const SymbolRef symb = *(ri.getSymbol());
       StringRef Name;
-      if (error(ri->getSymbol(symb))) {
-        continue;
-      }
       if (error(symb.getName(Name))) {
         continue;
       }
@@ -103,7 +93,7 @@ bool OiIREmitter::ProcessIndirectJumps() {
         continue;
 
       uint64_t offset;
-      if (error(ri->getOffset(offset))) break;
+      if (error(ri.getOffset(offset))) break;
       offset += SectionAddr;
       outs() << "REL at " << (offset) << " Found ";
       outs() << "Contents:" << (*(int*)(&ShadowImage[offset]));
@@ -142,18 +132,14 @@ bool OiIREmitter::ProcessIndirectJumps() {
 void OiIREmitter::BuildShadowImage() {
   ShadowSize = 0;
 
-  error_code ec;
-  for (section_iterator i = Obj->begin_sections(),
-                        e = Obj->end_sections();
-                        i != e; i.increment(ec)) {
+  std::error_code ec;
+  for (auto &i : Obj->sections()) {
     if (error(ec)) break;
 
-    uint64_t SectionAddr;
-    if (error(i->getAddress(SectionAddr))) break;
+    uint64_t SectionAddr = i.getAddress();
     if (SectionAddr == 0) 
       SectionAddr = GetELFOffset(i);
-    uint64_t SectSize;
-    if (error(i->getSize(SectSize))) break;
+    uint64_t SectSize = i.getSize();
     if (SectSize + SectionAddr > ShadowSize)
       ShadowSize = SectSize + SectionAddr;
   }
@@ -161,27 +147,23 @@ void OiIREmitter::BuildShadowImage() {
   //Allocate some space for the stack
   //ShadowSize += 10 << 20;
   ShadowSize += StackSize;
-  ShadowImage.reset(new uint8_t[ShadowSize]);
+  ShadowImage.clear();
+  ShadowImage.resize(ShadowSize);
  
-  for (section_iterator i = Obj->begin_sections(),
-                        e = Obj->end_sections();
-                        i != e; i.increment(ec)) {
-    uint64_t SectionAddr;
-    if (error(i->getAddress(SectionAddr))) break;
-    uint64_t SectSize;
-    if (error(i->getSize(SectSize))) break;
+  for (auto &i : Obj->sections()) {
+    uint64_t SectionAddr = i.getAddress();
+    uint64_t SectSize = i.getSize();
     StringRef SecName;
-    if (error(i->getName(SecName))) break;    
+    if (error(i.getName(SecName))) break;    
 
     uint64_t Offset = 0;
     if (SectionAddr == 0) 
       Offset = GetELFOffset(i);
     
     StringRef Bytes;
-    if (error(i->getContents(Bytes))) break;
+    if (error(i.getContents(Bytes))) break;
     StringRefMemoryObject memoryObject(Bytes);
-    memoryObject.readBytes(SectionAddr, SectSize, 
-                           &ShadowImage[0] + SectionAddr + Offset, 0); 
+    memoryObject.readBytes(SectSize, SectionAddr, &ShadowImage[0] + SectionAddr + Offset);
   }
 
   ConstantDataArray *c = 
@@ -205,9 +187,7 @@ void OiIREmitter::BuildRegisterFile() {
   // HI 257
   // FPCondCode 258
   for (int I = 1; I < 259; ++I) {
-    Twine T("reg");
-    T = T.concat(Twine(I));
-    std::string RegName = T.str();
+    std::string RegName = Twine("reg").concat(Twine(I)).str();
     Constant *ci;
     Type *myty;
     if (I < 128 || I > 255) {
@@ -249,9 +229,7 @@ void OiIREmitter::BuildLocalRegisterFile() {
     }    
   } else {
     for (int I = 1; I < 259; ++I) {
-      Twine T("lreg");
-      T = T.concat(Twine(I));
-      std::string RegName = T.str();
+      std::string RegName = Twine("lreg").concat(Twine(I)).str();
       Type *myty;
       if (I < 128 || I > 255) {
         myty = ty;
@@ -274,7 +252,7 @@ void OiIREmitter::BuildLocalRegisterFile() {
   }
 }
 
-void OiIREmitter::StartFunction(Twine &N) {
+void OiIREmitter::StartFunction(StringRef N) {
   Function *F = 0;
   if (FirstFunction) {
     SmallVector<Type*, 8> args(2, Type::getInt32Ty(getGlobalContext()));
@@ -299,8 +277,7 @@ void OiIREmitter::StartFunction(Twine &N) {
       // Create a function with no parameters
       FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()),
                                            false);
-      F = reinterpret_cast<Function *>(TheModule->getOrInsertFunction(N.str(),
-                                                                      FT));
+      F = reinterpret_cast<Function *>(TheModule->getOrInsertFunction(N, FT));
       BasicBlock *BB = CreateBB(CurAddr+GetInstructionSize(), F);
       CurBlockAddr = CurAddr+GetInstructionSize();
       Builder.SetInsertPoint(BB);
@@ -319,21 +296,21 @@ void OiIREmitter::InsertStartupCode(Function *F) {
     Value *shadow = Builder.CreatePtrToInt(ShadowImageValue,
                                            Type::getInt32Ty(getGlobalContext()));
     Value *fixedSize = Builder.CreateAdd(size, shadow);
-    Builder.CreateStore(fixedSize, Regs[ConvToDirective(Oi::SP)]);
+    Builder.CreateStore(fixedSize, Regs[ConvToDirective(Mips::SP)]);
   } else {
-    Builder.CreateStore(size, Regs[ConvToDirective(Oi::SP)]);
+    Builder.CreateStore(size, Regs[ConvToDirective(Mips::SP)]);
   }
   Function::arg_iterator args = F->arg_begin();
   Value *argc = args++;
   Value *argv = args++;
-  Builder.CreateStore(argc, Regs[ConvToDirective(Oi::A0)]);
+  Builder.CreateStore(argc, Regs[ConvToDirective(Mips::A0)]);
   if (NoShadow) {
-    Builder.CreateStore(argv, Regs[ConvToDirective(Oi::A1)]);    
+    Builder.CreateStore(argv, Regs[ConvToDirective(Mips::A1)]);    
   } else {
     Value *ptr = Builder.CreatePtrToInt(ShadowImageValue,
                                         Type::getInt32Ty(getGlobalContext()));
     Value *fixed = Builder.CreateSub(argv, ptr);
-    Builder.CreateStore(fixed, Regs[ConvToDirective(Oi::A1)]);
+    Builder.CreateStore(fixed, Regs[ConvToDirective(Mips::A1)]);
     Value *iv = Builder.CreateAlloca(Type::getInt32Ty(getGlobalContext()));
     Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
     Value *two = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 2U);
@@ -359,16 +336,14 @@ void OiIREmitter::InsertStartupCode(Function *F) {
     BBMap["bb34"] = bb2;
   }
  
-  WriteMap[ConvToDirective(Oi::A0)] = true;
-  WriteMap[ConvToDirective(Oi::A1)] = true;
+  WriteMap[ConvToDirective(Mips::A0)] = true;
+  WriteMap[ConvToDirective(Mips::A1)] = true;
 }
 
 BasicBlock* OiIREmitter::CreateBB(uint64_t Addr, Function *F) {
   if (Addr == 0)
     Addr = CurAddr;
-  Twine T("bb");
-  T = T.concat(Twine::utohexstr(Addr));
-  std::string Idx = T.str();
+  std::string Idx = Twine("bb").concat(Twine::utohexstr(Addr)).str();
 
   if (BBMap[Idx] == 0) {
     if (F == 0) {
@@ -380,9 +355,7 @@ BasicBlock* OiIREmitter::CreateBB(uint64_t Addr, Function *F) {
 }
 
 void OiIREmitter::UpdateInsertPoint() {
-  Twine T("bb");
-  T = T.concat(Twine::utohexstr(CurAddr));
-  std::string Idx = T.str();
+  std::string Idx = Twine("bb").concat(Twine::utohexstr(CurAddr)).str();
 
   if (BBMap[Idx] != 0) {
     if (Builder.GetInsertBlock() != BBMap[Idx]) {
@@ -464,7 +437,7 @@ void OiIREmitter::CleanRegs() {
       Instruction *inst = dyn_cast<Instruction>(Regs[I]);
       if (inst) {
         while (!inst->use_empty()) {
-          Instruction* UI = inst->use_back();
+          Instruction* UI = inst->user_back();
           // These are assigning a value to the local copy of the reg, bu since
           // we don't use it, we can delete the assignment.
           if (isa<StoreInst>(UI)) {
@@ -477,7 +450,7 @@ void OiIREmitter::CleanRegs() {
           // Since we do not really use it, we should delete the load and the
           // store insruction that is using it.
           assert (UI->hasOneUse());
-          Instruction* StUI = dyn_cast<Instruction>(UI->use_back());
+          Instruction* StUI = dyn_cast<Instruction>(UI->user_back());
           assert (isa<StoreInst>(StUI));
           StUI->eraseFromParent();
           UI->eraseFromParent();
@@ -491,7 +464,7 @@ void OiIREmitter::CleanRegs() {
       Instruction *inst = dyn_cast<Instruction>(DblRegs[I]);
       if (inst) {
         while (!inst->use_empty()) {
-          Instruction* UI = inst->use_back();
+          Instruction* UI = inst->user_back();
           // These are assigning a value to the local copy of the reg, bu since
           // we don't use it, we can delete the assignment.
           if (isa<StoreInst>(UI)) {
@@ -504,7 +477,7 @@ void OiIREmitter::CleanRegs() {
           // Since we do not really use it, we should delete the load and the
           // store insruction that is using it.
           assert (UI->hasOneUse());
-          Instruction* StUI = dyn_cast<Instruction>(UI->use_back());
+          Instruction* StUI = dyn_cast<Instruction>(UI->user_back());
           assert (isa<StoreInst>(StUI));
           StUI->eraseFromParent();
           UI->eraseFromParent();
@@ -516,13 +489,11 @@ void OiIREmitter::CleanRegs() {
 }
 
 bool OiIREmitter::BuildReturnTablesOneRegion() {
-  for (std::vector<uint32_t>::iterator I = IndirectDestinationsAddrs.begin(),
-         E = IndirectDestinationsAddrs.end(); I != E; ++I) {
-    uint32_t targetaddr = *I;
-    for (IndirectCallMapTy::iterator J = IndirectCallMap.begin(),
-           E2 = IndirectCallMap.end(); J != E2; ++J) {
-      uint32_t retaddr = *J;
-      FunctionCallMap[targetaddr].push_back(retaddr);
+  for (const auto &I : IndirectDestinationsAddrs) {
+    // targetaddr = I
+    for (const auto &J : IndirectCallMap) {
+      // retaddr = J
+      FunctionCallMap[I].push_back(J);
     }
   }
   for (FunctionRetMapTy::iterator I = FunctionRetMap.begin(), 
@@ -539,8 +510,8 @@ bool OiIREmitter::BuildReturnTablesOneRegion() {
     if (CallSites.empty())
       continue;
 
-    Value *ra = Builder.CreateLoad(Regs[ConvToDirective(Oi::RA)], "RetTableInput");
-    ReadMap[ConvToDirective(Oi::RA)] = true;
+    Value *ra = Builder.CreateLoad(Regs[ConvToDirective(Mips::RA)], "RetTableInput");
+    ReadMap[ConvToDirective(Mips::RA)] = true;
     Instruction *dummy = Builder.CreateUnreachable();
     Builder.SetInsertPoint(tgtins->getParent(), dummy);
 
@@ -552,9 +523,7 @@ bool OiIREmitter::BuildReturnTablesOneRegion() {
       Value *site = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), *J);
       Value *cmp = Builder.CreateICmpEQ(site, ra);
 
-      Twine T2("bb");
-      T2 = T2.concat(Twine::utohexstr(*J));
-      std::string Idx = T2.str();
+      std::string Idx = Twine("bb").concat(Twine::utohexstr(*J)).str();
       //  printf("\n%08X\n\n%s\n", *J,  Idx.c_str());
       assert (BBMap[Idx] != 0 && "Invalid return target address");
       Value *TrueV = BBMap[Idx];
@@ -569,6 +538,7 @@ bool OiIREmitter::BuildReturnTablesOneRegion() {
     Builder.CreateUnreachable();
     dummy->eraseFromParent();
   }
+  return true;
 }
 
 std::vector<uint32_t> OiIREmitter::GetCallSitesFor(uint32_t FuncAddr) {
@@ -576,9 +546,7 @@ std::vector<uint32_t> OiIREmitter::GetCallSitesFor(uint32_t FuncAddr) {
 }
 
 bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
-  Twine T("bb");
-  T = T.concat(Twine::utohexstr(Addr));
-  std::string Idx = T.str();
+  std::string Idx = Twine("bb").concat(Twine::utohexstr(Addr)).str();
 
   if (BBMap[Idx] != 0) {
     Target = BBMap[Idx];
@@ -595,9 +563,7 @@ bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
   assert(TgtIns->getParent()->getParent() 
          == Builder.GetInsertBlock()->getParent() && "Backedge out of range");
 
-  Twine T2("bb");
-  T2 = T2.concat(Twine::utohexstr(Addr));
-  Idx = T2.str();
+  Idx = Twine("bb").concat(Twine::utohexstr(Addr)).str();
   if (BBMap[Idx] != 0) {
     Target = BBMap[Idx];
     return true;
@@ -635,8 +601,8 @@ bool OiIREmitter::HandleIndirectCallOneRegion(Value *src, Value **First) {
   Builder.CreateStore
     (ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
                       CurAddr+GetInstructionSize()),
-     Regs[ConvToDirective(Oi::RA)]);
-  WriteMap[ConvToDirective(Oi::RA)] = true;
+     Regs[ConvToDirective(Mips::RA)]);
+  WriteMap[ConvToDirective(Mips::RA)] = true;
   IndirectBrInst *v = Builder.CreateIndirectBr(Target,
                                                IndirectDestinations.size());
   for(int I = 0, E = IndirectDestinations.size(); I != E; ++I) {
@@ -645,6 +611,7 @@ bool OiIREmitter::HandleIndirectCallOneRegion(Value *src, Value **First) {
   if (First)
     *First = GetFirstInstruction(*First, src, f);
   CreateBB(CurAddr+GetInstructionSize());
+  return true;
 }
 
 bool OiIREmitter::HandleLocalCallOneRegion(uint64_t Addr, Value *&V,
@@ -658,8 +625,8 @@ bool OiIREmitter::HandleLocalCallOneRegion(uint64_t Addr, Value *&V,
   Value *first = Builder.CreateStore
     (ConstantInt::get(Type::getInt32Ty(getGlobalContext()), CurAddr+
                       GetInstructionSize()),
-                               Regs[ConvToDirective(Oi::RA)]);
-  WriteMap[ConvToDirective(Oi::RA)] = true;
+                               Regs[ConvToDirective(Mips::RA)]);
+  WriteMap[ConvToDirective(Mips::RA)] = true;
   V = Builder.CreateBr(Target);
   //  printf("\nHandleLocalCallOneregion.CurAddr: %08LX\n", CurAddr+GetInstructionSize());
   CreateBB(CurAddr+GetInstructionSize());
@@ -671,9 +638,8 @@ bool OiIREmitter::HandleLocalCallOneRegion(uint64_t Addr, Value *&V,
 bool OiIREmitter::HandleLocalCall(uint64_t Addr, Value *&V, Value **First) {
   if (OneRegion)
     return HandleLocalCallOneRegion(Addr, V, First);
-  Twine T("a");
-  T = T.concat(Twine::utohexstr(Addr));
-  std::string Name = T.str();
+  
+  std::string Name = Twine("a").concat(Twine::utohexstr(Addr)).str();
   StringRef NameRef(Name);
   HandleFunctionExitPoint(First);
   FunctionType *ft = FunctionType::get(Type::getVoidTy(getGlobalContext()),

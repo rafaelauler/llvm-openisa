@@ -53,7 +53,7 @@ public:
 
   bool printAliasInstr(const MCInst *MI, raw_ostream &OS);
   Module* takeModule();
-  void StartFunction(Twine &N);
+  void StartFunction(StringRef N);
   void FinishFunction();
   void FinishModule();
   void UpdateCurAddr(uint64_t val) {

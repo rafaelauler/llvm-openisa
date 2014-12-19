@@ -13,13 +13,13 @@
 #include "llvm/ADT/IndexedMap.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
+#include <set>
 #include <vector>
 
 namespace llvm {
@@ -41,7 +41,7 @@ public:
   typedef DenseMap<uint32_t, Value*> SpilledRegsTy;
   typedef DenseMap<uint32_t, std::vector<uint32_t> > FunctionCallMapTy;
   typedef DenseMap<uint32_t, uint32_t> FunctionRetMapTy;
-  typedef SmallPtrSet<uint32_t, 64> IndirectCallMapTy;
+  typedef std::set<uint32_t> IndirectCallMapTy;
 
   OiIREmitter(const ObjectFile *obj, uint64_t Stacksz): 
     Obj(obj), TheModule(new Module("outputtest", getGlobalContext())),
@@ -103,7 +103,7 @@ public:
   BasicBlock* CreateBB(uint64_t Addr = 0, Function *F = 0);
   void UpdateInsertPoint();
   void CleanRegs();
-  void StartFunction(Twine &N);
+  void StartFunction(StringRef N);
   void HandleFunctionEntryPoint(Value **First = 0);
   void HandleFunctionExitPoint(Value **First = 0);
   void FixBBTerminators();

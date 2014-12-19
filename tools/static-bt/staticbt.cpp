@@ -380,9 +380,8 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
       /* Relocatable object */
       if (SectionAddr == 0) 
         eoffset = GetELFOffset(i);
-      Twine n = Twine("a").concat(Twine::utohexstr(Start + eoffset));
 
-      IP->StartFunction(n);
+      IP->StartFunction(Twine("a").concat(Twine::utohexstr(Start + eoffset)).str());
       for (Index = Start; Index < End; Index += Size) {
         MCInst Inst;
         

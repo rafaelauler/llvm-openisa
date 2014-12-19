@@ -31,7 +31,7 @@ using namespace llvm;
 static cl::opt<bool>
 DebugIR("debug-ir", cl::desc("Print the generated IR for each function, prior to optimizations"));
 
-void OiInstTranslate::StartFunction(Twine &N) {
+void OiInstTranslate::StartFunction(StringRef N) {
   IREmitter.StartFunction(N);
 }
 
