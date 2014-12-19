@@ -30,6 +30,7 @@ add_llvm_tool_subdirectory(llvm-link)
 add_llvm_tool_subdirectory(lli)
 
 add_llvm_tool_subdirectory(static-bt)
+add_llvm_tool_subdirectory(interpreter)
 
 add_llvm_tool_subdirectory(llvm-extract)
 add_llvm_tool_subdirectory(llvm-diff)
