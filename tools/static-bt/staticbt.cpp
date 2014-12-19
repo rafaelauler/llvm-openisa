@@ -79,7 +79,7 @@ using namespace llvm;
 using namespace object;
 
 namespace llvm {
-  extern Target TheOiTarget, TheOielTarget;
+  extern Target TheMipsTarget, TheMipselTarget;
 }
 
 static cl::list<std::string>
@@ -123,7 +123,7 @@ static const Target *getTarget(const ObjectFile *Obj = NULL) {
     TheTriple.setTriple(Triple::normalize(TripleName));
 
   // Get the target specific parser.
-  const Target *TheTarget = &TheOielTarget; 
+  const Target *TheTarget = &TheMipselTarget; 
   if (!TheTarget) {
     errs() << "Could not load OpenISA target.";
     return 0;
