@@ -6,7 +6,7 @@
 using namespace llvm;
 
 bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type) {
-  relocation_iterator Rel = (*CurSection)->relocation_end();
+  relocation_iterator Rel = (*CurSection).relocation_end();
   std::error_code ec;
   StringRef Name;
   if (!CheckRelocation(Rel, Name))
@@ -14,11 +14,11 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type) {
   for (auto i : Obj->sections() ) {
     if (error(ec)) break;
     StringRef SecName;
-    if (error(i->getName(SecName))) break;
+    if (error(i.getName(SecName))) break;
     if (SecName != Name)
       continue;
     
-    uint64_t SectionAddr = i->getAddress();
+    uint64_t SectionAddr = i.getAddress();
 
     // Relocatable file
     if (SectionAddr == 0) {
@@ -33,31 +33,27 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type) {
     return true;
   }
 
-  for (symbol_iterator si = Obj->begin_symbols(),
-         se = Obj->end_symbols();
-       si != se; si.increment(ec)) {
+  for (const auto &si : Obj->symbols()) {
     StringRef SName;
-    if (error(si->getName(SName))) break;
+    if (error(si.getName(SName))) break;
     if (Name != SName)
       continue;
 
     uint64_t Address;
-    if (error(si->getAddress(Address))) break;
+    if (error(si.getAddress(Address))) break;
     if (Address == UnknownAddressOrSize) continue;
     //        Address -= SectionAddr;
     Res = Address;
 
-    section_iterator seci = Obj->end_sections();
+    section_iterator seci = Obj->section_end();
     // Check if it is relative to a section
-    if ((!error(si->getSection(seci)))
-        && seci != Obj->end_sections()) {
-      uint64_t SectionAddr;
-      if (error(seci->getAddress(SectionAddr))) 
-        llvm_unreachable("Error getting section address");
+    if ((!error(si.getSection(seci)))
+        && seci != Obj->section_end()) {
+      uint64_t SectionAddr = seci->getAddress();
 
       // Relocatable file
       if (SectionAddr == 0) {
-        SectionAddr = GetELFOffset(seci);
+        SectionAddr = GetELFOffset(*seci);
       }
       Res += SectionAddr;
     }
@@ -75,15 +71,15 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type) {
 bool RelocationReader::CheckRelocation(relocation_iterator &Rel, StringRef &Name) {
   std::error_code ec;
   uint64_t offset = GetELFOffset(*CurSection);
-  for (auto ri : (*CurSection)->relocations()) {
+  for (auto ri : (*CurSection).relocations()) {
     if (error(ec)) break;
     uint64_t addr;
-    if (error(ri->getOffset(addr))) break;
+    if (error(ri.getOffset(addr))) break;
     if (offset + addr != CurAddr)
       continue;
 
     Rel = ri;
-    SymbolRef symb = ri->getSymbol(symb);
+    SymbolRef symb = *(ri.getSymbol());
     if (!error(symb.getName(Name))) {
       return true;
     }
