@@ -8,7 +8,6 @@
 #include "OiMemoryModel.h"
 #include "StringRefMemoryObject.h"
 #include "InterpUtils.h"
-#include "OiCombinePass.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/DataTypes.h"
