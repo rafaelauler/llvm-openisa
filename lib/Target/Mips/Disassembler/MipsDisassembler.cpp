@@ -787,14 +787,12 @@ static DecodeStatus readInstruction16(ArrayRef<uint8_t> Bytes, uint64_t Address,
 
 /// Read four bytes from the MemoryObject and return 64 bit word sorted
 /// according to the given endianess
-static DecodeStatus readInstruction64(const MemoryObject &Region,
+static DecodeStatus readInstruction64(ArrayRef<uint8_t> Bytes,
                                       uint64_t Address, uint64_t &Size,
                                       uint64_t &Insn, bool IsBigEndian,
                                       bool IsMicroMips) {
-  uint8_t Bytes[8];
-
   // We want to read exactly 8 Bytes of data.
-  if (Region.readBytes(Address, 8, Bytes) == -1) {
+  if (Bytes.size() < 8) {
     Size = 0;
     return MCDisassembler::Fail;
   }
@@ -871,7 +869,7 @@ DecodeStatus MipsDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
     return MCDisassembler::Fail;
   }
 
-  Result = readInstruction32(Bytes, Address, Size, Insn, IsBigEndian, false);
+  Result = readInstruction64(Bytes, Address, Size, Insn, IsBigEndian, false);
   if (Result == MCDisassembler::Fail)
     return MCDisassembler::Fail;
 

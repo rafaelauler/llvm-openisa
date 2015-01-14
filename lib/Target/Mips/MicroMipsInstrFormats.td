@@ -812,7 +812,7 @@ class COP0_TLB_FM_MM<bits<10> op> : MMArch {
 class SDBBP_FM_MM : MMArch {
   bits<10> code_;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x0;
   let Inst{25-16} = code_;
@@ -824,7 +824,7 @@ class RDHWR_FM_MM : MMArch {
   bits<5> rt;
   bits<5> rd;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x0;
   let Inst{25-21} = rt;
@@ -838,7 +838,7 @@ class LWXS_FM_MM<bits<10> funct> {
   bits<5> base;
   bits<5> index;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x0;
   let Inst{25-21} = index;
@@ -852,7 +852,7 @@ class LWM_FM_MM<bits<4> funct> : MMArch {
   bits<5> rt;
   bits<21> addr;
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x8;
   let Inst{25-21} = rt;
@@ -879,7 +879,7 @@ class CACHE_PREF_FM_MM<bits<6> op, bits<4> funct> : MMArch {
   bits<5> base = addr{20-16};
   bits<12> offset = addr{11-0};
 
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = op;
   let Inst{25-21} = hint;
@@ -889,7 +889,7 @@ class CACHE_PREF_FM_MM<bits<6> op, bits<4> funct> : MMArch {
 }
 
 class BARRIER_FM_MM<bits<5> op> : MMArch {
-  bits<32> Inst;
+  bits<64> Inst;
 
   let Inst{31-26} = 0x0;
   let Inst{25-21} = 0x0;

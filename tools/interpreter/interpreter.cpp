@@ -218,7 +218,7 @@ static void ExecutionLoop(StringRef file, int argc, char **argv) {
       break;
   }
   argc -= i;
-  IP->ConfigureUserLevelStack(argc, &argv[i]);
+  IP->ConfigureUserLevelStack(argc, (uint8_t **) &argv[i]);
   std::error_code ec;
   uint64_t Size;
   uint64_t numEmulated = 0;
@@ -321,13 +321,13 @@ static void ExecutionLoop(StringRef file, int argc, char **argv) {
                << "\e[1;32m]\e[0m";
     }
 #endif
-    if (DisAsm->getInstruction(Inst, Size, *mem, CurPC,
+    if (DisAsm->getInstruction(Inst, Size, ArrayRef<uint8_t>(mem->memory, mem->TOTALSIZE), CurPC,
                                DebugOut, nulls())) {
       CurPC = IP->executeInstruction(&Inst, CurPC);
       ++numEmulated;
     } else {
       errs() << ToolName << ": warning: invalid instruction encoding\n";
-      DumpBytes(StringRef(mem->memory + CurPC, Size));
+      DumpBytes(StringRef(((char *)mem->memory) + CurPC, Size));
       exit(1);
       if (Size == 0)
         Size = 1; // skip illegible bytes
@@ -345,7 +345,11 @@ int main(int argc, char **argv) {
   // Initialize targets and assembly printers/parsers.
   //
   // No need to initialize the OpenISA target. It is initialized by a global
-  // constructor.
+  // constructor.  --- apparently not
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmParsers();
+  llvm::InitializeAllDisassemblers();
 
   // Register the target printer for --version.
   cl::AddExtraVersionPrinter(TargetRegistry::printRegisteredTargetsForVersion);

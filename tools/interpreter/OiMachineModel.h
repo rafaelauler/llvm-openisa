@@ -50,7 +50,7 @@ public:
     }    
   }
 
-  void ConfigureUserLevelStack(int argc, char **argv);
+  void ConfigureUserLevelStack(int argc, uint8_t **argv);
   uint64_t executeInstruction(const MCInst *MI, uint64_t CurPC);
   void StartFunction(StringRef &N);
   void FinishFunction();

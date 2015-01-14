@@ -44,13 +44,13 @@ void OiMachineModel::FinishFunction() {
 void OiMachineModel::FinishModule() {
 }
 
-void OiMachineModel::ConfigureUserLevelStack(int argc, char **argv) {
+void OiMachineModel::ConfigureUserLevelStack(int argc, uint8_t **argv) {
   unsigned stackpos = Mem->TOTALSIZE - 1;
-  char *dstptr = &Mem->memory[stackpos];
+  uint8_t *dstptr = &Mem->memory[stackpos];
   std::vector<unsigned> StrPtrs;
 
   for (int i = 0; i < argc; ++i) {
-    char *srcptr;
+    uint8_t *srcptr;
     unsigned sz = 0;
     while (*(srcptr = &argv[i][sz++]));
     while (sz--) {
@@ -833,7 +833,7 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
     if (Verbosity >= 3) {
       DebugOut << "\t\e[0;36mBank[\e[1;36m" << o0 << "\e[0;36m]\e[0m <= "
                << "\e[0;31mMemory[\e[1;31m" 
-               << format("%04" PRIx32,((char*)o1 - Mem->memory)) 
+               << format("%04" PRIx32, ((uint8_t*)o1 - Mem->memory))
                << "\e[0;31m]\e[0m\n\t\t <= "
                << "\e[1;35m" << *o1 << " \e[0;36m(0x" 
                << format("%04" PRIx32,(*o1)) << "\e[0;36m)\e[0m\n";
@@ -965,7 +965,7 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
 #ifndef NDEBUG
     if (Verbosity >= 3) {
       DebugOut << "\t\e[0;31mMemory[\e[1;31m" 
-               << format("%04" PRIx32,((char*)o1 - Mem->memory)) << "\e[0;31m]\e[0m <= "
+               << format("%04" PRIx32, ((uint8_t *)o1 - Mem->memory)) << "\e[0;31m]\e[0m <= "
                << "\e[1;35m" << o0 << " \e[0;36m(0x" 
                << format("%04" PRIx32,(o0)) << "\e[0;36m)\e[0m\n";
     }
@@ -981,7 +981,7 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
       (HandleMemOperand(MI->getOperand(1), MI->getOperand(2)));
     if (Verbosity >= 3) {
       DebugOut << "\t\e[0;31mMemory[\e[1;31m" 
-               << format("%04" PRIx32,((char*)o1 - Mem->memory)) << "\e[0;31m]\e[0m <= "
+               << format("%04" PRIx32, ((uint8_t *)o1 - Mem->memory)) << "\e[0;31m]\e[0m <= "
                << "\e[1;35m" << (uint32_t)(o0) << " \e[0;36m(0x" 
                << format("%02" PRIx8,(o0)) << "\e[0;36m)\e[0m\n";
     }

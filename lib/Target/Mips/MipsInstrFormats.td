@@ -513,13 +513,13 @@ class SYNC_FM {
 
 class SYNCI_FM : StdArch {
   // Produced by the mem_simm16 address as reg << 16 | imm (see getMemEncoding).
-  bits<21> addr;
-  bits<5> rs = addr{20-16};
+  bits<23> addr;
+  bits<7> rs = addr{22-16};
   bits<16> offset = addr{15-0};
 
-  bits<32> Inst;
+  bits<64> Inst;
 
-  let Inst{63-51} = 0b000001;
+  let Inst{63-58} = 0b000001;
   let Inst{33-27} = rs;
   let Inst{20-16} = 0b11111;
   let Inst{15-0}  = offset;
