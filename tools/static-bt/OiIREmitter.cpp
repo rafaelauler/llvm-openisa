@@ -163,7 +163,7 @@ void OiIREmitter::BuildShadowImage() {
     StringRef Bytes;
     if (error(i.getContents(Bytes))) break;
     StringRefMemoryObject memoryObject(Bytes);
-    memoryObject.readBytes(SectSize, SectionAddr, &ShadowImage[0] + SectionAddr + Offset);
+    memoryObject.readBytes(&ShadowImage[0] + SectionAddr + Offset, SectSize, SectionAddr);
   }
 
   ConstantDataArray *c = 

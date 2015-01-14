@@ -345,7 +345,6 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
 
     StringRef Bytes;
     if (error(i.getContents(Bytes))) break;
-    StringRefMemoryObject memoryObject(Bytes);
     uint64_t Size;
     uint64_t Index;
     uint64_t SectSize = i.getSize();
@@ -386,7 +385,7 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
         MCInst Inst;
         
         IP->UpdateCurAddr(Index + eoffset);
-        if (DisAsm->getInstruction(Inst, Size, memoryObject, Index,
+        if (DisAsm->getInstruction(Inst, Size, ArrayRef<uint8_t>(Bytes.bytes_begin(), Bytes.size()), Index,
                                    DebugOut, nulls())) {
 #ifndef NDEBUG
           outs() << format("%8" PRIx64 ":", eoffset + Index);
