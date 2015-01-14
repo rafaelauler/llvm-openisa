@@ -92,7 +92,7 @@ OutputFilename("o", cl::desc("Output filename"),
 static cl::opt<bool>
 Optimize("optimize", cl::desc("Optimize the output LLVM bitcode file"));
 
-static cl::opt<uint64_t>
+static cl::opt<uint32_t>
 StackSize("stacksize", cl::desc("Specifies the space reserved for the stack"
                                 "(Default 300B)"),
           cl::init(300ULL));
@@ -694,9 +694,10 @@ int main(int argc, char **argv) {
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
 
   // Initialize targets and assembly printers/parsers.
-  //
-  // No need to initialize the OpenISA target. It is initialized by a global
-  // constructor.
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmParsers();
+  llvm::InitializeAllDisassemblers();
 
   // Register the target printer for --version.
   cl::AddExtraVersionPrinter(TargetRegistry::printRegisteredTargetsForVersion);

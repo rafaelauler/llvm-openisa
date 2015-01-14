@@ -770,6 +770,7 @@ static DecodeStatus DecodeBlezGroupBranch(MCInst &MI, InsnType insn,
 static DecodeStatus readInstruction16(ArrayRef<uint8_t> Bytes, uint64_t Address,
                                       uint64_t &Size, uint64_t &Insn,
                                       bool IsBigEndian) {
+  Bytes = Bytes.slice(Address);
   // We want to read exactly 2 Bytes of data.
   if (Bytes.size() < 2) {
     Size = 0;
@@ -791,6 +792,7 @@ static DecodeStatus readInstruction64(ArrayRef<uint8_t> Bytes,
                                       uint64_t Address, uint64_t &Size,
                                       uint64_t &Insn, bool IsBigEndian,
                                       bool IsMicroMips) {
+  Bytes = Bytes.slice(Address);
   // We want to read exactly 8 Bytes of data.
   if (Bytes.size() < 8) {
     Size = 0;

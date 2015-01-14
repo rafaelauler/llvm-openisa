@@ -163,13 +163,13 @@ void OiIREmitter::BuildShadowImage() {
     StringRef Bytes;
     if (error(i.getContents(Bytes))) break;
     StringRefMemoryObject memoryObject(Bytes);
-    memoryObject.readBytes(&ShadowImage[0] + SectionAddr + Offset, SectSize, SectionAddr);
+    memoryObject.readBytes(&ShadowImage[0] + SectionAddr + Offset, SectionAddr, SectSize);
   }
 
-  ConstantDataArray *c = 
-    dyn_cast<ConstantDataArray>(ConstantDataArray::get(getGlobalContext(),
+  Constant *c = 
+    ConstantDataArray::get(getGlobalContext(),
       ArrayRef<uint8_t>(reinterpret_cast<const unsigned char *>(&ShadowImage[0]), 
-                        ShadowSize)));
+                        ShadowSize));
 
   GlobalVariable *gv = new GlobalVariable(*TheModule, c->getType(), false, 
                                           GlobalValue::ExternalLinkage,
