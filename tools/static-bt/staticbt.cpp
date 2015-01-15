@@ -68,7 +68,6 @@ extern cl::opt<std::string> TripleName;
 extern cl::opt<std::string> ArchName;
 
 // Various helper functions.
-bool RelocAddressLess(object::RelocationRef a, object::RelocationRef b);
 void DumpBytes(StringRef bytes);
 void DisassembleInputMachO(StringRef Filename);
 void printCOFFUnwindInfo(const object::COFFObjectFile* o);
@@ -158,13 +157,6 @@ void llvm::DumpBytes(StringRef bytes) {
 
   output[sizeof(output) - 1] = 0;
   outs() << output;
-}
-
-bool llvm::RelocAddressLess(RelocationRef a, RelocationRef b) {
-  uint64_t a_addr, b_addr;
-  if (error(a.getOffset(a_addr))) return false;
-  if (error(b.getOffset(b_addr))) return false;
-  return a_addr < b_addr;
 }
 
 static tool_output_file *GetBitcodeOutputStream() {
@@ -311,18 +303,6 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
     std::vector<std::pair<uint64_t, StringRef> > Symbols = 
       GetSymbolsList(Obj, i);
 
-    // Make a list of all the relocations for this section.
-    std::vector<RelocationRef> Rels;
-    if (InlineRelocs) {
-      for (auto &ri : i.relocations()) {
-        if (error(ec)) break;
-        Rels.push_back(ri);
-      }
-    }
-
-    // Sort relocations by address.
-    std::sort(Rels.begin(), Rels.end(), RelocAddressLess);
-
     StringRef SegmentName = "";
     if (const MachOObjectFile *MachO =
         dyn_cast<const MachOObjectFile>(Obj)) {
@@ -349,8 +329,6 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
     uint64_t Index;
     uint64_t SectSize = i.getSize();
 
-    std::vector<RelocationRef>::const_iterator rel_cur = Rels.begin();
-    std::vector<RelocationRef>::const_iterator rel_end = Rels.end();
     // Disassemble symbol by symbol.
     for (unsigned si = 0, se = Symbols.size(); si != se; ++si) {
       uint64_t Start = Symbols[si].first;
@@ -403,30 +381,6 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
           if (Size == 0)
             Size = 1; // skip illegible bytes
         }
-
-        // Print relocation for instruction.
-        while (rel_cur != rel_end) {
-          bool hidden = false;
-          uint64_t addr;
-          SmallString<16> name;
-          SmallString<32> val;
-
-          // If this relocation is hidden, skip it.
-          if (error(rel_cur->getHidden(hidden))) goto skip_print_rel;
-          if (hidden) goto skip_print_rel;
-
-          if (error(rel_cur->getOffset(addr))) goto skip_print_rel;
-          // Stop when rel_cur's address is past the current instruction.
-          if (addr >= Index + Size) break;
-          if (error(rel_cur->getTypeName(name))) goto skip_print_rel;
-          if (error(rel_cur->getValueString(val))) goto skip_print_rel;
-
-          outs() << format("\t\t\t%8" PRIx64 ": ", SectionAddr + addr) << name
-                 << "\t" << val << "\n";
-
-        skip_print_rel:
-          ++rel_cur;
-        }
       }
       IP->FinishFunction();
     }    
@@ -435,211 +389,12 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
   OptimizeAndWriteBitcode(&*IP);
 }
 
-static void PrintRelocations(const ObjectFile *o) {
-  std::error_code ec;
-  for (auto &si : o->sections()) {                                
-    if (error(ec)) return;
-    if (si.relocation_begin() == si.relocation_end())
-      continue;
-    StringRef secname;
-    if (error(si.getName(secname))) continue;
-    outs() << "RELOCATION RECORDS FOR [" << secname << "]:\n";
-    for (auto &ri : si.relocations()){
-      if (error(ec)) return;
-
-      bool hidden;
-      uint64_t address;
-      SmallString<32> relocname;
-      SmallString<32> valuestr;
-      if (error(ri.getHidden(hidden))) continue;
-      if (hidden) continue;
-      if (error(ri.getTypeName(relocname))) continue;
-      if (error(ri.getOffset(address))) continue;
-      if (error(ri.getValueString(valuestr))) continue;
-      outs() << address << " " << relocname << " " << valuestr << "\n";
-    }
-    outs() << "\n";
-  }
-}
-
-static void PrintSectionHeaders(const ObjectFile *o) {
-  outs() << "Sections:\n"
-            "Idx Name          Size      Address          Type\n";
-  std::error_code ec;
-  unsigned i = 0;
-  for (auto &si : o->sections()){
-    if (error(ec)) return;
-    StringRef Name;
-    if (error(si.getName(Name))) return;
-    uint64_t Address = si.getAddress();
-    uint64_t Size = si.getSize();
-    bool Text = si.isText();
-    bool Data = si.isData();
-    bool BSS  = si.isBSS();
-    std::string Type = (std::string(Text ? "TEXT " : "") +
-                        (Data ? "DATA " : "") + (BSS ? "BSS" : ""));
-    outs() << format("%3d %-13s %08" PRIx64 " %016" PRIx64 " %s\n",
-                     i, Name.str().c_str(), Size, Address, Type.c_str());
-    ++i;
-  }
-}
-
-static void PrintSectionContents(const ObjectFile *o) {
-  std::error_code ec;
-  for (auto &si : o->sections()) {
-    if (error(ec)) return;
-    StringRef Name;
-    StringRef Contents;
-    uint64_t BaseAddr;
-    bool BSS;
-    if (error(si.getName(Name))) continue;
-    if (error(si.getContents(Contents))) continue;
-    BaseAddr = si.getAddress();
-    BSS = si.isBSS();
-
-    outs() << "Contents of section " << Name << ":\n";
-    if (BSS) {
-      outs() << format("<skipping contents of bss section at [%04" PRIx64
-                       ", %04" PRIx64 ")>\n", BaseAddr,
-                       BaseAddr + Contents.size());
-      continue;
-    }
-
-    // Dump out the content as hex and printable ascii characters.
-    for (std::size_t addr = 0, end = Contents.size(); addr < end; addr += 16) {
-      outs() << format(" %04" PRIx64 " ", BaseAddr + addr);
-      // Dump line of hex.
-      for (std::size_t i = 0; i < 16; ++i) {
-        if (i != 0 && i % 4 == 0)
-          outs() << ' ';
-        if (addr + i < end)
-          outs() << hexdigit((Contents[addr + i] >> 4) & 0xF, true)
-                 << hexdigit(Contents[addr + i] & 0xF, true);
-        else
-          outs() << "  ";
-      }
-      // Print ascii.
-      outs() << "  ";
-      for (std::size_t i = 0; i < 16 && addr + i < end; ++i) {
-        if (std::isprint(static_cast<unsigned char>(Contents[addr + i]) & 0xFF))
-          outs() << Contents[addr + i];
-        else
-          outs() << ".";
-      }
-      outs() << "\n";
-    }
-  }
-}
-
-static void PrintCOFFSymbolTable(const COFFObjectFile *coff) {
-}
-
-static void PrintSymbolTable(const ObjectFile *o) {
-  outs() << "SYMBOL TABLE:\n";
-
-  if (const COFFObjectFile *coff = dyn_cast<const COFFObjectFile>(o))
-    PrintCOFFSymbolTable(coff);
-  else {
-    std::error_code ec;
-    for (auto &si : o->symbols()) {
-      if (error(ec)) return;
-      StringRef Name;
-      uint64_t Address;
-      SymbolRef::Type Type;
-      uint64_t Size;
-      uint32_t Flags;
-      section_iterator Section = o->section_end();
-      if (error(si.getName(Name))) continue;
-      if (error(si.getAddress(Address))) continue;
-      Flags = si.getFlags();
-      if (error(si.getType(Type))) continue;
-      if (error(si.getSize(Size))) continue;
-      if (error(si.getSection(Section))) continue;
-
-      bool Global = Flags & SymbolRef::SF_Global;
-      bool Weak = Flags & SymbolRef::SF_Weak;
-      bool Absolute = Flags & SymbolRef::SF_Absolute;
-
-      if (Address == UnknownAddressOrSize)
-        Address = 0;
-      if (Size == UnknownAddressOrSize)
-        Size = 0;
-      char GlobLoc = ' ';
-      if (Type != SymbolRef::ST_Unknown)
-        GlobLoc = Global ? 'g' : 'l';
-      char Debug = (Type == SymbolRef::ST_Debug || Type == SymbolRef::ST_File)
-                   ? 'd' : ' ';
-      char FileFunc = ' ';
-      if (Type == SymbolRef::ST_File)
-        FileFunc = 'f';
-      else if (Type == SymbolRef::ST_Function)
-        FileFunc = 'F';
-
-      const char *Fmt = o->getBytesInAddress() > 4 ? "%016" PRIx64 :
-                                                     "%08" PRIx64;
-
-      outs() << format(Fmt, Address) << " "
-             << GlobLoc // Local -> 'l', Global -> 'g', Neither -> ' '
-             << (Weak ? 'w' : ' ') // Weak?
-             << ' ' // Constructor. Not supported yet.
-             << ' ' // Warning. Not supported yet.
-             << ' ' // Indirect reference to another symbol.
-             << Debug // Debugging (d) or dynamic (D) symbol.
-             << FileFunc // Name of function (F), file (f) or object (O).
-             << ' ';
-      if (Absolute)
-        outs() << "*ABS*";
-      else if (Section == o->section_end())
-        outs() << "*UND*";
-      else {
-        if (const MachOObjectFile *MachO =
-            dyn_cast<const MachOObjectFile>(o)) {
-          DataRefImpl DR = Section->getRawDataRefImpl();
-          StringRef SegmentName = MachO->getSectionFinalSegmentName(DR);
-          outs() << SegmentName << ",";
-        }
-        StringRef SectionName;
-        if (error(Section->getName(SectionName)))
-          SectionName = "";
-        outs() << SectionName;
-      }
-      outs() << '\t'
-             << format("%08" PRIx64 " ", Size)
-             << Name
-             << '\n';
-    }
-  }
-}
-
-static void PrintUnwindInfo(const ObjectFile *o) {
-  outs() << "Unwind info:\n\n";
-
-  if (const COFFObjectFile *coff = dyn_cast<COFFObjectFile>(o)) {
-    //printCOFFUnwindInfo(coff);
-    errs() << "This operation is only currently supported "
-              "for COFF object files.\n";
-  } else {
-    // TODO: Extract DWARF dump tool to objdump.
-    errs() << "This operation is only currently supported "
-              "for COFF object files.\n";
-    return;
-  }
-}
-
 static void DumpObject(const ObjectFile *o) {
   outs() << '\n';
   outs() << o->getFileName()
          << ":\tfile format " << o->getFileFormatName() << "\n\n";
 
   DisassembleObject(o, false);
-  //  if (Relocations && !Disassemble)
-  //  PrintRelocations(o);
-  //  PrintSectionHeaders(o);
-  //  PrintSectionContents(o);
-  //  PrintSymbolTable(o);
-  //  PrintUnwindInfo(o);
-  //if (PrivateHeaders && o->isELF())
-  //  printELFFileHeader(o);
 }
 
 /// @brief Dump each object file in \a a;

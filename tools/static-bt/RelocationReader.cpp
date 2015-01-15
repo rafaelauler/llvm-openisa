@@ -71,17 +71,19 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type) {
 bool RelocationReader::CheckRelocation(relocation_iterator &Rel, StringRef &Name) {
   std::error_code ec;
   uint64_t offset = GetELFOffset(*CurSection);
-  for (auto ri : (*CurSection).relocations()) {
-    if (error(ec)) break;
-    uint64_t addr;
-    if (error(ri.getOffset(addr))) break;
-    if (offset + addr != CurAddr)
-      continue;
+  for (const SectionRef &RelocSec : SectionRelocMap[*CurSection]) {
+    for (const RelocationRef &Reloc : RelocSec.relocations()) {
+      if (error(ec)) break;
+      uint64_t addr;
+      if (error(Reloc.getOffset(addr))) break;
+      if (offset + addr != CurAddr)
+	continue;
 
-    Rel = ri;
-    SymbolRef symb = *(ri.getSymbol());
-    if (!error(symb.getName(Name))) {
-      return true;
+      Rel = Reloc;
+      SymbolRef symb = *(Reloc.getSymbol());
+      if (!error(symb.getName(Name))) {
+	return true;
+      }
     }
   }
 

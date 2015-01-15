@@ -84,7 +84,6 @@ public:
   std::vector<BasicBlock*> IndirectDestinations;
   std::vector<uint32_t> IndirectDestinationsAddrs;
   
-
   bool ProcessIndirectJumps();
   void BuildShadowImage();
   void BuildRegisterFile();
@@ -111,8 +110,8 @@ public:
     CurAddr = val;
     UpdateInsertPoint();
   }
-  void SetCurSection(const SectionRef *i) {
-    CurSection = i;
+  void SetCurSection(const SectionRef *I) {
+    CurSection = I;
   }
 private:
   bool FindTextOffset(uint64_t &SectionAddr);

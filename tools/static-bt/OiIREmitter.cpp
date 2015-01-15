@@ -61,7 +61,7 @@ bool OiIREmitter::FindTextOffset(uint64_t &SectionAddr) {
 }
 
 bool OiIREmitter::ProcessIndirectJumps() {
-  uint64_t FinalAddr = 0xFFFFFFFFUL;
+  //  uint64_t FinalAddr = 0xFFFFFFFFUL;
   std::error_code ec;
   std::vector<Constant*> IndirectJumpTable;
   uint64_t TextOffset;
@@ -386,7 +386,7 @@ void OiIREmitter::HandleFunctionEntryPoint(Value **First) {
     }
   }
   for (int I = 0; I < 64; ++I) {
-    Value *st = Builder.CreateStore(Builder.CreateLoad(DblGlobalRegs[I]), DblRegs[I]);
+    Builder.CreateStore(Builder.CreateLoad(DblGlobalRegs[I]), DblRegs[I]);
   }
 }
 
@@ -403,7 +403,7 @@ void OiIREmitter::HandleFunctionExitPoint(Value **First) {
     }    
   }
   for (int I = 0; I < 64; ++I) {
-    Value *st = Builder.CreateStore(Builder.CreateLoad(DblRegs[I]), DblGlobalRegs[I]);
+    Builder.CreateStore(Builder.CreateLoad(DblRegs[I]), DblGlobalRegs[I]);
   }
 }
 
