@@ -251,9 +251,9 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
 #ifndef NDEBUG
   raw_ostream &DebugOut = dbgs();
   if (Verbosity > 0) {
-    DebugOut << "\e[0;32m";
+    DebugOut << "\033[0;32m";
     IP.printInst(MI, DebugOut, "");
-    DebugOut << "\e[0m\n";
+    DebugOut << "\033[0m\n";
   }
 #else
   raw_ostream &DebugOut = nulls();
@@ -272,11 +272,11 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
       uint32_t o0 = HandleAluDstOperand(MI->getOperand(0));
 #ifndef NDEBUG
       if (Verbosity >= 2) {
-      DebugOut << "\t\e[0;36mBank[\e[1;36m" << o0 << "\e[0;36m]\e[0m <= "
-               << "\e[1;35m" << o1 << "\e[0m + \e[1;35m" << o2 << "\e[0m\n"
-               << "\t\e[0;36mBank[\e[1;36m" << o0 << "\e[0;36m] = "
-               << "\e[1;35m" << (o1 + o2) << " \e[0;36m(0x" 
-               << format("%04" PRIx32,(o1 + o2)) << "\e[0;36m)\e[0m\n";
+      DebugOut << "\t\033[0;36mBank[\033[1;36m" << o0 << "\033[0;36m]\033[0m <= "
+               << "\033[1;35m" << o1 << "\033[0m + \033[1;35m" << o2 << "\033[0m\n"
+               << "\t\033[0;36mBank[\033[1;36m" << o0 << "\033[0;36m] = "
+               << "\033[1;35m" << (o1 + o2) << " \033[0;36m(0x" 
+               << format("%04" PRIx32,(o1 + o2)) << "\033[0;36m)\033[0m\n";
       }
 #endif
       Bank[o0] = o1 + o2;
@@ -690,11 +690,11 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
       uint32_t o0 = HandleAluDstOperand(MI->getOperand(0));
 #ifndef NDEBUG
       if (Verbosity > 2) {
-        DebugOut << "\t\e[0;36mBank[\e[1;36m" << o0 << "\e[0;36m]\e[0m <= "
-                 << "\e[1;35m" << o1 << "\e[0m or \e[1;35m" << o2 << "\e[0m\n"
-                 << "\t\e[0;36mBank[\e[1;36m" << o0 << "\e[0;36m] = "
-                 << "\e[1;35m" << (o1 | o2) << " \e[0;36m(0x" 
-                 << format("%04" PRIx32,(o1 | o2)) << "\e[0;36m)\e[0m\n";
+        DebugOut << "\t\033[0;36mBank[\033[1;36m" << o0 << "\033[0;36m]\033[0m <= "
+                 << "\033[1;35m" << o1 << "\033[0m or \033[1;35m" << o2 << "\033[0m\n"
+                 << "\t\033[0;36mBank[\033[1;36m" << o0 << "\033[0;36m] = "
+                 << "\033[1;35m" << (o1 | o2) << " \033[0;36m(0x" 
+                 << format("%04" PRIx32,(o1 | o2)) << "\033[0;36m)\033[0m\n";
       }
 #endif
       Bank[o0] = o1 | o2;
@@ -814,11 +814,11 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
   case Mips::LUi64: {
     if (Verbosity > 0)
       DebugOut << " \tHandling LUi\n";
-    uint32_t o0 = HandleAluDstOperand(MI->getOperand(0));
-    uint32_t o1 = HandleLUiOperand(MI->getOperand(1));
+    HandleAluDstOperand(MI->getOperand(0));
+    HandleLUiOperand(MI->getOperand(1));
 #ifndef NDEBUG
     if (Verbosity > 0)
-      DebugOut << "\t\e[0;31mWarning, LUI ignored\e[0m\n";
+      DebugOut << "\t\033[0;31mWarning, LUI ignored\033[0m\n";
 #endif
     //Bank[o0] = o1;
     return CurPC + 8;
@@ -831,12 +831,12 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
     uint32_t* o1 = HandleMemOperand(MI->getOperand(1), MI->getOperand(2));
 #ifndef NDEBUG
     if (Verbosity >= 3) {
-      DebugOut << "\t\e[0;36mBank[\e[1;36m" << o0 << "\e[0;36m]\e[0m <= "
-               << "\e[0;31mMemory[\e[1;31m" 
+      DebugOut << "\t\033[0;36mBank[\033[1;36m" << o0 << "\033[0;36m]\033[0m <= "
+               << "\033[0;31mMemory[\033[1;31m" 
                << format("%04" PRIx32, ((uint8_t*)o1 - Mem->memory))
-               << "\e[0;31m]\e[0m\n\t\t <= "
-               << "\e[1;35m" << *o1 << " \e[0;36m(0x" 
-               << format("%04" PRIx32,(*o1)) << "\e[0;36m)\e[0m\n";
+               << "\033[0;31m]\033[0m\n\t\t <= "
+               << "\033[1;35m" << *o1 << " \033[0;36m(0x" 
+               << format("%04" PRIx32,(*o1)) << "\033[0;36m)\033[0m\n";
     }
 #endif
     Bank[o0] = *o1;
@@ -849,12 +849,12 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
 //     uint32_t* o1 = HandleMemOperand(MI->getOperand(1), MI->getOperand(2));
 // #ifndef NDEBUG
 //     if (Verbosity >= 3) {
-//       DebugOut << "\t\e[0;36mBank[\e[1;36m" << o0 << "\e[0;36m]\e[0m <= "
-//                << "\e[0;31mMemory[\e[1;31m" 
+//       DebugOut << "\t\033[0;36mBank[\033[1;36m" << o0 << "\033[0;36m]\033[0m <= "
+//                << "\033[0;31mMemory[\033[1;31m" 
 //                << format("%04" PRIx32,((char*)o1 - Mem->memory)) 
-//                << "\e[0;31m]\e[0m\n\t\t <= "
-//                << "\e[1;35m" << *o1 << " \e[0;36m(0x" 
-//                << format("%04" PRIx32,(*o1)) << "\e[0;36m)\e[0m\n";
+//                << "\033[0;31m]\033[0m\n\t\t <= "
+//                << "\033[1;35m" << *o1 << " \033[0;36m(0x" 
+//                << format("%04" PRIx32,(*o1)) << "\033[0;36m)\033[0m\n";
 //     }
 // #endif
 //     Bank[o0] = *o1;
@@ -867,10 +867,10 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
 //     uint32_t* o1 = HandleMemOperand(MI->getOperand(1), MI->getOperand(2));
 // #ifndef NDEBUG
 //     if (Verbosity >= 3) {
-//       DebugOut << "\t\e[0;31mMemory[\e[1;31m" 
-//                << format("%04" PRIx32,((char*)o1 - Mem->memory)) << "\e[0;31m]\e[0m <= "
-//                << "\e[1;35m" << o0 << " \e[0;36m(0x" 
-//                << format("%04" PRIx32,(o0)) << "\e[0;36m)\e[0m\n";
+//       DebugOut << "\t\033[0;31mMemory[\033[1;31m" 
+//                << format("%04" PRIx32,((char*)o1 - Mem->memory)) << "\033[0;31m]\033[0m <= "
+//                << "\033[1;35m" << o0 << " \033[0;36m(0x" 
+//                << format("%04" PRIx32,(o0)) << "\033[0;36m)\033[0m\n";
 //     }
 // #endif
 //     *o1 = o0;
@@ -964,10 +964,10 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
     uint32_t* o1 = HandleMemOperand(MI->getOperand(1), MI->getOperand(2));
 #ifndef NDEBUG
     if (Verbosity >= 3) {
-      DebugOut << "\t\e[0;31mMemory[\e[1;31m" 
-               << format("%04" PRIx32, ((uint8_t *)o1 - Mem->memory)) << "\e[0;31m]\e[0m <= "
-               << "\e[1;35m" << o0 << " \e[0;36m(0x" 
-               << format("%04" PRIx32,(o0)) << "\e[0;36m)\e[0m\n";
+      DebugOut << "\t\033[0;31mMemory[\033[1;31m" 
+               << format("%04" PRIx32, ((uint8_t *)o1 - Mem->memory)) << "\033[0;31m]\033[0m <= "
+               << "\033[1;35m" << o0 << " \033[0;36m(0x" 
+               << format("%04" PRIx32,(o0)) << "\033[0;36m)\033[0m\n";
     }
 #endif
     *o1 = o0;
@@ -980,10 +980,10 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
     uint8_t* o1 = reinterpret_cast<uint8_t*>
       (HandleMemOperand(MI->getOperand(1), MI->getOperand(2)));
     if (Verbosity >= 3) {
-      DebugOut << "\t\e[0;31mMemory[\e[1;31m" 
-               << format("%04" PRIx32, ((uint8_t *)o1 - Mem->memory)) << "\e[0;31m]\e[0m <= "
-               << "\e[1;35m" << (uint32_t)(o0) << " \e[0;36m(0x" 
-               << format("%02" PRIx8,(o0)) << "\e[0;36m)\e[0m\n";
+      DebugOut << "\t\033[0;31mMemory[\033[1;31m" 
+               << format("%04" PRIx32, ((uint8_t *)o1 - Mem->memory)) << "\033[0;31m]\033[0m <= "
+               << "\033[1;35m" << (uint32_t)(o0) << " \033[0;36m(0x" 
+               << format("%02" PRIx8,(o0)) << "\033[0;36m)\033[0m\n";
     }
     *o1 = o0;
     return CurPC + 8;

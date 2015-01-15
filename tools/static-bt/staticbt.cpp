@@ -323,8 +323,11 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
     if (Symbols.empty())
       Symbols.push_back(std::make_pair(0, name));
 
-    StringRef Bytes;
-    if (error(i.getContents(Bytes))) break;
+    StringRef BytesStr;
+    if (error(i.getContents(BytesStr))) break;
+    ArrayRef<uint8_t> Bytes(reinterpret_cast<const uint8_t *>(BytesStr.data()),
+                            BytesStr.size());
+
     uint64_t Size;
     uint64_t Index;
     uint64_t SectSize = i.getSize();
@@ -363,12 +366,12 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
         MCInst Inst;
         
         IP->UpdateCurAddr(Index + eoffset);
-        if (DisAsm->getInstruction(Inst, Size, ArrayRef<uint8_t>(Bytes.bytes_begin(), Bytes.size()), Index,
+        if (DisAsm->getInstruction(Inst, Size, Bytes.slice(Index), SectionAddr + Index,
                                    DebugOut, nulls())) {
 #ifndef NDEBUG
           outs() << format("%8" PRIx64 ":", eoffset + Index);
           outs() << "\t";
-          DumpBytes(StringRef(Bytes.data() + Index, Size));
+          DumpBytes(StringRef(BytesStr.data() + Index, Size));
 #endif
           IP->printInst(&Inst, outs(), "");
 #ifndef NDEBUG
@@ -376,7 +379,7 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
 #endif
         } else {
           errs() << ToolName << ": warning: invalid instruction encoding\n";
-          DumpBytes(StringRef(Bytes.data() + Index, Size));
+          DumpBytes(StringRef(BytesStr.data() + Index, Size));
           exit(1);
           if (Size == 0)
             Size = 1; // skip illegible bytes

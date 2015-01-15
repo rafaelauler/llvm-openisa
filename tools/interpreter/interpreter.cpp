@@ -128,15 +128,15 @@ static const Target *getTarget(const ObjectFile *Obj = NULL) {
 }
 
 
-#ifndef NDEBUG
-static void PrintDILineInfo(DILineInfo dli) {
-  //  if (PrintFunctions)
-  //    outs() << (dli.getFunctionName() ? dli.getFunctionName() : "<unknown>")
-  //           << "\n";
-  dbgs() << (dli.FileName.size() > 0 ? dli.FileName : "<unknown>") << ':'
-         << dli.Line << ':' << dli.Column << '\n';
-}
-#endif
+//#ifndef NDEBUG
+// static void PrintDILineInfo(DILineInfo dli) {
+//   //  if (PrintFunctions)
+//   //    outs() << (dli.getFunctionName() ? dli.getFunctionName() : "<unknown>")
+//   //           << "\n";
+//   dbgs() << (dli.FileName.size() > 0 ? dli.FileName : "<unknown>") << ':'
+//          << dli.Line << ':' << dli.Column << '\n';
+// }
+//#endif
 
 static void ExecutionLoop(StringRef file, int argc, char **argv) {
   const Target *TheTarget = getTarget();
@@ -222,6 +222,9 @@ static void ExecutionLoop(StringRef file, int argc, char **argv) {
   std::error_code ec;
   uint64_t Size;
   uint64_t numEmulated = 0;
+  ArrayRef<uint8_t> Bytes(reinterpret_cast<const uint8_t *>(mem->memory),
+			  mem->TOTALSIZE);
+
 #ifdef DBT
   DenseMap<uint32_t, uint32_t> HotAddresses;
 #endif
@@ -260,8 +263,8 @@ static void ExecutionLoop(StringRef file, int argc, char **argv) {
     StringRef Dummy;
     if (Verbosity > 0) {
       if (CurPC != 0 && Symbol != Dummy) {
-        DebugOut << "\e[1;35m[\e[45m\e[1;37m" << Symbol 
-                 << "\e[0m\e[1;35m]\e[0m\n2C";
+        DebugOut << "\033[1;35m[\033[45m\033[1;37m" << Symbol 
+                 << "\033[0m\033[1;35m]\033[0m\n2C";
       }
     }
 #ifdef DBT
@@ -305,23 +308,23 @@ static void ExecutionLoop(StringRef file, int argc, char **argv) {
               if (!getline (SourceFile, lineContents))
                 break;
             if (FullPath)
-              DebugOut << "\e[1;35m[" << LastFileName << ":" <<
-                lineNum << "]\e[0m  ";
+              DebugOut << "\033[1;35m[" << LastFileName << ":" <<
+                lineNum << "]\033[0m  ";
             else
-              DebugOut << "\e[1;35m[" << basename(LastFileName.c_str()) 
-                       << ":" << lineNum << "]\e[0m  ";
-            DebugOut << "\e[0;33m" << lineContents << "\e[0m\n";
+              DebugOut << "\033[1;35m[" << basename(LastFileName.c_str()) 
+                       << ":" << lineNum << "]\033[0m  ";
+            DebugOut << "\033[0;33m" << lineContents << "\033[0m\n";
             LastLine = lineNum;
           }
         }
       }
     } // end if (Verbosity > 1)
     if (Verbosity > 0) {
-      DebugOut << "\e[1;32m[\e[1;37m0x" << format("%04" PRIx64, CurPC) 
-               << "\e[1;32m]\e[0m";
+      DebugOut << "\033[1;32m[\033[1;37m0x" << format("%04" PRIx64, CurPC) 
+               << "\033[1;32m]\033[0m";
     }
 #endif
-    if (DisAsm->getInstruction(Inst, Size, ArrayRef<uint8_t>(mem->memory, mem->TOTALSIZE), CurPC,
+    if (DisAsm->getInstruction(Inst, Size, Bytes.slice(CurPC), CurPC,
                                DebugOut, nulls())) {
       CurPC = IP->executeInstruction(&Inst, CurPC);
       ++numEmulated;
