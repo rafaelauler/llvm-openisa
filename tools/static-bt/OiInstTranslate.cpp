@@ -976,18 +976,48 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   // codes. We always use the 0th bit (MIPS I mode).
   // TODO: Implement all 8 CC bits.
   case Mips::FCMP_D32:
+  case Mips::C_UN_D32:
+  case Mips::C_EQ_D32:
+  case Mips::C_UEQ_D32:
   case Mips::C_OLT_D32:
+  case Mips::C_ULT_D32:
+  case Mips::C_OLE_D32:
+  case Mips::C_ULE_D32:
     {
       DebugOut << "Handling FCMP_D32\n";
       Value *o0, *o1, *first = 0;
       if (HandleDoubleSrcOperand(MI->getOperand(0), o0, &first) &&
           HandleDoubleSrcOperand(MI->getOperand(1), o1)) {
         Value *cmp;
-	if (MI->getOpcode() == Mips::C_OLT_D32) {
-	  cmp = Builder.CreateFCmpOLT(o0, o1);
-	} else if (!HandleFCmpOperand(MI->getOperand(2), o0, o1, cmp)) {
+	bool failed = false;
+	switch (MI->getOpcode()) {
+	case Mips::C_UN_D32:
+	  cmp = Builder.CreateFCmpUNO(o0, o1);
 	  break;
+	case Mips::C_EQ_D32:
+	  cmp = Builder.CreateFCmpOEQ(o0, o1);
+	  break;
+	case Mips::C_UEQ_D32:
+	  cmp = Builder.CreateFCmpUEQ(o0, o1);
+	  break;
+	case Mips::C_OLT_D32:
+	  cmp = Builder.CreateFCmpOLT(o0, o1);
+	  break;
+	case Mips::C_ULT_D32:
+	  cmp = Builder.CreateFCmpULT(o0, o1);
+	  break;
+	case Mips::C_OLE_D32:
+	  cmp = Builder.CreateFCmpOLE(o0, o1);
+	  break;
+	case Mips::C_ULE_D32:
+	  cmp = Builder.CreateFCmpULE(o0, o1);
+	  break;
+	default:
+	  if (!HandleFCmpOperand(MI->getOperand(2), o0, o1, cmp))
+	    failed = true;
 	}
+	if (failed)
+	  break;
 	Value *one = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 1U);
 	Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
 	Value *select = Builder.CreateSelect(cmp, one, zero);
