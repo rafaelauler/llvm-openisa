@@ -976,21 +976,25 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   // codes. We always use the 0th bit (MIPS I mode).
   // TODO: Implement all 8 CC bits.
   case Mips::FCMP_D32:
+  case Mips::C_OLT_D32:
     {
       DebugOut << "Handling FCMP_D32\n";
       Value *o0, *o1, *first = 0;
       if (HandleDoubleSrcOperand(MI->getOperand(0), o0, &first) &&
           HandleDoubleSrcOperand(MI->getOperand(1), o1)) {
         Value *cmp;
-        if (HandleFCmpOperand(MI->getOperand(2), o0, o1, cmp)) {
-          Value *one = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 1U);
-          Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
-          Value *select = Builder.CreateSelect(cmp, one, zero);
-          WriteMap[258] = true; // Ignores other FCC fields
-          Builder.CreateStore(select, IREmitter.Regs[258]);
-          assert(isa<Instruction>(first) && "Need to rework map logic");
-          IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
-        }
+	if (MI->getOpcode() == Mips::C_OLT_D32) {
+	  cmp = Builder.CreateFCmpOLT(o0, o1);
+	} else if (!HandleFCmpOperand(MI->getOperand(2), o0, o1, cmp)) {
+	  break;
+	}
+	Value *one = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 1U);
+	Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
+	Value *select = Builder.CreateSelect(cmp, one, zero);
+	WriteMap[258] = true; // Ignores other FCC fields
+	Builder.CreateStore(select, IREmitter.Regs[258]);
+	assert(isa<Instruction>(first) && "Need to rework map logic");
+	IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);        
       }
       break;
     }
