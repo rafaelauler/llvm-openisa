@@ -20,6 +20,7 @@
 #include "StringRefMemoryObject.h"
 #include "SBTUtils.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/raw_ostream.h"
@@ -1048,8 +1049,9 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       break;
     }
   case Mips::MOVT_I:
+  case Mips::MOVF_I:
     {
-      DebugOut << "Handling MOVT\n";
+      DebugOut << "Handling MOVT / MOVF\n";
       Value *o0, *o1, *o2, *first = 0;
       if (HandleAluSrcOperand(MI->getOperand(1), o1, &first) &&
           HandleAluSrcOperand(MI->getOperand(2), o2, &first) && // fcc0 encoded as reg1 TODO:fix
@@ -1057,7 +1059,10 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
         Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
         Value *cmp;
         Value *fcc = Builder.CreateLoad(IREmitter.Regs[258]);
-        cmp = Builder.CreateICmpNE(fcc, zero);
+	if (MI->getOpcode() == Mips::MOVT_I)
+	  cmp = Builder.CreateICmpNE(fcc, zero);
+	else // case MOVF_I
+	  cmp = Builder.CreateICmpEQ(fcc, zero);
         Value *loaddst = Builder.CreateLoad(o0);
         Value *select = Builder.CreateSelect(cmp, o1, loaddst, "movt");
         Builder.CreateStore(select, o0);
@@ -1148,6 +1153,38 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
           HandleDoubleSrcOperand(MI->getOperand(2), o2) &&       
           HandleDoubleDstOperand(MI->getOperand(0), o0)) {      
         Value *V = Builder.CreateFDiv(o1, o2);
+        Builder.CreateStore(V, o0);
+        assert(isa<Instruction>(first) && "Need to rework map logic");
+        IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+      }      
+      break;
+    }
+  case Mips::FSQRT_D32:
+    {
+      DebugOut << "Handling FSQRT\n";
+      Value *o0, *o1, *first = 0;
+      if (HandleDoubleSrcOperand(MI->getOperand(1), o1, &first) &&       
+          HandleDoubleDstOperand(MI->getOperand(0), o0)) {
+	std::vector<Type *> types(1, Type::getDoubleTy(getGlobalContext()));
+	Value *SqrtFunc = Intrinsic::getDeclaration(IREmitter.TheModule.get(),
+						    Intrinsic::sqrt, types);
+	Value *V = Builder.CreateCall(SqrtFunc, o1);
+        Builder.CreateStore(V, o0);
+        assert(isa<Instruction>(first) && "Need to rework map logic");
+        IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+      }      
+      break;
+    }
+  case Mips::FABS_D32:
+    {
+      DebugOut << "Handling FABS\n";
+      Value *o0, *o1, *first = 0;
+      if (HandleDoubleSrcOperand(MI->getOperand(1), o1, &first) &&       
+          HandleDoubleDstOperand(MI->getOperand(0), o0)) {
+	std::vector<Type *> types(1, Type::getDoubleTy(getGlobalContext()));
+	Value *FabsFunc = Intrinsic::getDeclaration(IREmitter.TheModule.get(),
+						    Intrinsic::fabs, types);
+	Value *V = Builder.CreateCall(FabsFunc, o1);
         Builder.CreateStore(V, o0);
         assert(isa<Instruction>(first) && "Need to rework map logic");
         IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
