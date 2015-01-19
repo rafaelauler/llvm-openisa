@@ -1027,7 +1027,7 @@ public:
   }
 
   bool isGPRAsmReg() const {
-    return isRegIdx() && RegIdx.Kind & RegKind_GPR && RegIdx.Index <= 31;
+    return isRegIdx() && RegIdx.Kind & RegKind_GPR && RegIdx.Index <= 65;
   }
   bool isMM16AsmReg() const {
     if (!(isRegIdx() && RegIdx.Kind))
