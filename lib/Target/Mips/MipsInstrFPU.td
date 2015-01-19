@@ -218,7 +218,7 @@ class BC1F_FT<string opstr, DAGOperand opnd, InstrItinClass Itin,
          FrmFI, opstr> {
   let isBranch = 1;
   let isTerminator = 1;
-  let hasDelaySlot = DelaySlot;
+  let hasDelaySlot = 0;
   let Defs = [AT];
 }
 
