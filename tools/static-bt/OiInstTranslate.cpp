@@ -1822,6 +1822,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     DebugOut << "Handling NOP\n";
     break;
   default: 
+    DebugOut << "Unimplemented opcode number: " << MI->getOpcode() << "\n";
     llvm_unreachable("Unimplemented instruction!");
   }
   return;
