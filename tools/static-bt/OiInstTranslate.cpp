@@ -669,6 +669,11 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V, Value **Fi
           bool PtrTypes[] = {false, false};
           return Syscalls.HandleGenericInt(V, "putchar", 1, 1, PtrTypes, First);
         }
+	if (val == "memchr") {
+          bool PtrTypes[] = {true, false, false, true};
+          return Syscalls.HandleGenericInt(V, "memchr", 3, 1, PtrTypes, First);
+	}
+	//	printf("%s\n", val.str().c_str());
 
       }
       uint64_t targetaddr;
@@ -1060,6 +1065,30 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
         Value *cmp;
         Value *fcc = Builder.CreateLoad(IREmitter.Regs[258]);
 	if (MI->getOpcode() == Mips::MOVT_I)
+	  cmp = Builder.CreateICmpNE(fcc, zero);
+	else // case MOVF_I
+	  cmp = Builder.CreateICmpEQ(fcc, zero);
+        Value *loaddst = Builder.CreateLoad(o0);
+        Value *select = Builder.CreateSelect(cmp, o1, loaddst, "movt");
+        Builder.CreateStore(select, o0);
+        first = GetFirstInstruction(first, o1, fcc, cmp, loaddst);
+        assert(isa<Instruction>(first) && "Need to rework map logic");
+        IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+      }
+      break;
+    }
+  case Mips::MOVT_D32:
+  case Mips::MOVF_D32:
+    {
+      DebugOut << "Handling MOVT (D32) / MOVF (D32)\n";
+      Value *o0, *o1, *o2, *first = 0;
+      if (HandleDoubleSrcOperand(MI->getOperand(1), o1, &first) &&
+          HandleAluSrcOperand(MI->getOperand(2), o2, &first) && // fcc0 encoded as reg1 TODO:fix
+          HandleDoubleDstOperand(MI->getOperand(0), o0)) {        
+        Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
+        Value *cmp;
+        Value *fcc = Builder.CreateLoad(IREmitter.Regs[258]);
+	if (MI->getOpcode() == Mips::MOVT_D32)
 	  cmp = Builder.CreateICmpNE(fcc, zero);
 	else // case MOVF_I
 	  cmp = Builder.CreateICmpEQ(fcc, zero);
