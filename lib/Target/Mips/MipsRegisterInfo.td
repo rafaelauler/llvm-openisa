@@ -159,7 +159,7 @@ let Namespace = "Mips" in {
   def F#I : FPR<I, "f"#I>, DwarfRegNum<[!add(I, 64)]>;
 
   // Higher half of 64-bit FP registers.
-  foreach I = 0-31 in
+  foreach I = 0-63 in
   def F_HI#I : FPR<I, "f"#I>, DwarfRegNum<[!add(I, 66)]>;
 
   /// Mips Double point precision FPU Registers (aliased
@@ -170,7 +170,7 @@ let Namespace = "Mips" in {
                   !cast<FPR>("F"#!add(!shl(I, 1), 1))]>;
 
   /// Mips Double point precision FPU Registers in MFP64 mode.
-  foreach I = 0-31 in
+  foreach I = 0-63 in
   def D#I#_64 : AFPR64<I, "f"#I, [!cast<FPR>("F"#I), !cast<FPR>("F_HI"#I)]>,
                 DwarfRegNum<[!add(I, 32)]>;
 
@@ -366,7 +366,7 @@ def AFGR64 : RegisterClass<"Mips", [f64], 64, (add
   D16, D17, D18, D19, D20, D21, D22, D23, D24, D25, D26, D27, D28, D29,
   D30, D31)>;
 
-def FGR64 : RegisterClass<"Mips", [f64], 64, (sequence "D%u_64", 0, 31)>;
+def FGR64 : RegisterClass<"Mips", [f64], 64, (sequence "D%u_64", 0, 63)>;
 
 // Used to reserve odd registers when given -mattr=+nooddspreg
 // FIXME: Remove double precision registers from this set.

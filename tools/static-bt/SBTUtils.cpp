@@ -150,6 +150,10 @@ unsigned conv32(unsigned regnum) {
     return Mips::F30;
   case Mips::D31_64:
     return Mips::F31;
+  case Mips::D32_64:
+    return Mips::F32;
+  case Mips::D33_64:
+    return Mips::F33;
 
     //    return regnum - 1;
   }
