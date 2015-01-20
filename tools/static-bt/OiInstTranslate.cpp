@@ -1210,6 +1210,19 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       }      
       break;
     }
+  case Mips::FNEG_D32:
+    {
+      DebugOut << "Handling FNEG\n";
+      Value *o0, *o1, *first = 0;
+      if (HandleDoubleSrcOperand(MI->getOperand(1), o1, &first) &&       
+          HandleDoubleDstOperand(MI->getOperand(0), o0)) {
+	Value *V = Builder.CreateFNeg(o1);
+        Builder.CreateStore(V, o0);
+        assert(isa<Instruction>(first) && "Need to rework map logic");
+        IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+      }      
+      break;
+    }
   case Mips::FABS_D32:
     {
       DebugOut << "Handling FABS\n";
