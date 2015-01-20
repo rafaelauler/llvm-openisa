@@ -1044,7 +1044,7 @@ public:
   }
   bool isFGRAsmReg() const {
     // AFGR64 is $0-$15 but we handle this in getAFGR64()
-    return isRegIdx() && RegIdx.Kind & RegKind_FGR && RegIdx.Index <= 31;
+    return isRegIdx() && RegIdx.Kind & RegKind_FGR && RegIdx.Index <= 63;
   }
   bool isHWRegsAsmReg() const {
     return isRegIdx() && RegIdx.Kind & RegKind_HWRegs && RegIdx.Index <= 31;
@@ -1968,7 +1968,7 @@ int MipsAsmParser::matchFPURegisterName(StringRef Name) {
     unsigned IntVal;
     if (NumString.getAsInteger(10, IntVal))
       return -1;     // This is not an integer.
-    if (IntVal > 31) // Maximum index for fpu register.
+    if (IntVal > 63) // Maximum index for fpu register.
       return -1;
     return IntVal;
   }
