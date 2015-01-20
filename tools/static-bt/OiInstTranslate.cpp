@@ -673,7 +673,7 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V, Value **Fi
           bool PtrTypes[] = {true, false, false, true};
           return Syscalls.HandleGenericInt(V, "memchr", 3, 1, PtrTypes, First);
 	}
-	//	printf("%s\n", val.str().c_str());
+	//		printf("%s\n", val.str().c_str());
 
       }
       uint64_t targetaddr;
@@ -899,6 +899,12 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
         IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
       }
       break;
+    }
+  case Mips::TEQ:
+    {
+      // Mips backend uses TEQ (trap if equal) to implement the divide by zero
+      // trap behavior.
+      DebugOut << "Handling TEQ - Warning: Trap is not implemented!\n";      
     }
   case Mips::MFHI:
     {
