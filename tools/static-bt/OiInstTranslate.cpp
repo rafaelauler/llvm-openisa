@@ -905,6 +905,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       // Mips backend uses TEQ (trap if equal) to implement the divide by zero
       // trap behavior.
       DebugOut << "Handling TEQ - Warning: Trap is not implemented!\n";      
+      break;
     }
   case Mips::MFHI:
     {
@@ -926,7 +927,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       Value *o0;
       if (HandleAluDstOperand(MI->getOperand(0), o0)) {
         Value *v = Builder.CreateLoad(IREmitter.Regs[256]);
-        ReadMap[257] = true;
+        ReadMap[256] = true;
         Value *v2 = Builder.CreateStore(v, o0);
         Value *first = GetFirstInstruction(o0, v, v2);
         assert(isa<Instruction>(first) && "Need to rework map logic");
