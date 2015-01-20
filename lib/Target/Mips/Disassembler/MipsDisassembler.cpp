@@ -1416,7 +1416,7 @@ static DecodeStatus DecodeAFGR64RegisterClass(MCInst &Inst,
                                               unsigned RegNo,
                                               uint64_t Address,
                                               const void *Decoder) {
-  if (RegNo > 30 || RegNo %2)
+  if (RegNo > 62 || RegNo %2)
     return MCDisassembler::Fail;
 
   ;
