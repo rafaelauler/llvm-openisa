@@ -649,6 +649,10 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V, Value **Fi
           bool PtrTypes[] = {false, true, false};
           return Syscalls.HandleGenericInt(V, "fsetpos", 2, 1, PtrTypes, First);
         }
+        if (val == "ftell") {
+          bool PtrTypes[] = {true, false};
+          return Syscalls.HandleGenericInt(V, "ftell", 1, 1, PtrTypes, First);
+        }
         if (val == "fseek") {
           bool PtrTypes[] = {false, false, false, false};
           return Syscalls.HandleGenericInt(V, "fseek", 3, 1, PtrTypes, First);
