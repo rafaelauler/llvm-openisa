@@ -59,6 +59,10 @@ public:
   {
     BuildShadowImage();
     BuildRegisterFile();
+    if (CodeTarget == "arm") {
+      TheModule->setTargetTriple("armv4t--linux-eabi");
+      TheModule->setDataLayout("e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64");
+    }
   }
   const ObjectFile *Obj;
   std::unique_ptr<Module> TheModule;
