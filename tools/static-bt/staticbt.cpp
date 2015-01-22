@@ -107,8 +107,11 @@ MAttrs("mattr",
   cl::value_desc("a1,+a2,-a3,..."));
 
 cl::opt<std::string>
-llvm::TripleName("triple", cl::desc("Target triple to disassemble for, "
+llvm::TripleName("triple", cl::desc("<UNUSED>Target triple to disassemble for, "
                                     "see -version for available targets"));
+
+cl::opt<std::string>
+CodeTarget("target", cl::desc("Target to generate code for"), cl::value_desc("x86"));
 
 static StringRef ToolName;
 
@@ -282,7 +285,7 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
   //  int AsmPrinterVariant = AsmInfo->getAssemblerDialect();
 
   std::unique_ptr<OiInstTranslate> IP(new OiInstTranslate(*AsmInfo, *MII, *MRI, Obj,
-                                                    StackSize));
+							  StackSize, CodeTarget));
   // TheTarget->createMCInstPrinter(AsmPrinterVariant, *AsmInfo, *MII, *MRI, *STI));
   if (!IP) {
     errs() << "error: no instruction printer for target " << TripleName

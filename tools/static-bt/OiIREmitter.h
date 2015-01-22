@@ -43,8 +43,9 @@ public:
   typedef DenseMap<uint32_t, uint32_t> FunctionRetMapTy;
   typedef std::set<uint32_t> IndirectCallMapTy;
 
-  OiIREmitter(const ObjectFile *obj, uint64_t Stacksz): 
+  OiIREmitter(const ObjectFile *obj, uint64_t Stacksz, StringRef CodeTarget): 
     Obj(obj), TheModule(new Module("outputtest", getGlobalContext())),
+    CodeTarget(CodeTarget),
     Builder(getGlobalContext()), Regs(SmallVector<Value*,259>(259)),
     GlobalRegs(SmallVector<Value*,259>(259)),
     DblRegs(SmallVector<Value*,64>(64)),
@@ -61,6 +62,7 @@ public:
   }
   const ObjectFile *Obj;
   std::unique_ptr<Module> TheModule;
+  StringRef CodeTarget;
   IRBuilder<> Builder;
   std::vector<uint8_t> ShadowImage;
   SmallVector<Value*, 259> Regs, GlobalRegs;

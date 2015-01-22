@@ -14,7 +14,8 @@ namespace llvm {
 
 class SyscallsIface {
  public:  
-  SyscallsIface(OiIREmitter &ir) : IREmitter(ir), TheModule(ir.TheModule),
+  SyscallsIface(OiIREmitter &ir, StringRef CodeTarget) : 
+    CodeTarget(CodeTarget), IREmitter(ir), TheModule(ir.TheModule),
     Builder(ir.Builder), ReadMap(ir.ReadMap), WriteMap(ir.WriteMap) {
   }
 
@@ -36,6 +37,7 @@ class SyscallsIface {
   bool HandleLibcAtof(Value *&V, Value **First);
 
  private:
+  StringRef CodeTarget;
   OiIREmitter &IREmitter;
   std::unique_ptr<Module> &TheModule;
   IRBuilder<> &Builder;

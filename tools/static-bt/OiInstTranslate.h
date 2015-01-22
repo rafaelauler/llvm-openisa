@@ -35,11 +35,12 @@ class OiInstTranslate : public MCInstPrinter {
 public:
   OiInstTranslate(const MCAsmInfo &MAI, const MCInstrInfo &MII,
                   const MCRegisterInfo &MRI, const ObjectFile *obj,
-                  uint64_t Stacksz)
-    : MCInstPrinter(MAI, MII, MRI), Obj(obj), IREmitter(obj, Stacksz),
+                  uint64_t Stacksz, StringRef CodeTarget)
+    : MCInstPrinter(MAI, MII, MRI), Obj(obj), IREmitter(obj, Stacksz, CodeTarget),
       RelocReader(obj, IREmitter.CurSection, IREmitter.CurAddr),
-      Syscalls(IREmitter), Builder(IREmitter.Builder),
-      ReadMap(IREmitter.ReadMap), WriteMap(IREmitter.WriteMap)
+      Syscalls(IREmitter, CodeTarget), Builder(IREmitter.Builder),
+      ReadMap(IREmitter.ReadMap), WriteMap(IREmitter.WriteMap),
+      CodeTarget(CodeTarget)
   {
   }
 
@@ -70,6 +71,7 @@ private:
   SyscallsIface Syscalls;
   IRBuilder<> &Builder;
   DenseMap<int32_t, bool> &ReadMap, &WriteMap;
+  StringRef CodeTarget;
 
   bool HandleAluSrcOperand(const MCOperand &o, Value *&V, Value **First = 0);
   bool HandleAluDstOperand(const MCOperand &o, Value *&V);

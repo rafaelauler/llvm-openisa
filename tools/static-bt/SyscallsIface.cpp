@@ -319,7 +319,22 @@ bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
                           args, /*isvararg*/false);
   else
     llvm_unreachable("Unhandled return size.");
-  Value *fun = TheModule->getOrInsertFunction(Name, ft);
+
+  AttributeSet attrs;
+  if (CodeTarget == "arm") {
+    attrs = attrs
+      .addAttribute(getGlobalContext(), AttributeSet::FunctionIndex, Attribute::NoUnwind)
+      .addAttribute(getGlobalContext(), AttributeSet::FunctionIndex, "less-precise-fpmad", "false")
+      .addAttribute(getGlobalContext(), AttributeSet::FunctionIndex, "no-frame-pointer-elim", "true")
+      .addAttribute(getGlobalContext(), AttributeSet::FunctionIndex, "no-frame-pointer-elim-non-leaf", "true")
+      .addAttribute(getGlobalContext(), AttributeSet::FunctionIndex, "no-infs-fp-math", "false")
+      .addAttribute(getGlobalContext(), AttributeSet::FunctionIndex, "no-nans-fp-math", "false")
+      .addAttribute(getGlobalContext(), AttributeSet::FunctionIndex, "stack-protector-buffer-size", "8")
+      .addAttribute(getGlobalContext(), AttributeSet::FunctionIndex, "unsafe-fp-math", "false")
+      .addAttribute(getGlobalContext(), AttributeSet::FunctionIndex, "use-soft-float", "false");
+  }
+
+  Value *fun = TheModule->getOrInsertFunction(Name, ft, attrs);
   SmallVector<Value*, 8> params;
   assert(numargs <= 4 && "Cannot handle more than 4 arguments");
   if (numargs > 0) {
