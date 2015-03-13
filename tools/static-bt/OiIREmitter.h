@@ -30,7 +30,7 @@ extern cl::opt<bool> OptimizeStack;
 extern cl::opt<bool> AggrOptimizeStack;
 extern cl::opt<bool> NoShadow;
 
-namespace object{
+namespace object {
 class ObjectFile;
 }
 
@@ -38,30 +38,29 @@ using namespace object;
 
 class OiIREmitter {
 public:
-  typedef DenseMap<uint32_t, Value*> SpilledRegsTy;
-  typedef DenseMap<uint32_t, std::vector<uint32_t> > FunctionCallMapTy;
+  typedef DenseMap<uint32_t, Value *> SpilledRegsTy;
+  typedef DenseMap<uint32_t, std::vector<uint32_t>> FunctionCallMapTy;
   typedef DenseMap<uint32_t, uint32_t> FunctionRetMapTy;
   typedef std::set<uint32_t> IndirectCallMapTy;
 
-  OiIREmitter(const ObjectFile *obj, uint64_t Stacksz, StringRef CodeTarget): 
-    Obj(obj), TheModule(new Module("outputtest", getGlobalContext())),
-    CodeTarget(CodeTarget),
-    Builder(getGlobalContext()), Regs(SmallVector<Value*,259>(259)),
-    GlobalRegs(SmallVector<Value*,259>(259)),
-    DblRegs(SmallVector<Value*,64>(64)),
-    DblGlobalRegs(SmallVector<Value*,64>(64)),
-    SpilledRegs(),
-    FirstFunction(true), CurAddr(0),
-    CurSection(nullptr), BBMap(), InsMap(), ReadMap(), WriteMap(), DblReadMap(),
-    DblWriteMap(), FunctionCallMap(),
-    FunctionRetMap(), IndirectCallMap(), CurFunAddr(0), CurBlockAddr(0),
-    StackSize(Stacksz), IndirectDestinations(), IndirectDestinationsAddrs()
-  {
+  OiIREmitter(const ObjectFile *obj, uint64_t Stacksz, StringRef CodeTarget)
+      : Obj(obj), TheModule(new Module("outputtest", getGlobalContext())),
+        CodeTarget(CodeTarget), Builder(getGlobalContext()),
+        Regs(SmallVector<Value *, 259>(259)),
+        GlobalRegs(SmallVector<Value *, 259>(259)),
+        DblRegs(SmallVector<Value *, 64>(64)),
+        DblGlobalRegs(SmallVector<Value *, 64>(64)), SpilledRegs(),
+        FirstFunction(true), CurAddr(0), CurSection(nullptr), BBMap(), InsMap(),
+        ReadMap(), WriteMap(), DblReadMap(), DblWriteMap(), FunctionCallMap(),
+        FunctionRetMap(), IndirectCallMap(), CurFunAddr(0), CurBlockAddr(0),
+        StackSize(Stacksz), IndirectDestinations(),
+        IndirectDestinationsAddrs() {
     BuildShadowImage();
     BuildRegisterFile();
     if (CodeTarget == "arm") {
       TheModule->setTargetTriple("armv4t--linux-eabi");
-      TheModule->setDataLayout("e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64");
+      TheModule->setDataLayout(
+          "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64");
     }
   }
   const ObjectFile *Obj;
@@ -69,27 +68,27 @@ public:
   StringRef CodeTarget;
   IRBuilder<> Builder;
   std::vector<uint8_t> ShadowImage;
-  SmallVector<Value*, 259> Regs, GlobalRegs;
-  SmallVector<Value*, 64> DblRegs, DblGlobalRegs;
+  SmallVector<Value *, 259> Regs, GlobalRegs;
+  SmallVector<Value *, 64> DblRegs, DblGlobalRegs;
   SpilledRegsTy SpilledRegs;
   bool FirstFunction;
   uint64_t CurAddr;
   const SectionRef *CurSection;
-  StringMap<BasicBlock*> BBMap;
-  DenseMap<int64_t, Instruction*> InsMap;
+  StringMap<BasicBlock *> BBMap;
+  DenseMap<int64_t, Instruction *> InsMap;
   DenseMap<int32_t, bool> ReadMap, WriteMap, DblReadMap, DblWriteMap;
   FunctionCallMapTy FunctionCallMap; // Used only in one-region mode
-  FunctionRetMapTy FunctionRetMap; // Used only in one-region mode
+  FunctionRetMapTy FunctionRetMap;   // Used only in one-region mode
   IndirectCallMapTy IndirectCallMap;
   uint64_t CurFunAddr;
   uint64_t CurBlockAddr;
   uint64_t StackSize;
   uint64_t ShadowSize;
-  Value* ShadowImageValue;
-  Value* IndirectJumpTableValue;
-  std::vector<BasicBlock*> IndirectDestinations;
+  Value *ShadowImageValue;
+  Value *IndirectJumpTableValue;
+  std::vector<BasicBlock *> IndirectDestinations;
   std::vector<uint32_t> IndirectDestinationsAddrs;
-  
+
   bool ProcessIndirectJumps();
   void BuildShadowImage();
   void BuildRegisterFile();
@@ -101,11 +100,11 @@ public:
   bool BuildReturnTablesOneRegion();
   bool HandleLocalCall(uint64_t Addr, Value *&V, Value **First = 0);
   Value *AccessSpillMemory(unsigned Idx, bool IsLoad);
-  Value *AccessShadowMemory(Value *Idx, bool IsLoad, int width = 32, bool isFloat = false,
-                            Value **First = 0);
+  Value *AccessShadowMemory(Value *Idx, bool IsLoad, int width = 32,
+                            bool isFloat = false, Value **First = 0);
   Value *AccessJumpTable(Value *Idx, Value **First = 0);
   void InsertStartupCode(Function *F);
-  BasicBlock* CreateBB(uint64_t Addr = 0, Function *F = 0);
+  BasicBlock *CreateBB(uint64_t Addr = 0, Function *F = 0);
   void UpdateInsertPoint();
   void CleanRegs();
   void StartFunction(StringRef N);
@@ -116,13 +115,11 @@ public:
     CurAddr = val;
     UpdateInsertPoint();
   }
-  void SetCurSection(const SectionRef *I) {
-    CurSection = I;
-  }
+  void SetCurSection(const SectionRef *I) { CurSection = I; }
+
 private:
   bool FindTextOffset(uint64_t &SectionAddr);
 };
-
 }
 
 #endif

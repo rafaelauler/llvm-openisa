@@ -4,15 +4,14 @@
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
 
-namespace llvm{
+namespace llvm {
 
- struct OiCombinePass : public FunctionPass {
-   static char ID;
-   OiCombinePass() : FunctionPass(ID) {}
-   
-   virtual bool runOnFunction(Function &F);
- };
+struct OiCombinePass : public FunctionPass {
+  static char ID;
+  OiCombinePass() : FunctionPass(ID) {}
 
+  virtual bool runOnFunction(Function &F);
+};
 }
 
 #endif

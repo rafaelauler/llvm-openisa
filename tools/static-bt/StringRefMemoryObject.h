@@ -7,6 +7,7 @@ namespace llvm {
 class StringRefMemoryObject {
   virtual void anchor();
   StringRef Bytes;
+
 public:
   StringRefMemoryObject(StringRef bytes) : Bytes(bytes) {}
 
@@ -20,14 +21,12 @@ public:
     return 0;
   }
 
-  uint64_t readBytes(uint8_t *buf, uint64_t address, uint64_t size)
-    const {
+  uint64_t readBytes(uint8_t *buf, uint64_t address, uint64_t size) const {
     uint64_t Cur = address;
     for (; Cur < address + size; ++Cur)
       if (readByte(Cur, buf++) < 0)
-	return Cur - address;
+        return Cur - address;
     return Cur - address;
   }
 };
-
 }

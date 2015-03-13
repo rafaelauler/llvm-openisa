@@ -23,35 +23,41 @@ using namespace llvm;
 namespace llvm {
 
 cl::opt<bool>
-NoLocals("nolocals", cl::desc("Do not use locals, always use global variables"));
+    NoLocals("nolocals",
+             cl::desc("Do not use locals, always use global variables"));
 
 cl::opt<bool>
-OneRegion("oneregion", cl::desc("Consider the whole program to be one big function"));
+    OneRegion("oneregion",
+              cl::desc("Consider the whole program to be one big function"));
 
-cl::opt<bool>
-OptimizeStack("optstack", cl::desc("Optimize stack vars by considering some accesses as locals [experimental]"));
+cl::opt<bool> OptimizeStack("optstack",
+                            cl::desc("Optimize stack vars by considering some "
+                                     "accesses as locals [experimental]"));
 
-cl::opt<bool>
-AggrOptimizeStack("aoptstack", cl::desc("Aggressively optimize stack vars by considering all accesses as locals [experimental]"));
+cl::opt<bool> AggrOptimizeStack(
+    "aoptstack", cl::desc("Aggressively optimize stack vars by considering all "
+                          "accesses as locals [experimental]"));
 
-cl::opt<bool>
-NoShadow("noshadow", cl::desc("Avoid adding shadowimage offset to every memory access"));
-
+cl::opt<bool> NoShadow(
+    "noshadow",
+    cl::desc("Avoid adding shadowimage offset to every memory access"));
 }
 
 bool OiIREmitter::FindTextOffset(uint64_t &SectionAddr) {
   std::error_code ec;
   // Find through all sections relocations against the .text section
   for (auto &i : Obj->sections()) {
-    if (error(ec)) return false;
+    if (error(ec))
+      return false;
     StringRef Name;
-    if (error(i.getName(Name))) return false;
+    if (error(i.getName(Name)))
+      return false;
     if (Name != ".text")
       continue;
 
     SectionAddr = i.getAddress();
 
-    //Relocatable file
+    // Relocatable file
     if (SectionAddr == 0)
       SectionAddr = GetELFOffset(i);
 
@@ -63,13 +69,15 @@ bool OiIREmitter::FindTextOffset(uint64_t &SectionAddr) {
 bool OiIREmitter::ProcessIndirectJumps() {
   //  uint64_t FinalAddr = 0xFFFFFFFFUL;
   std::error_code ec;
-  std::vector<Constant*> IndirectJumpTable;
+  std::vector<Constant *> IndirectJumpTable;
   uint64_t TextOffset;
-  if (!FindTextOffset(TextOffset)) return false;
+  if (!FindTextOffset(TextOffset))
+    return false;
 
   // Find through all sections relocations against the .text section
   for (auto &i : Obj->sections()) {
-    if (error(ec)) break;
+    if (error(ec))
+      break;
     uint64_t SectionAddr = i.getAddress();
 
     // Relocatable file
@@ -78,7 +86,8 @@ bool OiIREmitter::ProcessIndirectJumps() {
     }
 
     for (auto &ri : i.relocations()) {
-      if (error(ec)) break;
+      if (error(ec))
+        break;
       uint64_t Type;
       if (error(ri.getType(Type)))
         llvm_unreachable("Error getting relocation type");
@@ -93,11 +102,12 @@ bool OiIREmitter::ProcessIndirectJumps() {
         continue;
 
       uint64_t offset;
-      if (error(ri.getOffset(offset))) break;
+      if (error(ri.getOffset(offset)))
+        break;
       offset += SectionAddr;
       outs() << "REL at " << (offset) << " Found ";
-      outs() << "Contents:" << (*(int*)(&ShadowImage[offset]));
-      uint64_t TargetAddr = *(int*)(&ShadowImage[offset]);
+      outs() << "Contents:" << (*(int *)(&ShadowImage[offset]));
+      uint64_t TargetAddr = *(int *)(&ShadowImage[offset]);
       TargetAddr += TextOffset;
       outs() << " TargetAddr = " << TargetAddr << "\n";
       BasicBlock *BB = CreateBB(TargetAddr);
@@ -106,7 +116,7 @@ bool OiIREmitter::ProcessIndirectJumps() {
       IndirectDestinationsAddrs.push_back(TargetAddr);
       int JumpTableIndex = IndirectJumpTable.size() - 1;
       //      IndirectJumpTable[JumpTableIndex]->dump();
-      *(int*)(&ShadowImage[offset]) = JumpTableIndex;
+      *(int *)(&ShadowImage[offset]) = JumpTableIndex;
     }
   }
   uint64_t TableSize = IndirectJumpTable.size();
@@ -114,17 +124,17 @@ bool OiIREmitter::ProcessIndirectJumps() {
   if (TableSize == 0) {
     IndirectJumpTableValue = 0;
     return true;
-  }    
+  }
 
-  ConstantArray *c = 
-    dyn_cast<ConstantArray>(ConstantArray::get(ArrayType::get(Type::getInt8PtrTy(getGlobalContext()), TableSize),
-                                               ArrayRef<Constant *>(&IndirectJumpTable[0], TableSize)));
+  ConstantArray *c = dyn_cast<ConstantArray>(ConstantArray::get(
+      ArrayType::get(Type::getInt8PtrTy(getGlobalContext()), TableSize),
+      ArrayRef<Constant *>(&IndirectJumpTable[0], TableSize)));
 
-  GlobalVariable *gv = new GlobalVariable(*TheModule, c->getType(), false, 
-                                          GlobalValue::ExternalLinkage,
-                                          c, "IndirectJumpTable");  
+  GlobalVariable *gv =
+      new GlobalVariable(*TheModule, c->getType(), false,
+                         GlobalValue::ExternalLinkage, c, "IndirectJumpTable");
 
-  IndirectJumpTableValue = gv; 
+  IndirectJumpTableValue = gv;
 
   return true;
 }
@@ -134,46 +144,51 @@ void OiIREmitter::BuildShadowImage() {
 
   std::error_code ec;
   for (auto &i : Obj->sections()) {
-    if (error(ec)) break;
+    if (error(ec))
+      break;
 
     uint64_t SectionAddr = i.getAddress();
-    if (SectionAddr == 0) 
+    if (SectionAddr == 0)
       SectionAddr = GetELFOffset(i);
     uint64_t SectSize = i.getSize();
     if (SectSize + SectionAddr > ShadowSize)
       ShadowSize = SectSize + SectionAddr;
   }
 
-  //Allocate some space for the stack
-  //ShadowSize += 10 << 20;
+  // Allocate some space for the stack
+  // ShadowSize += 10 << 20;
   ShadowSize += StackSize;
   ShadowImage.clear();
   ShadowImage.resize(ShadowSize);
- 
+
   for (auto &i : Obj->sections()) {
     uint64_t SectionAddr = i.getAddress();
     uint64_t SectSize = i.getSize();
     StringRef SecName;
-    if (error(i.getName(SecName))) break;    
+    if (error(i.getName(SecName)))
+      break;
 
     uint64_t Offset = 0;
-    if (SectionAddr == 0) 
+    if (SectionAddr == 0)
       Offset = GetELFOffset(i);
-    
+
     StringRef Bytes;
-    if (error(i.getContents(Bytes))) break;
+    if (error(i.getContents(Bytes)))
+      break;
     StringRefMemoryObject memoryObject(Bytes);
-    memoryObject.readBytes(&ShadowImage[0] + SectionAddr + Offset, SectionAddr, SectSize);
+    memoryObject.readBytes(&ShadowImage[0] + SectionAddr + Offset, SectionAddr,
+                           SectSize);
   }
 
-  Constant *c = 
-    ConstantDataArray::get(getGlobalContext(),
-      ArrayRef<uint8_t>(reinterpret_cast<const unsigned char *>(&ShadowImage[0]), 
-                        ShadowSize));
+  Constant *c = ConstantDataArray::get(
+      getGlobalContext(),
+      ArrayRef<uint8_t>(
+          reinterpret_cast<const unsigned char *>(&ShadowImage[0]),
+          ShadowSize));
 
-  GlobalVariable *gv = new GlobalVariable(*TheModule, c->getType(), false, 
-                                          GlobalValue::ExternalLinkage,
-                                          c, "ShadowMemory");  
+  GlobalVariable *gv =
+      new GlobalVariable(*TheModule, c->getType(), false,
+                         GlobalValue::ExternalLinkage, c, "ShadowMemory");
   ShadowImageValue = gv;
 }
 
@@ -197,16 +212,14 @@ void OiIREmitter::BuildRegisterFile() {
       ci = ConstantFP::get(fltTy, 0.0f);
       myty = fltTy;
     }
-    GlobalVariable *gv = new GlobalVariable(*TheModule, myty, false, 
-                                            GlobalValue::ExternalLinkage,
-                                            ci, RegName);
+    GlobalVariable *gv = new GlobalVariable(
+        *TheModule, myty, false, GlobalValue::ExternalLinkage, ci, RegName);
     GlobalRegs[I] = gv;
   }
   for (int I = 0; I < 64; ++I) {
     Constant *ci = ConstantFP::get(dblTy, 0.0);
-    GlobalVariable *gv = new GlobalVariable(*TheModule, dblTy, false, 
-                                            GlobalValue::ExternalLinkage,
-                                            ci, "dblreg");
+    GlobalVariable *gv = new GlobalVariable(
+        *TheModule, dblTy, false, GlobalValue::ExternalLinkage, ci, "dblreg");
     DblGlobalRegs[I] = gv;
   }
 }
@@ -223,10 +236,10 @@ void OiIREmitter::BuildLocalRegisterFile() {
   if (NoLocals) {
     for (int I = 1; I < 259; ++I) {
       Regs[I] = GlobalRegs[I];
-    }    
+    }
     for (int I = 0; I < 64; ++I) {
       DblRegs[I] = DblGlobalRegs[I];
-    }    
+    }
   } else {
     for (int I = 1; I < 259; ++I) {
       std::string RegName = Twine("lreg").concat(Twine(I)).str();
@@ -255,11 +268,10 @@ void OiIREmitter::BuildLocalRegisterFile() {
 void OiIREmitter::StartFunction(StringRef N) {
   Function *F = 0;
   if (FirstFunction) {
-    SmallVector<Type*, 8> args(2, Type::getInt32Ty(getGlobalContext()));
+    SmallVector<Type *, 8> args(2, Type::getInt32Ty(getGlobalContext()));
     FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()),
-                                         args, /*isvararg*/false);
-    F = Function::Create(FT, Function::ExternalLinkage,
-                         "main", &*TheModule);
+                                         args, /*isvararg*/ false);
+    F = Function::Create(FT, Function::ExternalLinkage, "main", &*TheModule);
     FirstFunction = false;
     BasicBlock *BB = CreateBB(0x34, F);
     CurBlockAddr = 0x34;
@@ -271,30 +283,30 @@ void OiIREmitter::StartFunction(StringRef N) {
       llvm_unreachable("ProcessIndirectJumps failed.");
 
   } else {
-    CurFunAddr = CurAddr+GetInstructionSize();
+    CurFunAddr = CurAddr + GetInstructionSize();
     SpilledRegs.clear();
     if (!OneRegion) {
       // Create a function with no parameters
-      FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()),
-                                           false);
+      FunctionType *FT =
+          FunctionType::get(Type::getVoidTy(getGlobalContext()), false);
       F = reinterpret_cast<Function *>(TheModule->getOrInsertFunction(N, FT));
-      BasicBlock *BB = CreateBB(CurAddr+GetInstructionSize(), F);
-      CurBlockAddr = CurAddr+GetInstructionSize();
+      BasicBlock *BB = CreateBB(CurAddr + GetInstructionSize(), F);
+      CurBlockAddr = CurAddr + GetInstructionSize();
       Builder.SetInsertPoint(BB);
       BuildLocalRegisterFile();
     } else {
-      CreateBB(CurAddr+GetInstructionSize());
+      CreateBB(CurAddr + GetInstructionSize());
     }
   }
 }
 
 void OiIREmitter::InsertStartupCode(Function *F) {
   // Initialize the stack
-  Value *size = ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
-                                  ShadowSize);
+  Value *size =
+      ConstantInt::get(Type::getInt32Ty(getGlobalContext()), ShadowSize);
   if (NoShadow) {
-    Value *shadow = Builder.CreatePtrToInt(ShadowImageValue,
-                                           Type::getInt32Ty(getGlobalContext()));
+    Value *shadow = Builder.CreatePtrToInt(
+        ShadowImageValue, Type::getInt32Ty(getGlobalContext()));
     Value *fixedSize = Builder.CreateAdd(size, shadow);
     Builder.CreateStore(fixedSize, Regs[ConvToDirective(Mips::SP)]);
   } else {
@@ -305,7 +317,7 @@ void OiIREmitter::InsertStartupCode(Function *F) {
   Value *argv = args++;
   Builder.CreateStore(argc, Regs[ConvToDirective(Mips::A0)]);
   if (NoShadow) {
-    Builder.CreateStore(argv, Regs[ConvToDirective(Mips::A1)]);    
+    Builder.CreateStore(argv, Regs[ConvToDirective(Mips::A1)]);
   } else {
     Value *ptr = Builder.CreatePtrToInt(ShadowImageValue,
                                         Type::getInt32Ty(getGlobalContext()));
@@ -323,8 +335,8 @@ void OiIREmitter::InsertStartupCode(Function *F) {
     Value *ivload = Builder.CreateLoad(iv);
     Value *ivshr = Builder.CreateShl(ivload, two);
     Value *argvsum = Builder.CreateAdd(argv, ivshr);
-    Value *argvptr = Builder.CreateIntToPtr(argvsum, Type::getInt32PtrTy
-                                            (getGlobalContext()));  
+    Value *argvptr = Builder.CreateIntToPtr(
+        argvsum, Type::getInt32PtrTy(getGlobalContext()));
     Value *elem = Builder.CreateLoad(argvptr);
     Value *elemfixed = Builder.CreateSub(elem, ptr);
     Builder.CreateStore(elemfixed, argvptr);
@@ -335,12 +347,12 @@ void OiIREmitter::InsertStartupCode(Function *F) {
     Builder.SetInsertPoint(bb2);
     BBMap["bb34"] = bb2;
   }
- 
+
   WriteMap[ConvToDirective(Mips::A0)] = true;
   WriteMap[ConvToDirective(Mips::A1)] = true;
 }
 
-BasicBlock* OiIREmitter::CreateBB(uint64_t Addr, Function *F) {
+BasicBlock *OiIREmitter::CreateBB(uint64_t Addr, Function *F) {
   if (Addr == 0)
     Addr = CurAddr;
   std::string Idx = Twine("bb").concat(Twine::utohexstr(Addr)).str();
@@ -382,7 +394,7 @@ void OiIREmitter::HandleFunctionEntryPoint(Value **First) {
     if (!WroteFirst) {
       WroteFirst = true;
       if (First)
-        *First = GetFirstInstruction(*First, st); 
+        *First = GetFirstInstruction(*First, st);
     }
   }
   for (int I = 0; I < 64; ++I) {
@@ -399,8 +411,8 @@ void OiIREmitter::HandleFunctionExitPoint(Value **First) {
     if (!WroteFirst) {
       WroteFirst = true;
       if (First)
-        *First = GetFirstInstruction(*First,st); 
-    }    
+        *First = GetFirstInstruction(*First, st);
+    }
   }
   for (int I = 0; I < 64; ++I) {
     Builder.CreateStore(Builder.CreateLoad(DblRegs[I]), DblGlobalRegs[I]);
@@ -409,7 +421,7 @@ void OiIREmitter::HandleFunctionExitPoint(Value **First) {
 
 void OiIREmitter::FixBBTerminators() {
   Function *F = Builder.GetInsertBlock()->getParent();
-  std::vector<BasicBlock*> ToDelete; 
+  std::vector<BasicBlock *> ToDelete;
 
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
     if (!I->getTerminator()) {
@@ -423,8 +435,9 @@ void OiIREmitter::FixBBTerminators() {
       }
     }
   }
-  for (std::vector<BasicBlock*>::iterator I = ToDelete.begin(),
-         E = ToDelete.end(); I != E; ++I) {
+  for (std::vector<BasicBlock *>::iterator I = ToDelete.begin(),
+                                           E = ToDelete.end();
+       I != E; ++I) {
     (*I)->eraseFromParent();
   }
 }
@@ -437,21 +450,21 @@ void OiIREmitter::CleanRegs() {
       Instruction *inst = dyn_cast<Instruction>(Regs[I]);
       if (inst) {
         while (!inst->use_empty()) {
-          Instruction* UI = inst->user_back();
+          Instruction *UI = inst->user_back();
           // These are assigning a value to the local copy of the reg, bu since
           // we don't use it, we can delete the assignment.
           if (isa<StoreInst>(UI)) {
             UI->eraseFromParent();
             continue;
           }
-          assert (isa<LoadInst>(UI));
+          assert(isa<LoadInst>(UI));
           // Here we should have a false usage of the value. It is loading only
           // in checkpoints (exit points) to save it back to the global copy.
           // Since we do not really use it, we should delete the load and the
           // store insruction that is using it.
-          assert (UI->hasOneUse());
-          Instruction* StUI = dyn_cast<Instruction>(UI->user_back());
-          assert (isa<StoreInst>(StUI));
+          assert(UI->hasOneUse());
+          Instruction *StUI = dyn_cast<Instruction>(UI->user_back());
+          assert(isa<StoreInst>(StUI));
           StUI->eraseFromParent();
           UI->eraseFromParent();
         }
@@ -464,21 +477,21 @@ void OiIREmitter::CleanRegs() {
       Instruction *inst = dyn_cast<Instruction>(DblRegs[I]);
       if (inst) {
         while (!inst->use_empty()) {
-          Instruction* UI = inst->user_back();
+          Instruction *UI = inst->user_back();
           // These are assigning a value to the local copy of the reg, bu since
           // we don't use it, we can delete the assignment.
           if (isa<StoreInst>(UI)) {
             UI->eraseFromParent();
             continue;
           }
-          assert (isa<LoadInst>(UI));
+          assert(isa<LoadInst>(UI));
           // Here we should have a false usage of the value. It is loading only
           // in checkpoints (exit points) to save it back to the global copy.
           // Since we do not really use it, we should delete the load and the
           // store insruction that is using it.
-          assert (UI->hasOneUse());
-          Instruction* StUI = dyn_cast<Instruction>(UI->user_back());
-          assert (isa<StoreInst>(StUI));
+          assert(UI->hasOneUse());
+          Instruction *StUI = dyn_cast<Instruction>(UI->user_back());
+          assert(isa<StoreInst>(StUI));
           StUI->eraseFromParent();
           UI->eraseFromParent();
         }
@@ -496,21 +509,23 @@ bool OiIREmitter::BuildReturnTablesOneRegion() {
       FunctionCallMap[I].push_back(J);
     }
   }
-  for (FunctionRetMapTy::iterator I = FunctionRetMap.begin(), 
-         E = FunctionRetMap.end(); I != E; ++I) {
+  for (FunctionRetMapTy::iterator I = FunctionRetMap.begin(),
+                                  E = FunctionRetMap.end();
+       I != E; ++I) {
     uint32_t retaddr = I->first;
     uint32_t funcaddr = I->second;
 
-    Instruction* tgtins = InsMap[retaddr];
+    Instruction *tgtins = InsMap[retaddr];
     assert(tgtins && "Invalid return address");
-    
+
     Builder.SetInsertPoint(tgtins->getParent(), tgtins);
-    
+
     std::vector<uint32_t> CallSites = GetCallSitesFor(funcaddr);
     if (CallSites.empty())
       continue;
 
-    Value *ra = Builder.CreateLoad(Regs[ConvToDirective(Mips::RA)], "RetTableInput");
+    Value *ra =
+        Builder.CreateLoad(Regs[ConvToDirective(Mips::RA)], "RetTableInput");
     ReadMap[ConvToDirective(Mips::RA)] = true;
     Instruction *dummy = Builder.CreateUnreachable();
     Builder.SetInsertPoint(tgtins->getParent(), dummy);
@@ -518,19 +533,21 @@ bool OiIREmitter::BuildReturnTablesOneRegion() {
     // Delete the original ret instruction
     tgtins->eraseFromParent();
 
-    for (std::vector<uint32_t>::iterator J = CallSites.begin(), EJ = CallSites.end();
+    for (std::vector<uint32_t>::iterator J = CallSites.begin(),
+                                         EJ = CallSites.end();
          J != EJ; ++J) {
       Value *site = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), *J);
       Value *cmp = Builder.CreateICmpEQ(site, ra);
 
       std::string Idx = Twine("bb").concat(Twine::utohexstr(*J)).str();
       //  printf("\n%08X\n\n%s\n", *J,  Idx.c_str());
-      assert (BBMap[Idx] != 0 && "Invalid return target address");
+      assert(BBMap[Idx] != 0 && "Invalid return target address");
       Value *TrueV = BBMap[Idx];
-      assert(isa<BasicBlock>(TrueV) && "Values stored into BBMap must be BasicBlocks");
+      assert(isa<BasicBlock>(TrueV) &&
+             "Values stored into BBMap must be BasicBlocks");
       BasicBlock *True = dyn_cast<BasicBlock>(TrueV);
       Function *F = True->getParent();
-      BasicBlock *FallThrough = BasicBlock::Create(getGlobalContext(), "", F);      
+      BasicBlock *FallThrough = BasicBlock::Create(getGlobalContext(), "", F);
 
       Builder.CreateCondBr(cmp, True, FallThrough);
       Builder.SetInsertPoint(FallThrough);
@@ -558,10 +575,11 @@ bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
     Addr += 8;
     TgtIns = InsMap[Addr];
   }
-    
+
   assert(TgtIns && "Backedge out of range");
-  assert(TgtIns->getParent()->getParent() 
-         == Builder.GetInsertBlock()->getParent() && "Backedge out of range");
+  assert(TgtIns->getParent()->getParent() ==
+             Builder.GetInsertBlock()->getParent() &&
+         "Backedge out of range");
 
   Idx = Twine("bb").concat(Twine::utohexstr(Addr)).str();
   if (BBMap[Idx] != 0) {
@@ -574,23 +592,23 @@ bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
     if (&*I == TgtIns)
       break;
   }
-  assert (I != E);
+  assert(I != E);
   if (BB->getTerminator()) {
-    Target = BB->splitBasicBlock(I, Idx);    
+    Target = BB->splitBasicBlock(I, Idx);
     BBMap[Idx] = Target;
     return true;
   }
 
-  //Insert dummy terminator
+  // Insert dummy terminator
   assert(Builder.GetInsertBlock() == BB && CurBlockAddr < Addr);
   Instruction *dummy = dyn_cast<Instruction>(Builder.CreateRetVoid());
   assert(dummy);
-  Target = BB->splitBasicBlock(I, Idx);    
+  Target = BB->splitBasicBlock(I, Idx);
   BBMap[Idx] = Target;
   CurBlockAddr = Addr;
   dummy->eraseFromParent();
   Builder.SetInsertPoint(Target, Target->end());
-  
+
   return true;
 }
 
@@ -598,38 +616,38 @@ bool OiIREmitter::HandleIndirectCallOneRegion(Value *src, Value **First) {
   Value *f;
   Value *Target = AccessJumpTable(src, &f);
   IndirectCallMap.insert(CurAddr + GetInstructionSize());
-  Builder.CreateStore
-    (ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
-                      CurAddr+GetInstructionSize()),
-     Regs[ConvToDirective(Mips::RA)]);
+  Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
+                                       CurAddr + GetInstructionSize()),
+                      Regs[ConvToDirective(Mips::RA)]);
   WriteMap[ConvToDirective(Mips::RA)] = true;
-  IndirectBrInst *v = Builder.CreateIndirectBr(Target,
-                                               IndirectDestinations.size());
-  for(int I = 0, E = IndirectDestinations.size(); I != E; ++I) {
+  IndirectBrInst *v =
+      Builder.CreateIndirectBr(Target, IndirectDestinations.size());
+  for (int I = 0, E = IndirectDestinations.size(); I != E; ++I) {
     v->addDestination(IndirectDestinations[I]);
-  }        
+  }
   if (First)
     *First = GetFirstInstruction(*First, src, f);
-  CreateBB(CurAddr+GetInstructionSize());
+  CreateBB(CurAddr + GetInstructionSize());
   return true;
 }
 
 bool OiIREmitter::HandleLocalCallOneRegion(uint64_t Addr, Value *&V,
-                                               Value **First) {
+                                           Value **First) {
   BasicBlock *Target;
   FunctionCallMap[Addr].push_back(CurAddr + GetInstructionSize());
   if (Addr < CurAddr)
     HandleBackEdge(Addr, Target);
   else
     Target = CreateBB(Addr);
-  Value *first = Builder.CreateStore
-    (ConstantInt::get(Type::getInt32Ty(getGlobalContext()), CurAddr+
-                      GetInstructionSize()),
-                               Regs[ConvToDirective(Mips::RA)]);
+  Value *first =
+      Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
+                                           CurAddr + GetInstructionSize()),
+                          Regs[ConvToDirective(Mips::RA)]);
   WriteMap[ConvToDirective(Mips::RA)] = true;
   V = Builder.CreateBr(Target);
-  //  printf("\nHandleLocalCallOneregion.CurAddr: %08LX\n", CurAddr+GetInstructionSize());
-  CreateBB(CurAddr+GetInstructionSize());
+  //  printf("\nHandleLocalCallOneregion.CurAddr: %08LX\n",
+  //  CurAddr+GetInstructionSize());
+  CreateBB(CurAddr + GetInstructionSize());
   if (First)
     *First = GetFirstInstruction(*First, first);
   return true;
@@ -638,12 +656,12 @@ bool OiIREmitter::HandleLocalCallOneRegion(uint64_t Addr, Value *&V,
 bool OiIREmitter::HandleLocalCall(uint64_t Addr, Value *&V, Value **First) {
   if (OneRegion)
     return HandleLocalCallOneRegion(Addr, V, First);
-  
+
   std::string Name = Twine("a").concat(Twine::utohexstr(Addr)).str();
   StringRef NameRef(Name);
   HandleFunctionExitPoint(First);
   FunctionType *ft = FunctionType::get(Type::getVoidTy(getGlobalContext()),
-                                       /*isvararg*/false);
+                                       /*isvararg*/ false);
   Value *fun = TheModule->getOrInsertFunction(NameRef, ft);
   V = Builder.CreateCall(fun);
   if (First && NoLocals)
@@ -653,14 +671,13 @@ bool OiIREmitter::HandleLocalCall(uint64_t Addr, Value *&V, Value **First) {
 }
 
 Value *OiIREmitter::AccessSpillMemory(unsigned Idx, bool IsLoad) {
-  Value* ptr = SpilledRegs[Idx];
+  Value *ptr = SpilledRegs[Idx];
   if (!ptr) {
     Function *CurFun = Builder.GetInsertBlock()->getParent();
     IRBuilder<> Builder(&CurFun->getEntryBlock(),
                         CurFun->getEntryBlock().begin());
-    ptr = 
-      Builder.CreateAlloca(Type::getInt32Ty(getGlobalContext()), 0,
-                           StringRef("frame") + Twine(Idx));
+    ptr = Builder.CreateAlloca(Type::getInt32Ty(getGlobalContext()), 0,
+                               StringRef("frame") + Twine(Idx));
     SpilledRegs[Idx] = ptr;
   }
   if (IsLoad)
@@ -668,8 +685,8 @@ Value *OiIREmitter::AccessSpillMemory(unsigned Idx, bool IsLoad) {
   return ptr;
 }
 
-Value *OiIREmitter::AccessShadowMemory(Value *Idx, bool IsLoad, int width, bool isFloat,
-                                       Value **First) {
+Value *OiIREmitter::AccessShadowMemory(Value *Idx, bool IsLoad, int width,
+                                       bool isFloat, Value **First) {
   Type *targetType = 0;
   switch (width) {
   case 8:
@@ -697,7 +714,7 @@ Value *OiIREmitter::AccessShadowMemory(Value *Idx, bool IsLoad, int width, bool 
     if (First)
       *First = GetFirstInstruction(*First, ptr);
   } else {
-    SmallVector<Value*,4> Idxs;
+    SmallVector<Value *, 4> Idxs;
     Idxs.push_back(ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U));
     Idxs.push_back(Idx);
     Value *gep = Builder.CreateGEP(ShadowImageValue, Idxs);
@@ -715,15 +732,13 @@ Value *OiIREmitter::AccessShadowMemory(Value *Idx, bool IsLoad, int width, bool 
 }
 
 Value *OiIREmitter::AccessJumpTable(Value *Idx, Value **First) {
-  SmallVector<Value*,4> Idxs;
+  SmallVector<Value *, 4> Idxs;
   Idxs.push_back(ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U));
   Idxs.push_back(Idx);
   Value *gep = Builder.CreateGEP(IndirectJumpTableValue, Idxs);
-  Type *targetType = 
-    Type::getInt8PtrTy(getGlobalContext());
+  Type *targetType = Type::getInt8PtrTy(getGlobalContext());
   Value *ptr = Builder.CreateBitCast(gep, targetType);
   if (First)
     *First = GetFirstInstruction(*First, gep);
   return ptr;
 }
-

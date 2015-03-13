@@ -1,5 +1,5 @@
 //=== SBTUtils.cpp - General utilities ------------------*- C++ -*-==//
-// 
+//
 // Convenience functions to convert register numbers when reading
 // an OpenISA binary and converting it to IR.
 //
@@ -13,7 +13,8 @@
 namespace llvm {
 
 bool error(std::error_code ec) {
-  if (!ec) return false;
+  if (!ec)
+    return false;
 
   outs() << "error reading file: " << ec.message() << ".\n";
   outs().flush();
@@ -21,7 +22,7 @@ bool error(std::error_code ec) {
 }
 
 unsigned conv32(unsigned regnum) {
-  switch(regnum) {
+  switch (regnum) {
   case Mips::AT_64:
     return Mips::AT;
   case Mips::FP_64:
@@ -85,7 +86,7 @@ unsigned conv32(unsigned regnum) {
   case Mips::T8_64:
     return Mips::T8;
   case Mips::T9_64:
-    return Mips::T9; 
+    return Mips::T9;
   case Mips::D0_64:
     return Mips::F0;
   case Mips::D1_64:
@@ -161,7 +162,7 @@ unsigned conv32(unsigned regnum) {
 }
 
 unsigned ConvFromDirective(unsigned regnum) {
-  switch(regnum) {
+  switch (regnum) {
   case 0:
     return Mips::ZERO;
   case 1:
@@ -232,7 +233,7 @@ unsigned ConvFromDirective(unsigned regnum) {
 }
 
 unsigned ConvToDirective(unsigned regnum) {
-  switch(regnum) {
+  switch (regnum) {
   case Mips::ZERO:
     return 0;
   case Mips::AT:
@@ -366,9 +367,7 @@ unsigned ConvToDirective(unsigned regnum) {
   case Mips::R65:
     return 65;
 
-
-
-    // Floating point registers
+  // Floating point registers
   case Mips::D0:
   case Mips::F0:
     return 34;
@@ -529,7 +528,6 @@ unsigned ConvToDirective(unsigned regnum) {
     return 96;
   case Mips::F63:
     return 97;
-
   }
   llvm_unreachable("Invalid register");
   return -1;
@@ -541,30 +539,34 @@ unsigned ConvToDirectiveDbl(unsigned regnum) {
 
 uint64_t GetELFOffset(const SectionRef &i) {
   DataRefImpl Sec = i.getRawDataRefImpl();
-  const object::Elf_Shdr_Impl<object::ELFType<support::little, 2, false> > *sec =
-    reinterpret_cast<const object::Elf_Shdr_Impl<object::ELFType<support::little, 2, false> > *>(Sec.p);
+  const object::Elf_Shdr_Impl<object::ELFType<support::little, 2, false>> *sec =
+      reinterpret_cast<const object::Elf_Shdr_Impl<
+          object::ELFType<support::little, 2, false>> *>(Sec.p);
   return sec->sh_offset;
 }
 
-
-std::vector<std::pair<uint64_t, StringRef> > GetSymbolsList(const ObjectFile *Obj, const SectionRef &i) {
+std::vector<std::pair<uint64_t, StringRef>>
+GetSymbolsList(const ObjectFile *Obj, const SectionRef &i) {
   uint64_t SectionAddr = i.getAddress();
 
   std::error_code ec;
   // Make a list of all the symbols in this section.
-  std::vector<std::pair<uint64_t, StringRef> > Symbols;
+  std::vector<std::pair<uint64_t, StringRef>> Symbols;
   for (auto si : Obj->symbols()) {
     if (!i.containsSymbol(si))
       continue;
 
     uint64_t Address;
-    if (error(si.getAddress(Address))) break;
-    if (Address == UnknownAddressOrSize) continue;
+    if (error(si.getAddress(Address)))
+      break;
+    if (Address == UnknownAddressOrSize)
+      continue;
     Address -= SectionAddr;
 
     StringRef Name;
-    if (error(si.getName(Name))) break;
-    Symbols.push_back(std::make_pair(Address, Name));    
+    if (error(si.getName(Name)))
+      break;
+    Symbols.push_back(std::make_pair(Address, Name));
   }
 
   // Sort the symbols by address, just in case they didn't come in that way.
@@ -572,13 +574,13 @@ std::vector<std::pair<uint64_t, StringRef> > GetSymbolsList(const ObjectFile *Ob
   return Symbols;
 }
 
-Value* GetFirstInstruction(Value *o0, Value *o1) {
+Value *GetFirstInstruction(Value *o0, Value *o1) {
   if (o0 && isa<Instruction>(o0))
     return o0;
   return o1;
 }
 
-Value* GetFirstInstruction(Value *o0, Value *o1, Value *o2) {
+Value *GetFirstInstruction(Value *o0, Value *o1, Value *o2) {
   if (o0 && isa<Instruction>(o0))
     return o0;
   if (o1 && isa<Instruction>(o1))
@@ -586,7 +588,7 @@ Value* GetFirstInstruction(Value *o0, Value *o1, Value *o2) {
   return o2;
 }
 
-Value* GetFirstInstruction(Value *o0, Value *o1, Value *o2, Value *o3) {
+Value *GetFirstInstruction(Value *o0, Value *o1, Value *o2, Value *o3) {
   if (o0 && isa<Instruction>(o0))
     return o0;
   if (o1 && isa<Instruction>(o1))
@@ -596,7 +598,8 @@ Value* GetFirstInstruction(Value *o0, Value *o1, Value *o2, Value *o3) {
   return o3;
 }
 
-Value* GetFirstInstruction(Value *o0, Value *o1, Value *o2, Value *o3, Value *o4) {
+Value *GetFirstInstruction(Value *o0, Value *o1, Value *o2, Value *o3,
+                           Value *o4) {
   if (o0 && isa<Instruction>(o0))
     return o0;
   if (o1 && isa<Instruction>(o1))
@@ -608,8 +611,5 @@ Value* GetFirstInstruction(Value *o0, Value *o1, Value *o2, Value *o3, Value *o4
   return o4;
 }
 
-uint32_t GetInstructionSize() {
-  return 8;
-}
-
+uint32_t GetInstructionSize() { return 8; }
 }

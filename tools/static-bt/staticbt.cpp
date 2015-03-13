@@ -59,9 +59,9 @@
 namespace llvm {
 
 namespace object {
-  class COFFObjectFile;
-  class ObjectFile;
-  class RelocationRef;
+class COFFObjectFile;
+class ObjectFile;
+class RelocationRef;
 }
 
 extern cl::opt<std::string> TripleName;
@@ -70,48 +70,46 @@ extern cl::opt<std::string> ArchName;
 // Various helper functions.
 void DumpBytes(StringRef bytes);
 void DisassembleInputMachO(StringRef Filename);
-void printCOFFUnwindInfo(const object::COFFObjectFile* o);
+void printCOFFUnwindInfo(const object::COFFObjectFile *o);
 void printELFFileHeader(const object::ObjectFile *o);
-
 }
 using namespace llvm;
 using namespace object;
 
 namespace llvm {
-  extern Target TheMipsTarget, TheMipselTarget;
+extern Target TheMipsTarget, TheMipselTarget;
 }
 
-static cl::list<std::string>
-InputFilenames(cl::Positional, cl::desc("<input object files>"),cl::ZeroOrMore);
+static cl::list<std::string> InputFilenames(cl::Positional,
+                                            cl::desc("<input object files>"),
+                                            cl::ZeroOrMore);
 
-static cl::opt<std::string>
-OutputFilename("o", cl::desc("Output filename"),
-               cl::value_desc("filename"));
+static cl::opt<std::string> OutputFilename("o", cl::desc("Output filename"),
+                                           cl::value_desc("filename"));
 
 static cl::opt<bool>
-Optimize("optimize", cl::desc("Optimize the output LLVM bitcode file"));
+    Optimize("optimize", cl::desc("Optimize the output LLVM bitcode file"));
 
 static cl::opt<uint32_t>
-StackSize("stacksize", cl::desc("Specifies the space reserved for the stack"
-                                "(Default 300B)"),
-          cl::init(300ULL));
+    StackSize("stacksize", cl::desc("Specifies the space reserved for the stack"
+                                    "(Default 300B)"),
+              cl::init(300ULL));
 
+static cl::opt<bool> Dump("dump",
+                          cl::desc("Dump the output LLVM bitcode file"));
 
-static cl::opt<bool>
-Dump("dump", cl::desc("Dump the output LLVM bitcode file"));
-
-static cl::list<std::string>
-MAttrs("mattr",
-  cl::CommaSeparated,
-  cl::desc("Target specific attributes"),
-  cl::value_desc("a1,+a2,-a3,..."));
+static cl::list<std::string> MAttrs("mattr", cl::CommaSeparated,
+                                    cl::desc("Target specific attributes"),
+                                    cl::value_desc("a1,+a2,-a3,..."));
 
 cl::opt<std::string>
-llvm::TripleName("triple", cl::desc("<UNUSED>Target triple to disassemble for, "
-                                    "see -version for available targets"));
+    llvm::TripleName("triple",
+                     cl::desc("<UNUSED>Target triple to disassemble for, "
+                              "see -version for available targets"));
 
-cl::opt<std::string>
-CodeTarget("target", cl::desc("Target to generate code for"), cl::value_desc("x86"));
+cl::opt<std::string> CodeTarget("target",
+                                cl::desc("Target to generate code for"),
+                                cl::value_desc("x86"));
 
 static StringRef ToolName;
 
@@ -125,7 +123,7 @@ static const Target *getTarget(const ObjectFile *Obj = NULL) {
     TheTriple.setTriple(Triple::normalize(TripleName));
 
   // Get the target specific parser.
-  const Target *TheTarget = &TheMipselTarget; 
+  const Target *TheTarget = &TheMipselTarget;
   if (!TheTarget) {
     errs() << "Could not load OpenISA target.";
     return 0;
@@ -147,12 +145,11 @@ void llvm::DumpBytes(StringRef bytes) {
   enum { OutputSize = (15 * 3) + 1 };
   char output[OutputSize];
 
-  assert(bytes.size() <= 15
-    && "DumpBytes only supports instructions of up to 15 bytes");
+  assert(bytes.size() <= 15 &&
+         "DumpBytes only supports instructions of up to 15 bytes");
   memset(output, ' ', sizeof(output));
   unsigned index = 0;
-  for (StringRef::iterator i = bytes.begin(),
-                           e = bytes.end(); i != e; ++i) {
+  for (StringRef::iterator i = bytes.begin(), e = bytes.end(); i != e; ++i) {
     output[index] = hex_rep[(*i & 0xF0) >> 4];
     output[index + 1] = hex_rep[*i & 0xF];
     index += 3;
@@ -164,8 +161,8 @@ void llvm::DumpBytes(StringRef bytes) {
 
 static tool_output_file *GetBitcodeOutputStream() {
   std::error_code EC;
-  tool_output_file *Out = new tool_output_file(OutputFilename, EC,
-                                               sys::fs::F_None);
+  tool_output_file *Out =
+      new tool_output_file(OutputFilename, EC, sys::fs::F_None);
   if (EC) {
     errs() << EC.message() << '\n';
     delete Out;
@@ -179,7 +176,7 @@ void OptimizeAndWriteBitcode(OiInstTranslate *oit) {
   Module *m = oit->takeModule();
   FunctionPassManager OurFPM(m);
 
-  if (Optimize) {    
+  if (Optimize) {
     OurFPM.add(createPromoteMemoryToRegisterPass());
     OurFPM.add(new OiCombinePass());
     OurFPM.add(createInstructionCombiningPass());
@@ -187,22 +184,21 @@ void OptimizeAndWriteBitcode(OiInstTranslate *oit) {
     OurFPM.add(createGVNPass());
     OurFPM.add(createCFGSimplificationPass());
 
-
     OurFPM.doInitialization();
-    
+
     for (Module::iterator I = m->begin(); I != m->end(); ++I) {
       if (I->isDeclaration())
         continue;
       verifyFunction(*I);
       OurFPM.run(*I);
-      }
+    }
   }
 
   // Set up the optimizer pipeline.  Start with registering info about how the
   // target lays out data structures.
-  //OurFPM.add(new DataLayout(*TheExecutionEngine->getDataLayout()));
+  // OurFPM.add(new DataLayout(*TheExecutionEngine->getDataLayout()));
   // Provide basic AliasAnalysis support for GVN.
-  //OurFPM.add(createBasicAliasAnalysisPass());
+  // OurFPM.add(createBasicAliasAnalysisPass());
   // Promote allocas to registers.
   //  OurFPM.add(createPromoteMemoryToRegisterPass());
   //  OurFPM.add(new OiCombinePass());
@@ -214,14 +210,14 @@ void OptimizeAndWriteBitcode(OiInstTranslate *oit) {
   //  OurFPM.add(createGVNPass());
   // Simplify the control flow graph (deleting unreachable blocks, etc).
   //  OurFPM.add(createCFGSimplificationPass());
- 
+
   if (Dump) {
     m->dump();
   }
   if (OutputFilename != "") {
     std::unique_ptr<tool_output_file> outfile(GetBitcodeOutputStream());
     if (outfile) {
-      WriteBitcodeToFile(m,outfile->os());
+      WriteBitcodeToFile(m, outfile->os());
       outfile->keep();
     }
   }
@@ -251,16 +247,16 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
     return;
   }
 
-
   // Set up disassembler.
-  std::unique_ptr<const MCAsmInfo> AsmInfo(TheTarget->createMCAsmInfo(*MRI, TripleName));
+  std::unique_ptr<const MCAsmInfo> AsmInfo(
+      TheTarget->createMCAsmInfo(*MRI, TripleName));
   if (!AsmInfo) {
     errs() << "error: no assembly info for target " << TripleName << "\n";
     return;
   }
 
   std::unique_ptr<const MCSubtargetInfo> STI(
-          TheTarget->createMCSubtargetInfo(TripleName, "", FeaturesStr));
+      TheTarget->createMCSubtargetInfo(TripleName, "", FeaturesStr));
   if (!STI) {
     errs() << "error: no subtarget info for target " << TripleName << "\n";
     return;
@@ -270,7 +266,7 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
   MCContext Ctx(AsmInfo.get(), MRI.get(), MOFI.get());
 
   std::unique_ptr<const MCDisassembler> DisAsm(
-		TheTarget->createMCDisassembler(*STI, Ctx));
+      TheTarget->createMCDisassembler(*STI, Ctx));
   if (!DisAsm) {
     errs() << "error: no disassembler for target " << TripleName << "\n";
     return;
@@ -284,36 +280,38 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
 
   //  int AsmPrinterVariant = AsmInfo->getAssemblerDialect();
 
-  std::unique_ptr<OiInstTranslate> IP(new OiInstTranslate(*AsmInfo, *MII, *MRI, Obj,
-							  StackSize, CodeTarget));
-  // TheTarget->createMCInstPrinter(AsmPrinterVariant, *AsmInfo, *MII, *MRI, *STI));
+  std::unique_ptr<OiInstTranslate> IP(
+      new OiInstTranslate(*AsmInfo, *MII, *MRI, Obj, StackSize, CodeTarget));
+  // TheTarget->createMCInstPrinter(AsmPrinterVariant, *AsmInfo, *MII, *MRI,
+  // *STI));
   if (!IP) {
-    errs() << "error: no instruction printer for target " << TripleName
-           << '\n';
+    errs() << "error: no instruction printer for target " << TripleName << '\n';
     return;
   }
 
   std::error_code ec;
   for (const SectionRef &i : Obj->sections()) {
-    if (error(ec)) break;
-    if (!i.isText()) continue;
+    if (error(ec))
+      break;
+    if (!i.isText())
+      continue;
 
     IP->SetCurSection(&i);
 
     uint64_t SectionAddr = i.getAddress();
 
     // Make a list of all the symbols in this section.
-    std::vector<std::pair<uint64_t, StringRef> > Symbols = 
-      GetSymbolsList(Obj, i);
+    std::vector<std::pair<uint64_t, StringRef>> Symbols =
+        GetSymbolsList(Obj, i);
 
     StringRef SegmentName = "";
-    if (const MachOObjectFile *MachO =
-        dyn_cast<const MachOObjectFile>(Obj)) {
+    if (const MachOObjectFile *MachO = dyn_cast<const MachOObjectFile>(Obj)) {
       DataRefImpl DR = i.getRawDataRefImpl();
       SegmentName = MachO->getSectionFinalSegmentName(DR);
     }
     StringRef name;
-    if (error(i.getName(name))) break;
+    if (error(i.getName(name)))
+      break;
 #ifndef NDEBUG
     outs() << "Disassembly of section ";
     if (!SegmentName.empty())
@@ -327,7 +325,8 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
       Symbols.push_back(std::make_pair(0, name));
 
     StringRef BytesStr;
-    if (error(i.getContents(BytesStr))) break;
+    if (error(i.getContents(BytesStr)))
+      break;
     ArrayRef<uint8_t> Bytes(reinterpret_cast<const uint8_t *>(BytesStr.data()),
                             BytesStr.size());
 
@@ -355,22 +354,23 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
 #endif
 
 #ifndef NDEBUG
-        raw_ostream &DebugOut = DebugFlag ? dbgs() : nulls();
+      raw_ostream &DebugOut = DebugFlag ? dbgs() : nulls();
 #else
-        raw_ostream &DebugOut = nulls();
+      raw_ostream &DebugOut = nulls();
 #endif
       uint64_t eoffset = SectionAddr;
       /* Relocatable object */
-      if (SectionAddr == 0) 
+      if (SectionAddr == 0)
         eoffset = GetELFOffset(i);
 
-      IP->StartFunction(Twine("a").concat(Twine::utohexstr(Start + eoffset)).str());
+      IP->StartFunction(
+          Twine("a").concat(Twine::utohexstr(Start + eoffset)).str());
       for (Index = Start; Index < End; Index += Size) {
         MCInst Inst;
-        
+
         IP->UpdateCurAddr(Index + eoffset);
-        if (DisAsm->getInstruction(Inst, Size, Bytes.slice(Index), SectionAddr + Index,
-                                   DebugOut, nulls())) {
+        if (DisAsm->getInstruction(Inst, Size, Bytes.slice(Index),
+                                   SectionAddr + Index, DebugOut, nulls())) {
 #ifndef NDEBUG
           outs() << format("%8" PRIx64 ":", eoffset + Index);
           outs() << "\t";
@@ -389,7 +389,7 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
         }
       }
       IP->FinishFunction();
-    }    
+    }
   }
   IP->FinishModule();
   OptimizeAndWriteBitcode(&*IP);
@@ -397,8 +397,8 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
 
 static void DumpObject(const ObjectFile *o) {
   outs() << '\n';
-  outs() << o->getFileName()
-         << ":\tfile format " << o->getFileFormatName() << "\n\n";
+  outs() << o->getFileName() << ":\tfile format " << o->getFileFormatName()
+         << "\n\n";
 
   DisassembleObject(o, false);
 }
@@ -419,7 +419,7 @@ static void DumpArchive(const Archive *a) {
       DumpObject(o);
     else
       errs() << ToolName << ": '" << a->getFileName() << "': "
-              << "Unrecognized file type.\n";
+             << "Unrecognized file type.\n";
   }
 }
 
@@ -427,7 +427,8 @@ static void DumpArchive(const Archive *a) {
 static void DumpInput(StringRef file) {
   // If file isn't stdin, check that it exists.
   if (file != "-" && !sys::fs::exists(file)) {
-    errs() << ToolName << ": '" << file << "': " << "No such file\n";
+    errs() << ToolName << ": '" << file << "': "
+           << "No such file\n";
     return;
   }
 
@@ -445,14 +446,15 @@ static void DumpInput(StringRef file) {
   else if (ObjectFile *o = dyn_cast<ObjectFile>(&Binary))
     DumpObject(o);
   else
-    errs() << ToolName << ": '" << file << "': " << "Unrecognized file type.\n";
+    errs() << ToolName << ": '" << file << "': "
+           << "Unrecognized file type.\n";
 }
 
 int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
-  llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
+  llvm_shutdown_obj Y; // Call llvm_shutdown() on exit.
 
   // Initialize targets and assembly printers/parsers.
   llvm::InitializeAllTargetInfos();
@@ -463,7 +465,8 @@ int main(int argc, char **argv) {
   // Register the target printer for --version.
   cl::AddExtraVersionPrinter(TargetRegistry::printRegisteredTargetsForVersion);
 
-  cl::ParseCommandLineOptions(argc, argv, "Open-ISA Static Binary Translator\n");
+  cl::ParseCommandLineOptions(argc, argv,
+                              "Open-ISA Static Binary Translator\n");
   TripleName = Triple::normalize(TripleName);
 
   ToolName = argv[0];
@@ -472,8 +475,7 @@ int main(int argc, char **argv) {
   if (InputFilenames.size() == 0)
     InputFilenames.push_back("a.out");
 
-  std::for_each(InputFilenames.begin(), InputFilenames.end(),
-                DumpInput);
+  std::for_each(InputFilenames.begin(), InputFilenames.end(), DumpInput);
 
   return 0;
 }
