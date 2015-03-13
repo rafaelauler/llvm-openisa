@@ -673,11 +673,25 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V, Value **Fi
           bool PtrTypes[] = {false, false};
           return Syscalls.HandleGenericInt(V, "putchar", 1, 1, PtrTypes, First);
         }
-	if (val == "memchr") {
+        if (val == "memchr") {
           bool PtrTypes[] = {true, false, false, true};
           return Syscalls.HandleGenericInt(V, "memchr", 3, 1, PtrTypes, First);
-	}
-	//		printf("%s\n", val.str().c_str());
+        }
+        if (val == "strtol") {
+          bool PtrTypes[] = {true, true, false, false};
+          return Syscalls.HandleGenericInt(V, "strtol", 3, 1, PtrTypes, First);
+        }
+        if (val == "strtod") {
+          bool PtrTypes[] = {true, true, false};
+          return Syscalls.HandleGenericDouble(V, "strtod", 2, 1, PtrTypes, First);
+        }
+        if (val == "__ctype_toupper_loc") {
+          bool PtrTypes[] = {true};
+          return Syscalls.HandleGenericInt(V, "__ctype_toupper_loc", 0, 1,
+                                           PtrTypes, First);
+        }
+
+        //        printf("%s\n", val.str().c_str());
 
       }
       uint64_t targetaddr;

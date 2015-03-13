@@ -309,7 +309,14 @@ bool SyscallsIface::HandleLibcScanf(Value *&V, Value **First) {
 
 bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
                                         int numret, bool *PtrTypes, Value **First) {
-  SmallVector<Type*, 8> args(numargs, Type::getDoubleTy(getGlobalContext()));
+  SmallVector<Type *, 8> args;
+  for (int I = 0, E = numargs; I != E; ++I) {
+    if (PtrTypes[I])
+      args.push_back(Type::getInt32Ty(getGlobalContext()));
+    else
+      args.push_back(Type::getDoubleTy(getGlobalContext()));
+  }
+
   FunctionType *ft;
   if (numret == 0)
     ft= FunctionType::get(Type::getVoidTy(getGlobalContext()),
@@ -338,16 +345,27 @@ bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
   SmallVector<Value*, 8> params;
   assert(numargs <= 4 && "Cannot handle more than 4 arguments");
   if (numargs > 0) {
+    unsigned numPtrs = 0;
+    unsigned numDoubles = 0;
     for (int I = 0, E = numargs; I != E; ++I) {
-      Value *f = Builder.CreateLoad(IREmitter.DblRegs[ConvToDirectiveDbl(Mips::F12)+I]);
-      if (I == 0 && First)
-        *First = GetFirstInstruction(*First, f);
       if (PtrTypes[I]) {
-        llvm_unreachable("Cannot currently handle pointers");
+        Value *f = Builder.CreateLoad(
+            IREmitter.Regs[ConvToDirective(Mips::A0) + numPtrs]);
+        if (I == 0 && First)
+          *First = GetFirstInstruction(*First, f);
+        Value *addrbuf = IREmitter.AccessShadowMemory(f, false);
+        params.push_back(Builder.CreatePtrToInt(
+            addrbuf, Type::getInt32Ty(getGlobalContext())));
+        ReadMap[ConvToDirective(Mips::A0) + numPtrs++] = true;
       } else {
+        Value *f = Builder.CreateLoad(
+            IREmitter.DblRegs[ConvToDirectiveDbl(Mips::F12) + numDoubles]);
+        if (I == 0 && First)
+          *First = GetFirstInstruction(*First, f);
         params.push_back(f);
+        IREmitter.DblReadMap[ConvToDirectiveDbl(Mips::F12) + numDoubles++] =
+            true;
       }
-      IREmitter.DblReadMap[ConvToDirectiveDbl(Mips::F12)+I] = true;
     }
     V = Builder.CreateCall(fun, params);
   } else {
