@@ -12,7 +12,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/raw_ostream.h"
 
-#define COMBINE2
+//#define COMBINE2
 
 using namespace llvm;
 using namespace PatternMatch;
