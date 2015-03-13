@@ -433,10 +433,10 @@ bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
   SmallVector<Type *, 8> args;
   for (int I = 0, E = numargs; I != E; ++I) {
     switch (ArgTypes[I]) {
-    case AT_Int32:
+    case AT_Ptr:
       args.push_back(Type::getInt32Ty(getGlobalContext()));
       break;
-    case AT_Ptr:
+    case AT_Double:
       args.push_back(Type::getDoubleTy(getGlobalContext()));
       break;
     default:
@@ -495,7 +495,7 @@ bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
         ReadMap[ConvToDirective(Mips::A0) + numPtrs++] = true;
         break;
       }
-      case AT_Int32: {
+      case AT_Double: {
         Value *f = Builder.CreateLoad(
             IREmitter.DblRegs[ConvToDirectiveDbl(Mips::F12) + numDoubles]);
         if (I == 0 && First)
