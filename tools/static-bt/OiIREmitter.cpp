@@ -50,11 +50,11 @@ bool OiIREmitter::FindTextOffset(uint64_t &SectionAddr) {
       continue;
 
     SectionAddr = i.getAddress();
-    
+
     //Relocatable file
     if (SectionAddr == 0)
       SectionAddr = GetELFOffset(i);
-    
+
     return true;
   }
   return false;

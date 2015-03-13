@@ -443,9 +443,10 @@ bool OiInstTranslate::HandleSpilledOperand(const MCOperand &o, const MCOperand &
   return true;
 }
 
-bool OiInstTranslate::HandleGetSpilledAddress(const MCOperand &o, const MCOperand &o2,
-                                        const MCOperand &dst, Value *&V,
-                                        Value **First) {
+bool OiInstTranslate::HandleGetSpilledAddress(const MCOperand &o,
+                                              const MCOperand &o2,
+                                              const MCOperand &dst, Value *&V,
+                                              Value **First) {
   if (!(OptimizeStack || AggrOptimizeStack))
     return false;
   if (!o.isReg() || !o2.isImm() || !dst.isReg())
@@ -459,16 +460,16 @@ bool OiInstTranslate::HandleGetSpilledAddress(const MCOperand &o, const MCOperan
     return false;
   if (r1 == 30)
     imm += 100000;
-  Value* ptr = IREmitter.AccessSpillMemory(imm, false);
-  Value *castptr = Builder.CreatePtrToInt(ptr,
-                                          Type::getInt32Ty(getGlobalContext()));
+  Value *ptr = IREmitter.AccessSpillMemory(imm, false);
+  Value *castptr =
+      Builder.CreatePtrToInt(ptr, Type::getInt32Ty(getGlobalContext()));
   if (!NoShadow) {
-    Value *shadow = Builder.CreatePtrToInt(IREmitter.ShadowImageValue,
-                                           Type::getInt32Ty(getGlobalContext()));
+    Value *shadow = Builder.CreatePtrToInt(
+        IREmitter.ShadowImageValue, Type::getInt32Ty(getGlobalContext()));
     Value *fixed = Builder.CreateSub(castptr, shadow);
     V = Builder.CreateStore(fixed, IREmitter.Regs[dstReg]);
   } else {
-    V = Builder.CreateStore(castptr, IREmitter.Regs[dstReg]);    
+    V = Builder.CreateStore(castptr, IREmitter.Regs[dstReg]);
   }
   *First = GetFirstInstruction(*First, ptr, castptr, V);
 
@@ -478,7 +479,7 @@ bool OiInstTranslate::HandleGetSpilledAddress(const MCOperand &o, const MCOperan
 bool OiInstTranslate::HandleAluDstOperand(const MCOperand &o, Value *&V) {
   if (o.isReg()) {
     unsigned reg = ConvToDirective(conv32(o.getReg()));
-    assert (reg != 0 && "Cannot write to register 0");
+    assert(reg != 0 && "Cannot write to register 0");
     V = IREmitter.Regs[reg];
     WriteMap[reg] = true;
     return true;
@@ -487,7 +488,8 @@ bool OiInstTranslate::HandleAluDstOperand(const MCOperand &o, Value *&V) {
   return false;
 }
 
-bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V, Value **First) {
+bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
+                                       Value **First) {
   if (o.isImm()) {
     if (o.getImm() != 0U) {
       uint64_t targetaddr;
@@ -498,8 +500,8 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V, Value **Fi
       relocation_iterator ri = (*IREmitter.CurSection).relocation_end();
       StringRef val;
       if (RelocReader.CheckRelocation(ri, val)) {
-        if (val == "write") 
-          return Syscalls.HandleSyscallWrite(V, First);        
+        if (val == "write")
+          return Syscalls.HandleSyscallWrite(V, First);
         if (val == "atoi")
           return Syscalls.HandleLibcAtoi(V, First);
         if (val == "malloc")
@@ -521,178 +523,233 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V, Value **Fi
         if (val == "__isoc99_scanf")
           return Syscalls.HandleLibcScanf(V, First);
         if (val == "atan") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericDouble(V, "atan", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "atan", 1, 1, ArgTypes, First);
         }
         if (val == "sin") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericDouble(V, "sin", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "sin", 1, 1, ArgTypes, First);
         }
         if (val == "cos") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericDouble(V, "cos", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "cos", 1, 1, ArgTypes, First);
         }
         if (val == "acos") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericDouble(V, "acos", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "acos", 1, 1, ArgTypes, First);
         }
         if (val == "pow") {
-          bool PtrTypes[] = {false, false, false};
-          return Syscalls.HandleGenericDouble(V, "pow", 2, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "pow", 2, 1, ArgTypes, First);
         }
         if (val == "sqrt") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericDouble(V, "sqrt", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "sqrt", 1, 1, ArgTypes, First);
         }
         if (val == "exp") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericDouble(V, "exp", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "exp", 1, 1, ArgTypes, First);
         }
         if (val == "atof")
           return Syscalls.HandleLibcAtof(V, First);
         if (val == "rand") {
-          bool PtrTypes[] = {false};
-          return Syscalls.HandleGenericInt(V, "rand", 0, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "rand", 0, 1, ArgTypes, First);
         }
         if (val == "srand") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericInt(V, "srand", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "srand", 1, 1, ArgTypes, First);
         }
         if (val == "clock") {
-          bool PtrTypes[] = {false};
-          return Syscalls.HandleGenericInt(V, "clock", 0, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "clock", 0, 1, ArgTypes, First);
         }
         if (val == "fclose") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericInt(V, "fclose", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fclose", 1, 1, ArgTypes, First);
         }
         if (val == "fopen") {
-          bool PtrTypes[] = {true, true, false};
-          return Syscalls.HandleGenericInt(V, "fopen", 2, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fopen", 2, 1, ArgTypes, First);
         }
         if (val == "fgetc") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericInt(V, "fgetc", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fgetc", 1, 1, ArgTypes, First);
         }
         if (val == "fputc") {
-          bool PtrTypes[] = {false, false, false};
-          return Syscalls.HandleGenericInt(V, "fputc", 2, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fputc", 2, 1, ArgTypes, First);
         }
         if (val == "strcmp") {
-          bool PtrTypes[] = {true, true, false};
-          return Syscalls.HandleGenericInt(V, "strcmp", 2, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "strcmp", 2, 1, ArgTypes, First);
         }
         if (val == "strncmp") {
-          bool PtrTypes[] = {true, true, false, false};
-          return Syscalls.HandleGenericInt(V, "strncmp", 3, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "strncmp", 3, 1, ArgTypes, First);
         }
         if (val == "_IO_getc") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericInt(V, "getc", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "getc", 1, 1, ArgTypes, First);
         }
         if (val == "fgets") {
-          bool PtrTypes[] = {true, false, false, false};
-          return Syscalls.HandleGenericInt(V, "fgets", 3, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Int32,
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fgets", 3, 1, ArgTypes, First);
         }
         if (val == "abs") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericInt(V, "abs", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "abs", 1, 1, ArgTypes, First);
         }
         if (val == "fread") {
-          bool PtrTypes[] = {true, false, false, false, false};
-          return Syscalls.HandleGenericInt(V, "fread", 4, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Int32,
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Int32,
+              SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fread", 4, 1, ArgTypes, First);
         }
         if (val == "fwrite") {
-          bool PtrTypes[] = {true, false, false, false, false};
-          return Syscalls.HandleGenericInt(V, "fwrite", 4, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Int32,
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Int32,
+              SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fwrite", 4, 1, ArgTypes, First);
         }
         if (val == "memcpy") {
-          bool PtrTypes[] = {true, true, false, true};
-          return Syscalls.HandleGenericInt(V, "memcpy", 3, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "memcpy", 3, 1, ArgTypes, First);
         }
         if (val == "bcopy") {
-          bool PtrTypes[] = {true, true, false, false};
-          return Syscalls.HandleGenericInt(V, "bcopy", 3, 0, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "bcopy", 3, 0, ArgTypes, First);
         }
         if (val == "htonl") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericInt(V, "htonl", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "htonl", 1, 1, ArgTypes, First);
         }
         if (val == "perror") {
-          bool PtrTypes[] = {true, false};
-          return Syscalls.HandleGenericInt(V, "perror", 1, 0, PtrTypes, First);
-
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "perror", 1, 0, ArgTypes, First);
         }
-        if (val == "__isoc99_sscanf" ||
-            val == "sscanf") {
-          bool PtrTypes[] = {true, true, true, true, false};
-          return Syscalls.HandleGenericInt(V, "sscanf", 4, 1, PtrTypes, First);
+        if (val == "__isoc99_sscanf" || val == "sscanf") {
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
+              SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "sscanf", 4, 1, ArgTypes, First);
         }
-        if (val == "__isoc99_fscanf" ||
-            val == "fscanf") {
-          bool PtrTypes[] = {false, true, true, true, false};
-          return Syscalls.HandleGenericInt(V, "fscanf", 4, 1, PtrTypes, First);
+        if (val == "__isoc99_fscanf" || val == "fscanf") {
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Ptr,
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
+              SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fscanf", 4, 1, ArgTypes, First);
         }
         if (val == "fflush") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericInt(V, "fflush", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fflush", 1, 1, ArgTypes, First);
         }
         if (val == "feof") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericInt(V, "feof", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "feof", 1, 1, ArgTypes, First);
         }
         if (val == "fgetpos") {
-          bool PtrTypes[] = {false, true, false};
-          return Syscalls.HandleGenericInt(V, "fgetpos", 2, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fgetpos", 2, 1, ArgTypes, First);
         }
         if (val == "fsetpos") {
-          bool PtrTypes[] = {false, true, false};
-          return Syscalls.HandleGenericInt(V, "fsetpos", 2, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fsetpos", 2, 1, ArgTypes, First);
         }
         if (val == "ftell") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericInt(V, "ftell", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "ftell", 1, 1, ArgTypes, First);
         }
         if (val == "fseek") {
-          bool PtrTypes[] = {false, false, false, false};
-          return Syscalls.HandleGenericInt(V, "fseek", 3, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Int32,
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fseek", 3, 1, ArgTypes, First);
         }
         if (val == "strchr") {
-          bool PtrTypes[] = {true, false, true};
-          return Syscalls.HandleGenericInt(V, "strchr", 2, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "strchr", 2, 1, ArgTypes, First);
         }
         if (val == "toupper") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericInt(V, "toupper", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "toupper", 1, 1, ArgTypes, First);
         }
         if (val == "tolower") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericInt(V, "tolower", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "tolower", 1, 1, ArgTypes, First);
         }
         if (val == "putchar") {
-          bool PtrTypes[] = {false, false};
-          return Syscalls.HandleGenericInt(V, "putchar", 1, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "putchar", 1, 1, ArgTypes, First);
         }
         if (val == "memchr") {
-          bool PtrTypes[] = {true, false, false, true};
-          return Syscalls.HandleGenericInt(V, "memchr", 3, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Int32,
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "memchr", 3, 1, ArgTypes, First);
         }
         if (val == "strtol") {
-          bool PtrTypes[] = {true, true, false, false};
-          return Syscalls.HandleGenericInt(V, "strtol", 3, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "strtol", 3, 1, ArgTypes, First);
         }
         if (val == "strtod") {
-          bool PtrTypes[] = {true, true, false};
-          return Syscalls.HandleGenericDouble(V, "strtod", 2, 1, PtrTypes, First);
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "strtod", 2, 1, ArgTypes,
+                                              First);
         }
-        if (val == "__ctype_toupper_loc") {
-          bool PtrTypes[] = {true};
-          return Syscalls.HandleGenericInt(V, "__ctype_toupper_loc", 0, 1,
-                                           PtrTypes, First);
-        }
+        if (val == "__ctype_toupper_loc")
+          return Syscalls.HandleCTypeToUpperLoc(V, First);
 
         //        printf("%s\n", val.str().c_str());
-
       }
       uint64_t targetaddr;
       if (RelocReader.ResolveRelocation(targetaddr))
