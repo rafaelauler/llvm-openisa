@@ -759,6 +759,11 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "read", 3, 1, ArgTypes, First);
         }
+        if (val == "ferror") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "ferror", 1, 1, ArgTypes, First);
+        }
         if (val == "__ctype_toupper_loc")
           return Syscalls.HandleCTypeToUpperLoc(V, First);
 
@@ -767,6 +772,7 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
       uint64_t targetaddr;
       if (RelocReader.ResolveRelocation(targetaddr))
         return IREmitter.HandleLocalCall(targetaddr, V, First);
+      outs() << val << "\n";
       llvm_unreachable("Unrecognized function call");
     }
     llvm_unreachable("Unrecognized function call");
