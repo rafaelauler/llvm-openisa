@@ -745,6 +745,13 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
           return Syscalls.HandleGenericDouble(V, "strtod", 2, 1, ArgTypes,
                                               First);
         }
+        if (val == "read") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "read", 3, 1, ArgTypes, First);
+        }
         if (val == "__ctype_toupper_loc")
           return Syscalls.HandleCTypeToUpperLoc(V, First);
 
