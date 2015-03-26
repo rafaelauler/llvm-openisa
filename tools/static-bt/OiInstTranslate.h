@@ -53,7 +53,8 @@ public:
 
   bool printAliasInstr(const MCInst *MI, raw_ostream &OS);
   Module *takeModule();
-  void StartFunction(StringRef N);
+  void StartFunction(StringRef N, uint64_t Addr);
+  void StartMainFunction(uint64_t Addr);
   void FinishFunction();
   void FinishModule();
   void UpdateCurAddr(uint64_t val) { IREmitter.UpdateCurAddr(val); }

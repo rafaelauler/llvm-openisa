@@ -265,31 +265,41 @@ void OiIREmitter::BuildLocalRegisterFile() {
   }
 }
 
-void OiIREmitter::StartFunction(StringRef N) {
-  Function *F = 0;
+void OiIREmitter::StartFunction(StringRef N, uint64_t Addr) {
+  FunctionType *FT;
+  Function *F;
   if (FirstFunction) {
-    SmallVector<Type *, 8> args(2, Type::getInt32Ty(getGlobalContext()));
-    FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()),
-                                         args, /*isvararg*/ false);
-    F = Function::Create(FT, Function::ExternalLinkage, "main", &*TheModule);
+    if (OneRegion) {
+      SmallVector<Type *, 8> args(2, Type::getInt32Ty(getGlobalContext()));
+      FT = FunctionType::get(Type::getVoidTy(getGlobalContext()), args,
+                             /*isvararg*/ false);
+      F = Function::Create(FT, Function::ExternalLinkage, "main", &*TheModule);
+      BasicBlock *BBEntry =
+        BasicBlock::Create(getGlobalContext(), "entrypoint", F, &*F->begin());
+      Builder.SetInsertPoint(BBEntry);
+      BuildLocalRegisterFile();
+      // This BB terminator will be adjusted in FixEntryPoint()
+    } else {
+      FT = FunctionType::get(Type::getVoidTy(getGlobalContext()), false);
+      F = reinterpret_cast<Function *>(TheModule->getOrInsertFunction(N, FT));
+    }
     FirstFunction = false;
-    BasicBlock *BB = CreateBB(0x34, F);
-    CurBlockAddr = 0x34;
+    BasicBlock *BB = CreateBB(Addr, F);
+    CurBlockAddr = Addr;
     Builder.SetInsertPoint(BB);
-    BuildLocalRegisterFile();
-    InsertStartupCode(F);
-    CurFunAddr = 0x34;
-    if (!ProcessIndirectJumps())
-      llvm_unreachable("ProcessIndirectJumps failed.");
-
+    if (!OneRegion)
+      BuildLocalRegisterFile();
+    CurFunAddr = Addr;
+    // TODO: restore this; problem with .PDR relocations!
+    //    if (!ProcessIndirectJumps())
+    //      llvm_unreachable("ProcessIndirectJumps failed.");
   } else {
     CurFunAddr = CurAddr + GetInstructionSize();
     SpilledRegs.clear();
     if (!OneRegion) {
-      // Create a function with no parameters
-      FunctionType *FT =
-          FunctionType::get(Type::getVoidTy(getGlobalContext()), false);
+      FT = FunctionType::get(Type::getVoidTy(getGlobalContext()), false);
       F = reinterpret_cast<Function *>(TheModule->getOrInsertFunction(N, FT));
+      // Create a function with no parameters
       BasicBlock *BB = CreateBB(CurAddr + GetInstructionSize(), F);
       CurBlockAddr = CurAddr + GetInstructionSize();
       Builder.SetInsertPoint(BB);
@@ -300,7 +310,47 @@ void OiIREmitter::StartFunction(StringRef N) {
   }
 }
 
-void OiIREmitter::InsertStartupCode(Function *F) {
+void OiIREmitter::StartMainFunction(uint64_t Addr) {
+  if (FirstFunction) {
+    SmallVector<Type *, 8> args(2, Type::getInt32Ty(getGlobalContext()));
+    FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()),
+                                         args, /*isvararg*/ false);
+    Function *F = Function::Create(FT, Function::ExternalLinkage, "main", &*TheModule);
+    FirstFunction = false;
+    BasicBlock *BB = CreateBB(Addr, F);
+    CurBlockAddr = Addr;
+    Builder.SetInsertPoint(BB);
+    BuildLocalRegisterFile();
+    InsertStartupCode(Addr);
+    CurFunAddr = Addr;
+    // TODO: restore this; problem with .PDR relocations!
+    //    if (!ProcessIndirectJumps())
+    //      llvm_unreachable("ProcessIndirectJumps failed.");
+  } else {
+    CurFunAddr = CurAddr + GetInstructionSize();
+    SpilledRegs.clear();
+    BasicBlock *BB;
+    if (!OneRegion) {
+      SmallVector<Type *, 8> args(2, Type::getInt32Ty(getGlobalContext()));
+      FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()),
+                                           args, /*isvararg*/ false);
+      Function *F =
+          Function::Create(FT, Function::ExternalLinkage, "main", &*TheModule);
+      BB = CreateBB(CurAddr + GetInstructionSize(), F);
+      CurBlockAddr = CurAddr + GetInstructionSize();
+      Builder.SetInsertPoint(BB);
+      BuildLocalRegisterFile();
+    } else {
+      BB = CreateBB(Addr);
+      EntryPointBB = BB;
+      Builder.SetInsertPoint(BB);
+    }
+    InsertStartupCode(Addr);
+  }
+}
+
+void OiIREmitter::InsertStartupCode(uint64_t Addr) {
+  Function *F = Builder.GetInsertBlock()->getParent();
   // Initialize the stack
   Value *size =
       ConstantInt::get(Type::getInt32Ty(getGlobalContext()), ShadowSize);
@@ -345,7 +395,7 @@ void OiIREmitter::InsertStartupCode(Function *F) {
     Value *cmp = Builder.CreateICmpNE(ivsum, argc);
     Builder.CreateCondBr(cmp, bb1, bb2);
     Builder.SetInsertPoint(bb2);
-    BBMap["bb34"] = bb2;
+    BBMap[Twine("bb").concat(Twine::utohexstr(Addr)).str()] = bb2;
   }
 
   WriteMap[ConvToDirective(Mips::A0)] = true;
@@ -439,6 +489,14 @@ void OiIREmitter::FixBBTerminators() {
                                            E = ToDelete.end();
        I != E; ++I) {
     (*I)->eraseFromParent();
+  }
+}
+
+void OiIREmitter::FixEntryPoint() {
+  if (OneRegion && EntryPointBB != nullptr) {
+    Function *F = Builder.GetInsertBlock()->getParent();
+    Builder.SetInsertPoint(&*F->begin());
+    Builder.CreateBr(EntryPointBB);
   }
 }
 

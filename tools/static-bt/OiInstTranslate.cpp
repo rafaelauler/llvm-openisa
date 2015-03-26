@@ -34,7 +34,13 @@ static cl::opt<bool> DebugIR(
     cl::desc(
         "Print the generated IR for each function, prior to optimizations"));
 
-void OiInstTranslate::StartFunction(StringRef N) { IREmitter.StartFunction(N); }
+void OiInstTranslate::StartFunction(StringRef N, uint64_t Addr) {
+  IREmitter.StartFunction(N, Addr);
+}
+
+void OiInstTranslate::StartMainFunction(uint64_t Addr) {
+  IREmitter.StartMainFunction(Addr);
+}
 
 void OiInstTranslate::FinishFunction() {
   if (!OneRegion) {
@@ -48,6 +54,7 @@ void OiInstTranslate::FinishFunction() {
 
 void OiInstTranslate::FinishModule() {
   if (OneRegion) {
+    IREmitter.FixEntryPoint();
     IREmitter.CleanRegs();
     IREmitter.FixBBTerminators();
     IREmitter.BuildReturnTablesOneRegion();
@@ -1905,7 +1912,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     Value *first = 0;
     // Do not create a checkpoint at the end of the main function. Since
     // the program is terminating, it is not neccessary.
-    if (!NoLocals && !OneRegion && IREmitter.CurFunAddr != 0x34)
+    if (!NoLocals && !OneRegion &&
+        Builder.GetInsertBlock()->getParent()->getName() != "main")
       IREmitter.HandleFunctionExitPoint(&first);
     if (MI->getOperand(0).getReg() == Mips::RA ||
         MI->getOperand(0).getReg() == Mips::RA_64) {

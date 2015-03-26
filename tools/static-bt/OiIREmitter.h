@@ -50,11 +50,11 @@ public:
         GlobalRegs(SmallVector<Value *, 259>(259)),
         DblRegs(SmallVector<Value *, 64>(64)),
         DblGlobalRegs(SmallVector<Value *, 64>(64)), SpilledRegs(),
-        FirstFunction(true), CurAddr(0), CurSection(nullptr), BBMap(), InsMap(),
-        ReadMap(), WriteMap(), DblReadMap(), DblWriteMap(), FunctionCallMap(),
-        FunctionRetMap(), IndirectCallMap(), CurFunAddr(0), CurBlockAddr(0),
-        StackSize(Stacksz), IndirectDestinations(),
-        IndirectDestinationsAddrs() {
+        FirstFunction(true), EntryPointBB(nullptr), CurAddr(0),
+        CurSection(nullptr), BBMap(), InsMap(), ReadMap(), WriteMap(),
+        DblReadMap(), DblWriteMap(), FunctionCallMap(), FunctionRetMap(),
+        IndirectCallMap(), CurFunAddr(0), CurBlockAddr(0), StackSize(Stacksz),
+        IndirectDestinations(), IndirectDestinationsAddrs() {
     BuildShadowImage();
     BuildRegisterFile();
     if (CodeTarget == "arm") {
@@ -72,6 +72,7 @@ public:
   SmallVector<Value *, 64> DblRegs, DblGlobalRegs;
   SpilledRegsTy SpilledRegs;
   bool FirstFunction;
+  BasicBlock *EntryPointBB;
   uint64_t CurAddr;
   const SectionRef *CurSection;
   StringMap<BasicBlock *> BBMap;
@@ -103,14 +104,16 @@ public:
   Value *AccessShadowMemory(Value *Idx, bool IsLoad, int width = 32,
                             bool isFloat = false, Value **First = 0);
   Value *AccessJumpTable(Value *Idx, Value **First = 0);
-  void InsertStartupCode(Function *F);
+  void InsertStartupCode(uint64_t Addr);
   BasicBlock *CreateBB(uint64_t Addr = 0, Function *F = 0);
   void UpdateInsertPoint();
   void CleanRegs();
-  void StartFunction(StringRef N);
+  void StartFunction(StringRef N, uint64_t Addr);
+  void StartMainFunction(uint64_t Addr);
   void HandleFunctionEntryPoint(Value **First = 0);
   void HandleFunctionExitPoint(Value **First = 0);
   void FixBBTerminators();
+  void FixEntryPoint();
   void UpdateCurAddr(uint64_t val) {
     CurAddr = val;
     UpdateInsertPoint();

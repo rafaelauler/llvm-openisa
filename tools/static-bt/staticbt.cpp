@@ -363,8 +363,12 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
       if (SectionAddr == 0)
         eoffset = GetELFOffset(i);
 
-      IP->StartFunction(
-          Twine("a").concat(Twine::utohexstr(Start + eoffset)).str());
+      if (Symbols[si].second == "main")
+        IP->StartMainFunction(Start + eoffset);
+      else
+        IP->StartFunction(
+            Twine("a").concat(Twine::utohexstr(Start + eoffset)).str(),
+            Start + eoffset);
       for (Index = Start; Index < End; Index += Size) {
         MCInst Inst;
 
