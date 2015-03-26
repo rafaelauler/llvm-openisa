@@ -564,6 +564,11 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Double};
           return Syscalls.HandleGenericDouble(V, "exp", 1, 1, ArgTypes, First);
         }
+        if (val == "floor") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "floor", 1, 1, ArgTypes, First);
+        }
         if (val == "atof")
           return Syscalls.HandleLibcAtof(V, First);
         if (val == "rand") {
@@ -763,6 +768,20 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "ferror", 1, 1, ArgTypes, First);
+        }
+        if (val == "realloc") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "realloc", 2, 1, ArgTypes, First);
+        }
+        if (val == "__assert_fail") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "__assert_fail", 4, 1, ArgTypes, First);
         }
         if (val == "__ctype_toupper_loc")
           return Syscalls.HandleCTypeToUpperLoc(V, First);
@@ -1506,13 +1525,19 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Mips::SRA: {
-    DebugOut << "Handling SRA\n";
+  case Mips::SRA:
+  case Mips::SRAV: {
+    DebugOut << "Handling SRA SRAV\n";
     Value *o0, *o1, *o2, *first = 0;
     if (HandleAluSrcOperand(MI->getOperand(1), o1, &first) &&
         HandleAluSrcOperand(MI->getOperand(2), o2, &first) &&
         HandleAluDstOperand(MI->getOperand(0), o0)) {
-      Value *v = Builder.CreateAShr(o1, o2);
+      Value *v;
+      // XXX: SRAV is decoded with operands inverted!
+      if (MI->getOpcode() == Mips::SRAV)
+        v = Builder.CreateAShr(o2, o1);
+      else
+        v = Builder.CreateAShr(o1, o2);
       Value *v2 = Builder.CreateStore(v, o0);
       first = GetFirstInstruction(first, o1, o2, v, v2);
       assert(isa<Instruction>(first) && "Need to rework map logic");
