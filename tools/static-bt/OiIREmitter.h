@@ -61,6 +61,10 @@ public:
       TheModule->setTargetTriple("armv4t--linux-eabi");
       TheModule->setDataLayout(
           "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64");
+    } else { // i386 data layout
+      TheModule->setTargetTriple("i386-unknown-linux-gnu");
+      TheModule->setDataLayout(
+          "e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
     }
   }
   const ObjectFile *Obj;
