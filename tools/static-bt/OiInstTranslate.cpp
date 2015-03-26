@@ -1703,6 +1703,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   case Mips::BNE:
   case Mips::BLTZ:
   case Mips::BGTZ:
+  case Mips::BGEZ:
   case Mips::BLEZ: {
     DebugOut << "Handling BEQ, BNE, BLTZ\n";
     Value *o1, *o2, *first = 0;
@@ -1725,6 +1726,10 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
         o2 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
         HandleBranchTarget(MI->getOperand(1), True);
         cmp = Builder.CreateICmpSLE(o1, o2);
+      } else if (MI->getOpcode() == Mips::BLEZ) {
+        o2 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
+        HandleBranchTarget(MI->getOperand(1), True);
+        cmp = Builder.CreateICmpSGE(o1, o2);
       } else { /*  Mips::BGTZ  */
         o2 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
         HandleBranchTarget(MI->getOperand(1), True);
