@@ -572,10 +572,27 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Double};
           return Syscalls.HandleGenericDouble(V, "exp", 1, 1, ArgTypes, First);
         }
+        if (val == "ldexp") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "ldexp", 2, 1, ArgTypes, First);
+        }
+        if (val == "frexp") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "frexp", 2, 1, ArgTypes, First);
+        }
         if (val == "floor") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
                                                SyscallsIface::AT_Double};
           return Syscalls.HandleGenericDouble(V, "floor", 1, 1, ArgTypes, First);
+        }
+        if (val == "log") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "log", 1, 1, ArgTypes, First);
         }
         if (val == "atof")
           return Syscalls.HandleLibcAtof(V, First);
@@ -637,6 +654,23 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
               SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
               SyscallsIface::AT_Int32, SyscallsIface::AT_Ptr};
           return Syscalls.HandleGenericInt(V, "strncpy", 3, 1, ArgTypes, First);
+        }
+        if (val == "strcat") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "strcat", 2, 1, ArgTypes, First);
+        }
+        if (val == "strncat") {
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "strncat", 3, 1, ArgTypes, First);
+        }
+        if (val == "strlen") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "strlen", 1, 1, ArgTypes, First);
         }
         if (val == "_IO_getc") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
@@ -981,16 +1015,21 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
+  case Mips::MULTu:
   case Mips::MULT: {
-    DebugOut << "Handling MULT\n";
+    DebugOut << "Handling MULT, MULTu\n";
     Value *o0, *o1, *first = 0;
     if (HandleAluSrcOperand(MI->getOperand(0), o0, &first) &&
         HandleAluSrcOperand(MI->getOperand(1), o1, &first)) {
-      Value *o0se =
-          Builder.CreateSExtOrTrunc(o0, Type::getInt64Ty(getGlobalContext()));
-      Value *o1se =
-          Builder.CreateSExtOrTrunc(o1, Type::getInt64Ty(getGlobalContext()));
-      Value *v = Builder.CreateMul(o0se, o1se);
+      Value *o0e, *o1e;
+      if (MI->getOpcode() == Mips::MULT) {
+        o0e = Builder.CreateSExt(o0, Type::getInt64Ty(getGlobalContext()));
+        o1e = Builder.CreateSExt(o1, Type::getInt64Ty(getGlobalContext()));
+      } else { // MULTu
+        o0e = Builder.CreateZExt(o0, Type::getInt64Ty(getGlobalContext()));
+        o1e = Builder.CreateZExt(o1, Type::getInt64Ty(getGlobalContext()));
+      }
+      Value *v = Builder.CreateMul(o0e, o1e);
       Value *V1 = Builder.CreateLShr(
           v, ConstantInt::get(Type::getInt64Ty(getGlobalContext()), 32));
       Value *V2 =
@@ -1001,7 +1040,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       Builder.CreateStore(V3, IREmitter.Regs[256]);
       WriteMap[257] = true;
       WriteMap[256] = true;
-      first = GetFirstInstruction(first, o0, o1, o0se, o1se);
+      first = GetFirstInstruction(first, o0, o1, o0e, o1e);
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
     }
@@ -1339,10 +1378,22 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     break;
   }
   case Mips::FMOV_D32: {
-    DebugOut << "Handling FMOV\n";
+    DebugOut << "Handling FMOV_D32\n";
     Value *o0, *o1, *first = 0;
     if (HandleDoubleSrcOperand(MI->getOperand(1), o1, &first) &&
         HandleDoubleDstOperand(MI->getOperand(0), o0)) {
+      Value *V = o1;
+      Builder.CreateStore(V, o0);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::FMOV_S: {
+    DebugOut << "Handling FMOV_S\n";
+    Value *o0, *o1, *first = 0;
+    if (HandleFloatSrcOperand(MI->getOperand(1), o1, &first) &&
+        HandleFloatDstOperand(MI->getOperand(0), o0)) {
       Value *V = o1;
       Builder.CreateStore(V, o0);
       assert(isa<Instruction>(first) && "Need to rework map logic");
