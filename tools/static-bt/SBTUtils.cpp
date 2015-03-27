@@ -370,171 +370,171 @@ unsigned ConvToDirective(unsigned regnum) {
   // Floating point registers
   case Mips::D0:
   case Mips::F0:
-    return 34;
+    return 128;
   case Mips::F1:
-    return 35;
+    return 129;
   case Mips::D1:
   case Mips::F2:
-    return 36;
+    return 130;
   case Mips::F3:
-    return 37;
+    return 131;
   case Mips::D2:
   case Mips::F4:
-    return 38;
+    return 132;
   case Mips::F5:
-    return 39;
+    return 133;
   case Mips::D3:
   case Mips::F6:
-    return 40;
+    return 134;
   case Mips::F7:
-    return 41;
+    return 135;
   case Mips::D4:
   case Mips::F8:
-    return 42;
+    return 136;
   case Mips::F9:
-    return 43;
+    return 137;
   case Mips::D5:
   case Mips::F10:
-    return 44;
+    return 138;
   case Mips::F11:
-    return 45;
+    return 139;
   case Mips::D6:
   case Mips::F12:
-    return 46;
+    return 140;
   case Mips::F13:
-    return 47;
+    return 141;
   case Mips::D7:
   case Mips::F14:
-    return 48;
+    return 142;
   case Mips::F15:
-    return 49;
+    return 143;
   case Mips::D8:
   case Mips::F16:
-    return 50;
+    return 144;
   case Mips::F17:
-    return 51;
+    return 145;
   case Mips::D9:
   case Mips::F18:
-    return 52;
+    return 146;
   case Mips::F19:
-    return 53;
+    return 147;
   case Mips::D10:
   case Mips::F20:
-    return 54;
+    return 148;
   case Mips::F21:
-    return 55;
+    return 149;
   case Mips::D11:
   case Mips::F22:
-    return 56;
+    return 150;
   case Mips::F23:
-    return 57;
+    return 151;
   case Mips::D12:
   case Mips::F24:
-    return 58;
+    return 152;
   case Mips::F25:
-    return 59;
+    return 153;
   case Mips::D13:
   case Mips::F26:
-    return 60;
+    return 154;
   case Mips::F27:
-    return 61;
+    return 155;
   case Mips::D14:
   case Mips::F28:
-    return 62;
+    return 156;
   case Mips::F29:
-    return 63;
+    return 157;
   case Mips::D15:
   case Mips::F30:
-    return 64;
+    return 158;
   case Mips::F31:
-    return 65;
+    return 159;
   case Mips::D16:
   case Mips::F32:
-    return 66;
+    return 160;
   case Mips::F33:
-    return 67;
+    return 161;
   case Mips::D17:
   case Mips::F34:
-    return 68;
+    return 162;
   case Mips::F35:
-    return 69;
+    return 163;
   case Mips::D18:
   case Mips::F36:
-    return 70;
+    return 164;
   case Mips::F37:
-    return 71;
+    return 165;
   case Mips::D19:
   case Mips::F38:
-    return 72;
+    return 166;
   case Mips::F39:
-    return 73;
+    return 167;
   case Mips::D20:
   case Mips::F40:
-    return 74;
+    return 168;
   case Mips::F41:
-    return 75;
+    return 169;
   case Mips::D21:
   case Mips::F42:
-    return 76;
+    return 170;
   case Mips::F43:
-    return 77;
+    return 171;
   case Mips::D22:
   case Mips::F44:
-    return 78;
+    return 172;
   case Mips::F45:
-    return 79;
+    return 173;
   case Mips::D23:
   case Mips::F46:
-    return 80;
+    return 174;
   case Mips::F47:
-    return 81;
+    return 175;
   case Mips::D24:
   case Mips::F48:
-    return 82;
+    return 176;
   case Mips::F49:
-    return 83;
+    return 177;
   case Mips::D25:
   case Mips::F50:
-    return 84;
+    return 178;
   case Mips::F51:
-    return 85;
+    return 179;
   case Mips::D26:
   case Mips::F52:
-    return 86;
+    return 180;
   case Mips::F53:
-    return 87;
+    return 181;
   case Mips::D27:
   case Mips::F54:
-    return 88;
+    return 182;
   case Mips::F55:
-    return 89;
+    return 183;
   case Mips::D28:
   case Mips::F56:
-    return 90;
+    return 184;
   case Mips::F57:
-    return 91;
+    return 185;
   case Mips::D29:
   case Mips::F58:
-    return 92;
+    return 186;
   case Mips::F59:
-    return 93;
+    return 187;
   case Mips::D30:
   case Mips::F60:
-    return 94;
+    return 188;
   case Mips::F61:
-    return 95;
+    return 189;
   case Mips::D31:
   case Mips::F62:
-    return 96;
+    return 190;
   case Mips::F63:
-    return 97;
+    return 191;
   }
   llvm_unreachable("Invalid register");
   return -1;
 }
 
 unsigned ConvToDirectiveDbl(unsigned regnum) {
-  return (ConvToDirective(regnum) - 34) >> 1;
+  return (ConvToDirective(regnum) - 128) >> 1;
 }
 
 uint64_t GetELFOffset(const SectionRef &i) {
