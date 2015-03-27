@@ -1149,22 +1149,56 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Mips::FCMP_S32: {
-    DebugOut << "Handling FCMP_S32\n";
+  case Mips::FCMP_S32:
+  case Mips::C_UN_S:
+  case Mips::C_EQ_S:
+  case Mips::C_UEQ_S:
+  case Mips::C_OLT_S:
+  case Mips::C_ULT_S:
+  case Mips::C_OLE_S:
+  case Mips::C_ULE_S: {
+    DebugOut << "Handling FCMP_S32 and C_UN_S etc.\n";
     Value *o0, *o1, *first = 0;
     if (HandleFloatSrcOperand(MI->getOperand(0), o0, &first) &&
         HandleFloatSrcOperand(MI->getOperand(1), o1)) {
       Value *cmp;
-      if (HandleFCmpOperand(MI->getOperand(2), o0, o1, cmp)) {
-        Value *one = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 1U);
-        Value *zero =
-            ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
-        Value *select = Builder.CreateSelect(cmp, one, zero);
-        WriteMap[258] = true; // Ignores other FCC fields
-        Builder.CreateStore(select, IREmitter.Regs[258]);
-        assert(isa<Instruction>(first) && "Need to rework map logic");
-        IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+      bool failed = false;
+      switch (MI->getOpcode()) {
+      case Mips::C_UN_S:
+        cmp = Builder.CreateFCmpUNO(o0, o1);
+        break;
+      case Mips::C_EQ_S:
+        cmp = Builder.CreateFCmpOEQ(o0, o1);
+        break;
+      case Mips::C_UEQ_S:
+        cmp = Builder.CreateFCmpUEQ(o0, o1);
+        break;
+      case Mips::C_OLT_S:
+        cmp = Builder.CreateFCmpOLT(o0, o1);
+        break;
+      case Mips::C_ULT_S:
+        cmp = Builder.CreateFCmpULT(o0, o1);
+        break;
+      case Mips::C_OLE_S:
+        cmp = Builder.CreateFCmpOLE(o0, o1);
+        break;
+      case Mips::C_ULE_S:
+        cmp = Builder.CreateFCmpULE(o0, o1);
+        break;
+      default:
+        if (!HandleFCmpOperand(MI->getOperand(2), o0, o1, cmp))
+          failed = true;
       }
+      if (failed)
+        break;
+      Value *one = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 1U);
+      Value *zero =
+        ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
+      Value *select = Builder.CreateSelect(cmp, one, zero);
+      WriteMap[258] = true; // Ignores other FCC fields
+      Builder.CreateStore(select, IREmitter.Regs[258]);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
     }
     break;
   }
