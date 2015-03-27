@@ -367,12 +367,12 @@ bool OiInstTranslate::HandleLUiOperand(const MCOperand &o, Value *&V,
 
 bool OiInstTranslate::HandleMemOperand(const MCOperand &o, const MCOperand &o2,
                                        Value *&V, Value **First, bool IsLoad,
-                                       int width) {
+                                       int width, int offset) {
   if (o.isReg() && o2.isImm()) {
     uint32_t r = ConvToDirective(conv32(o.getReg()));
     if (!NoLocals && AggrOptimizeStack && (r == 29 || r == 30) && width == 32)
       return HandleSpilledOperand(o, o2, V, First, IsLoad);
-    uint64_t myimm = o2.getImm();
+    uint64_t myimm = o2.getImm() + offset;
     uint64_t reltype = 0;
     Value *idx, *addr;
     if (RelocReader.ResolveRelocation(myimm, &reltype)) {
@@ -528,6 +528,14 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
           return Syscalls.HandleLibcFprintf(V, First);
         if (val == "__isoc99_scanf")
           return Syscalls.HandleLibcScanf(V, First);
+        if (val == "sprintf") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "sprintf", 4, 1, ArgTypes, First);
+        }
         if (val == "atan") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
                                                SyscallsIface::AT_Double};
@@ -617,6 +625,18 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
               SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
               SyscallsIface::AT_Int32, SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "strncmp", 3, 1, ArgTypes, First);
+        }
+        if (val == "strcpy") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "strcpy", 2, 1, ArgTypes, First);
+        }
+        if (val == "strncpy") {
+          SyscallsIface::ArgType ArgTypes[] = {
+              SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
+              SyscallsIface::AT_Int32, SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "strncpy", 3, 1, ArgTypes, First);
         }
         if (val == "_IO_getc") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
@@ -1234,6 +1254,30 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
         HandleAluSrcOperand(MI->getOperand(2), o2,
                             &first) && // fcc0 encoded as reg1 TODO:fix
         HandleDoubleDstOperand(MI->getOperand(0), o0)) {
+      Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
+      Value *cmp;
+      Value *fcc = Builder.CreateLoad(IREmitter.Regs[258]);
+      if (MI->getOpcode() == Mips::MOVT_D32)
+        cmp = Builder.CreateICmpNE(fcc, zero);
+      else // case MOVF_I
+        cmp = Builder.CreateICmpEQ(fcc, zero);
+      Value *loaddst = Builder.CreateLoad(o0);
+      Value *select = Builder.CreateSelect(cmp, o1, loaddst, "movt");
+      Builder.CreateStore(select, o0);
+      first = GetFirstInstruction(first, o1, fcc, cmp, loaddst);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::MOVT_S:
+  case Mips::MOVF_S: {
+    DebugOut << "Handling MOVT (S) / MOVF (S)\n";
+    Value *o0, *o1, *o2, *first = 0;
+    if (HandleFloatSrcOperand(MI->getOperand(1), o1, &first) &&
+        HandleAluSrcOperand(MI->getOperand(2), o2,
+                            &first) && // fcc0 encoded as reg1 TODO:fix
+        HandleFloatDstOperand(MI->getOperand(0), o0)) {
       Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
       Value *cmp;
       Value *fcc = Builder.CreateLoad(IREmitter.Regs[258]);
@@ -1888,6 +1932,36 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
+  case Mips::LWL: {
+    DebugOut << "Handling LWL\n";
+    Value *dst, *src, *first = 0;
+    if (HandleAluDstOperand(MI->getOperand(0), dst) &&
+        HandleMemOperand(MI->getOperand(1), MI->getOperand(2), src, &first,
+                         true, 16, -1)) { // -1 offset
+      Value *v = Builder.CreateIntToPtr(
+          Builder.CreateAdd(
+              Builder.CreatePtrToInt(dst, Type::getInt32Ty(getGlobalContext())),
+              ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 2)),
+          Type::getInt16PtrTy(getGlobalContext()));
+      Builder.CreateStore(src, v);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::LWR: {
+    DebugOut << "Handling LWR\n";
+    Value *dst, *src, *first = 0;
+    if (HandleAluDstOperand(MI->getOperand(0), dst) &&
+        HandleMemOperand(MI->getOperand(1), MI->getOperand(2), src, &first,
+                         true, 16)) {
+      Value *v = Builder.CreateBitCast(dst, Type::getInt16PtrTy(getGlobalContext()));
+      Builder.CreateStore(src, v);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
   case Mips::LB:
   case Mips::LBu: {
     DebugOut << "Handling LB\n";
@@ -1942,6 +2016,37 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
                          false, 16)) {
       Value *tr =
           Builder.CreateTrunc(src, Type::getInt16Ty(getGlobalContext()));
+      Builder.CreateStore(tr, dst);
+      first = GetFirstInstruction(first1, src, tr, first2);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::SWL: {
+    DebugOut << "Handling SWL\n";
+    Value *dst, *src, *first1 = 0, *first2 = 0, *first = 0;
+    if (HandleAluSrcOperand(MI->getOperand(0), src, &first1) &&
+        HandleMemOperand(MI->getOperand(1), MI->getOperand(2), dst, &first2,
+                         false, 16, -1)) { // -1 offset
+      Value *tr = Builder.CreateTrunc(
+          Builder.CreateLShr(
+              src, ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 16)),
+          Type::getInt16Ty(getGlobalContext()));
+      Builder.CreateStore(tr, dst);
+      first = GetFirstInstruction(first1, src, tr, first2);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::SWR: {
+    DebugOut << "Handling SWR\n";
+    Value *dst, *src, *first1 = 0, *first2 = 0, *first = 0;
+    if (HandleAluSrcOperand(MI->getOperand(0), src, &first1) &&
+        HandleMemOperand(MI->getOperand(1), MI->getOperand(2), dst, &first2,
+                         false, 16)) {
+      Value *tr = Builder.CreateTrunc(src, Type::getInt16Ty(getGlobalContext()));
       Builder.CreateStore(tr, dst);
       first = GetFirstInstruction(first1, src, tr, first2);
       assert(isa<Instruction>(first) && "Need to rework map logic");

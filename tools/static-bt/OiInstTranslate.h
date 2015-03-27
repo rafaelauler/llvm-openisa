@@ -77,7 +77,7 @@ private:
   bool HandleGetSpilledAddress(const MCOperand &o, const MCOperand &o2,
                                const MCOperand &dst, Value *&V, Value **First);
   bool HandleMemOperand(const MCOperand &o, const MCOperand &o2, Value *&V,
-                        Value **First, bool IsLoad, int width = 32);
+                        Value **First, bool IsLoad, int width = 32, int offset = 0);
   bool HandleDoubleMemOperand(const MCOperand &o, const MCOperand &o2,
                               Value *&V1, Value **First, bool IsLoad);
   bool HandleFloatMemOperand(const MCOperand &o, const MCOperand &o2, Value *&V,
