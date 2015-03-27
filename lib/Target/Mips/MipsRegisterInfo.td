@@ -347,9 +347,9 @@ def CPUSPReg : RegisterClass<"Mips", [i32], 32, (add SP)>, Unallocatable;
 // 32bit fp:
 // * FGR32 - 16 32-bit even registers
 // * FGR32 - 32 32-bit registers (single float only mode)
-def FGR32 : RegisterClass<"Mips", [f32], 32, (sequence "F%u", 0, 31)>;
+def FGR32 : RegisterClass<"Mips", [f32], 32, (sequence "F%u", 0, 63)>;
 
-def FGRH32 : RegisterClass<"Mips", [f32], 32, (sequence "F_HI%u", 0, 31)>,
+def FGRH32 : RegisterClass<"Mips", [f32], 32, (sequence "F_HI%u", 0, 63)>,
              Unallocatable;
 
 def AFGR64 : RegisterClass<"Mips", [f64], 64, (add
