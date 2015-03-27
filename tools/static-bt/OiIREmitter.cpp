@@ -13,6 +13,7 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/ADT/SmallString.h"
@@ -43,16 +44,16 @@ cl::opt<bool> NoShadow(
     cl::desc("Avoid adding shadowimage offset to every memory access"));
 }
 
-bool OiIREmitter::FindTextOffset(uint64_t &SectionAddr) {
+bool OiIREmitter::FindSectionOffset(StringRef Name, uint64_t &SectionAddr) {
   std::error_code ec;
   // Find through all sections relocations against the .text section
   for (auto &i : Obj->sections()) {
     if (error(ec))
       return false;
-    StringRef Name;
-    if (error(i.getName(Name)))
+    StringRef CurName;
+    if (error(i.getName(CurName)))
       return false;
-    if (Name != ".text")
+    if (CurName != Name)
       continue;
 
     SectionAddr = i.getAddress();
@@ -71,7 +72,7 @@ bool OiIREmitter::ProcessIndirectJumps() {
   std::error_code ec;
   std::vector<Constant *> IndirectJumpTable;
   uint64_t TextOffset;
-  if (!FindTextOffset(TextOffset))
+  if (!FindSectionOffset(".text", TextOffset))
     return false;
 
   // Find through all sections relocations against the .text section
@@ -84,6 +85,17 @@ bool OiIREmitter::ProcessIndirectJumps() {
     if (SectionAddr == 0) {
       SectionAddr = GetELFOffset(i);
     }
+
+    // Ignore PDR relocations
+    StringRef name;
+    if (error(i.getName(name)))
+      continue;
+    if (name.endswith("pdr") || !name.startswith(".rel."))
+      continue;
+    name = name.drop_front(4);
+    uint64_t PatchedSecAddr;
+    if (!FindSectionOffset(name, PatchedSecAddr))
+      continue;
 
     for (auto &ri : i.relocations()) {
       if (error(ec))
@@ -104,18 +116,22 @@ bool OiIREmitter::ProcessIndirectJumps() {
       uint64_t offset;
       if (error(ri.getOffset(offset)))
         break;
-      offset += SectionAddr;
-      outs() << "REL at " << (offset) << " Found ";
-      outs() << "Contents:" << (*(int *)(&ShadowImage[offset]));
+      offset += PatchedSecAddr;
+      outs() << "REL at " << format("%8" PRIx64, offset) << " Found ";
+      outs() << "Contents:" << format("%8" PRIx64,
+                                      (*(int *)(&ShadowImage[offset])));
       uint64_t TargetAddr = *(int *)(&ShadowImage[offset]);
       TargetAddr += TextOffset;
-      outs() << " TargetAddr = " << TargetAddr << "\n";
-      BasicBlock *BB = CreateBB(TargetAddr);
+      outs() << " TargetAddr = " << format("%8" PRIx64, TargetAddr) << "\n";
+      BasicBlock *BB = nullptr;
+      if (!HandleBackEdge(TargetAddr, BB))
+        llvm_unreachable("Failed to handle backedge");
       IndirectJumpTable.push_back(BlockAddress::get(BB));
       IndirectDestinations.push_back(BB);
       IndirectDestinationsAddrs.push_back(TargetAddr);
       int JumpTableIndex = IndirectJumpTable.size() - 1;
       //      IndirectJumpTable[JumpTableIndex]->dump();
+      // Patch ShadowImage with the translated address
       *(int *)(&ShadowImage[offset]) = JumpTableIndex;
     }
   }
@@ -135,6 +151,38 @@ bool OiIREmitter::ProcessIndirectJumps() {
                          GlobalValue::ExternalLinkage, c, "IndirectJumpTable");
 
   IndirectJumpTableValue = gv;
+
+  for (unsigned I = 0; I < IndirectJumps.size(); ++I) {
+    Instruction *Ins = IndirectJumps[I].first;
+    uint64_t Addr = IndirectJumps[I].second;
+    Value *first = IndirectJumpsIndexes[I];
+    Ins->dump();
+    first->dump();
+    Builder.SetInsertPoint(Ins);
+    Value *Target = AccessJumpTable(first, &first);
+    IndirectBrInst *v =
+        Builder.CreateIndirectBr(Target, IndirectDestinations.size());
+    for (int I = 0, E = IndirectDestinations.size(); I != E; ++I) {
+      v->addDestination(IndirectDestinations[I]);
+    }
+    Ins->eraseFromParent();
+    first = GetFirstInstruction(first, v);
+    InsMap[Addr] = dyn_cast<Instruction>(first);
+  }
+
+  for (auto C : IndirectCalls) {
+    Instruction *Ins = C.first;
+    uint64_t Addr = C.second;
+    Value *first = Ins->op_begin()->get();
+    Builder.SetInsertPoint(Ins);
+    if (OneRegion) {
+      HandleIndirectCallOneRegion(first, &first);
+      Ins->eraseFromParent();
+      InsMap[Addr] = dyn_cast<Instruction>(first);
+      continue;
+    }
+    llvm_unreachable("Indirect calls on non-oneregion code not supported");
+  }
 
   return true;
 }
@@ -290,9 +338,6 @@ void OiIREmitter::StartFunction(StringRef N, uint64_t Addr) {
     if (!OneRegion)
       BuildLocalRegisterFile();
     CurFunAddr = Addr;
-    // TODO: restore this; problem with .PDR relocations!
-    //    if (!ProcessIndirectJumps())
-    //      llvm_unreachable("ProcessIndirectJumps failed.");
   } else {
     CurFunAddr = CurAddr + GetInstructionSize();
     SpilledRegs.clear();
@@ -630,14 +675,14 @@ bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
 
   Instruction *TgtIns = InsMap[Addr];
   while (TgtIns == 0 && Addr < CurAddr) {
-    Addr += 8;
+    Addr += GetInstructionSize();
     TgtIns = InsMap[Addr];
   }
 
   assert(TgtIns && "Backedge out of range");
-  assert(TgtIns->getParent()->getParent() ==
-             Builder.GetInsertBlock()->getParent() &&
-         "Backedge out of range");
+  //  assert(TgtIns->getParent()->getParent() ==
+  //             Builder.GetInsertBlock()->getParent() &&
+  //         "Backedge out of range");
 
   Idx = Twine("bb").concat(Twine::utohexstr(Addr)).str();
   if (BBMap[Idx] != 0) {
@@ -791,12 +836,16 @@ Value *OiIREmitter::AccessShadowMemory(Value *Idx, bool IsLoad, int width,
 
 Value *OiIREmitter::AccessJumpTable(Value *Idx, Value **First) {
   SmallVector<Value *, 4> Idxs;
-  Idxs.push_back(ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U));
-  Idxs.push_back(Idx);
-  Value *gep = Builder.CreateGEP(IndirectJumpTableValue, Idxs);
-  Type *targetType = Type::getInt8PtrTy(getGlobalContext());
-  Value *ptr = Builder.CreateBitCast(gep, targetType);
+  Value *Add = Builder.CreateAdd(
+      Builder.CreatePtrToInt(IndirectJumpTableValue,
+                             Type::getInt32Ty(getGlobalContext())),
+      Idx);
+  Value *v =
+      Builder.CreateIntToPtr(Builder.CreateLoad(Builder.CreateIntToPtr(
+                                 Add, Type::getInt32PtrTy(getGlobalContext()))),
+                             Type::getInt32PtrTy(getGlobalContext()));
+
   if (First)
-    *First = GetFirstInstruction(*First, gep);
-  return ptr;
+    *First = GetFirstInstruction(*First, Add);
+  return v;
 }

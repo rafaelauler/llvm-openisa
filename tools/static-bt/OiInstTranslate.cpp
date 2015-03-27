@@ -53,6 +53,8 @@ void OiInstTranslate::FinishFunction() {
 }
 
 void OiInstTranslate::FinishModule() {
+  if (!IREmitter.ProcessIndirectJumps())
+    llvm_unreachable("ProcessIndirectJumps failed.");
   if (OneRegion) {
     IREmitter.FixEntryPoint();
     IREmitter.CleanRegs();
@@ -2109,8 +2111,11 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   case Mips::JALR: {
     assert(OneRegion && "Can't handle indirect calls without -oneregion yet.");
     Value *src, *first = 0;
-    if (HandleAluSrcOperand(MI->getOperand(0), src, &first) &&
-        IREmitter.HandleIndirectCallOneRegion(src, &first)) {
+    if (HandleAluSrcOperand(MI->getOperand(0), src, &first)) {
+      // Create a dummy instruction to be replaced later
+      Value *Dummy = Builder.CreateNeg(src);
+      first = GetFirstInstruction(first, Dummy);
+      IREmitter.AddIndirectCall(dyn_cast<Instruction>(Dummy));
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
     } else {
@@ -2147,14 +2152,9 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     } else {
       Value *src, *first = 0;
       if (HandleAluSrcOperand(MI->getOperand(0), src, &first)) {
-        Value *Target = IREmitter.AccessJumpTable(src, &first);
-        IndirectBrInst *v = Builder.CreateIndirectBr(
-            Target, IREmitter.IndirectDestinations.size());
-        for (int I = 0, E = IREmitter.IndirectDestinations.size(); I != E;
-             ++I) {
-          v->addDestination(IREmitter.IndirectDestinations[I]);
-        }
-        first = GetFirstInstruction(src, first, v);
+        Value *Dummy = Builder.CreateRetVoid();
+        IREmitter.AddIndirectJump(dyn_cast<Instruction>(Dummy), src);
+        first = GetFirstInstruction(src, Dummy);
         assert(isa<Instruction>(first) && "Need to rework map logic");
         IREmitter.CreateBB(IREmitter.CurAddr + GetInstructionSize());
         IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);

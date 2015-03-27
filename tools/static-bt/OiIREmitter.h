@@ -54,7 +54,8 @@ public:
         CurSection(nullptr), BBMap(), InsMap(), ReadMap(), WriteMap(),
         DblReadMap(), DblWriteMap(), FunctionCallMap(), FunctionRetMap(),
         IndirectCallMap(), CurFunAddr(0), CurBlockAddr(0), StackSize(Stacksz),
-        IndirectDestinations(), IndirectDestinationsAddrs() {
+        IndirectDestinations(), IndirectDestinationsAddrs(), IndirectJumps(),
+        IndirectCalls() {
     BuildShadowImage();
     BuildRegisterFile();
     if (CodeTarget == "arm") {
@@ -93,7 +94,17 @@ public:
   Value *IndirectJumpTableValue;
   std::vector<BasicBlock *> IndirectDestinations;
   std::vector<uint32_t> IndirectDestinationsAddrs;
+  std::vector<std::pair<Instruction *, uint64_t>> IndirectJumps;
+  std::vector<Value *> IndirectJumpsIndexes;
+  std::vector<std::pair<Instruction *, uint64_t>> IndirectCalls;
 
+  void AddIndirectJump(Instruction *Ins, Value *Idx) {
+    IndirectJumps.push_back(std::make_pair(Ins, CurAddr));
+    IndirectJumpsIndexes.push_back(Idx);
+  }
+  void AddIndirectCall(Instruction *Ins) {
+    IndirectCalls.push_back(std::make_pair(Ins, CurAddr));
+  }
   bool ProcessIndirectJumps();
   void BuildShadowImage();
   void BuildRegisterFile();
@@ -125,7 +136,7 @@ public:
   void SetCurSection(const SectionRef *I) { CurSection = I; }
 
 private:
-  bool FindTextOffset(uint64_t &SectionAddr);
+  bool FindSectionOffset(StringRef Name, uint64_t &SectionAddr);
 };
 }
 
