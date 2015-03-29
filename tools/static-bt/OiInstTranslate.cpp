@@ -55,6 +55,9 @@ void OiInstTranslate::FinishFunction() {
 void OiInstTranslate::FinishModule() {
   if (!IREmitter.ProcessIndirectJumps())
     llvm_unreachable("ProcessIndirectJumps failed.");
+  // Update shadow image initializer in case ProcessIndirectJumps changed
+  // memory
+  IREmitter.UpdateShadowImage();
   if (OneRegion) {
     IREmitter.FixEntryPoint();
     IREmitter.CleanRegs();

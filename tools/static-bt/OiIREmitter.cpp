@@ -240,6 +240,16 @@ void OiIREmitter::BuildShadowImage() {
   ShadowImageValue = gv;
 }
 
+void OiIREmitter::UpdateShadowImage() {
+  Constant *c = ConstantDataArray::get(
+      getGlobalContext(),
+      ArrayRef<uint8_t>(
+          reinterpret_cast<const unsigned char *>(&ShadowImage[0]),
+          ShadowSize));
+
+  dyn_cast<GlobalVariable>(ShadowImageValue)->setInitializer(c);
+}
+
 void OiIREmitter::BuildRegisterFile() {
   Type *ty = Type::getInt32Ty(getGlobalContext());
   Type *dblTy = Type::getDoubleTy(getGlobalContext());
@@ -839,7 +849,8 @@ Value *OiIREmitter::AccessJumpTable(Value *Idx, Value **First) {
   Value *Add = Builder.CreateAdd(
       Builder.CreatePtrToInt(IndirectJumpTableValue,
                              Type::getInt32Ty(getGlobalContext())),
-      Idx);
+      Builder.CreateShl(
+          Idx, ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 2)));
   Value *v =
       Builder.CreateIntToPtr(Builder.CreateLoad(Builder.CreateIntToPtr(
                                  Add, Type::getInt32PtrTy(getGlobalContext()))),

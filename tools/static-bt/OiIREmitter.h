@@ -107,6 +107,7 @@ public:
   }
   bool ProcessIndirectJumps();
   void BuildShadowImage();
+  void UpdateShadowImage();
   void BuildRegisterFile();
   void BuildLocalRegisterFile();
   bool HandleBackEdge(uint64_t Addr, BasicBlock *&Target);
