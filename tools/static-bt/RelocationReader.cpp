@@ -2,6 +2,8 @@
 #include "SBTUtils.h"
 #include "llvm/Object/ELF.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/Format.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -143,6 +145,8 @@ void RelocationReader::ResolveAllDataRelocations(
           assert (it != ComdatSymbols.end());
           // Patch it!
           *(int *)(&ShadowImage[PatchAddress]) = it->getValue();
+          outs() << "Patching " << format("%8" PRIx64, PatchAddress) << " with ";
+          outs() << format("%8" PRIx64, it->getValue()) << "\n";
           continue;
         }
 
@@ -164,6 +168,10 @@ void RelocationReader::ResolveAllDataRelocations(
           section_iterator seci = Obj->section_end();
           // Check if it is relative to a section
           if ((!error(si.getSection(seci))) && seci != Obj->section_end()) {
+            // If the target of this relocation lives in a code section, leave
+            // this to ProcessIndirectJumps()
+            if (seci->isText())
+              continue;
             uint64_t SectionAddr = seci->getAddress();
 
             // Relocatable file
@@ -175,6 +183,9 @@ void RelocationReader::ResolveAllDataRelocations(
 
           // Patch it!
           *(int *)(&ShadowImage[PatchAddress]) = TargetAddress;
+          outs() << "Patching " << format("%8" PRIx64, PatchAddress) << " with ";
+          outs() << format("%8" PRIx64, TargetAddress) << "\n";
+
           break;
         }
 
