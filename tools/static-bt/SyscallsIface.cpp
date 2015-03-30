@@ -429,6 +429,47 @@ bool SyscallsIface::HandleLibcScanf(Value *&V, Value **First) {
   return true;
 }
 
+bool SyscallsIface::HandleXstat(Value *&V, Value **First) {
+  SmallVector<Type *, 8> args(3, Type::getInt32Ty(getGlobalContext()));
+  FunctionType *ft = FunctionType::get(Type::getInt32Ty(getGlobalContext()),
+                                       args, /*isvararg*/false);
+  Value *fun = TheModule->getOrInsertFunction("__xstat", ft);
+  SmallVector<Value *, 8> params;
+  Value *f = Builder.CreateLoad(IREmitter.Regs[ConvToDirective(Mips::A0)]);
+  if (First)
+    *First = GetFirstInstruction(*First, f);
+  params.push_back(f);
+  params.push_back(Builder.CreatePtrToInt(
+      IREmitter.AccessShadowMemory(
+          Builder.CreateLoad(IREmitter.Regs[ConvToDirective(Mips::A1)]), false),
+      Type::getInt32Ty(getGlobalContext())));
+  Value *StatStruct = Builder.CreatePtrToInt(
+      IREmitter.AccessShadowMemory(
+          Builder.CreateLoad(IREmitter.Regs[ConvToDirective(Mips::A2)]), false),
+      Type::getInt32Ty(getGlobalContext()));
+  params.push_back(StatStruct);
+  V = Builder.CreateStore(Builder.CreateCall(fun, params),
+                          IREmitter.Regs[ConvToDirective(Mips::V0)]);
+  // convert st_size from offset 44 (x86) to 48 (OpenISA-MIPS)
+  // TODO: convert other fields! convert for ARM! need to check target!
+  Builder.CreateStore(
+      Builder.CreateLoad(Builder.CreateIntToPtr(
+          Builder.CreateAdd(
+              StatStruct,
+              ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 44)),
+          Type::getInt32PtrTy(getGlobalContext()))),
+      Builder.CreateIntToPtr(
+          Builder.CreateAdd(
+              StatStruct,
+              ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 48)),
+          Type::getInt32PtrTy(getGlobalContext())));
+  ReadMap[ConvToDirective(Mips::A0)] = true;
+  ReadMap[ConvToDirective(Mips::A1)] = true;
+  ReadMap[ConvToDirective(Mips::A2)] = true;
+  WriteMap[ConvToDirective(Mips::V0)] = true;
+  return true;
+}
+
 bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
                                         int numret, ArgType *ArgTypes,
                                         Value **First) {
@@ -438,6 +479,9 @@ bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
     case AT_Int32:
     case AT_Ptr:
       args.push_back(Type::getInt32Ty(getGlobalContext()));
+      break;
+    case AT_Float:
+      args.push_back(Type::getFloatTy(getGlobalContext()));
       break;
     case AT_Double:
       args.push_back(Type::getDoubleTy(getGlobalContext()));
@@ -451,9 +495,20 @@ bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
   if (numret == 0)
     ft = FunctionType::get(Type::getVoidTy(getGlobalContext()), args,
                            /*isvararg*/ false);
-  else if (numret == 1)
-    ft = FunctionType::get(Type::getDoubleTy(getGlobalContext()), args,
-                           /*isvararg*/ false);
+  else if (numret == 1) {
+    switch(ArgTypes[numargs]) {
+    case AT_Double:
+      ft = FunctionType::get(Type::getDoubleTy(getGlobalContext()), args,
+                             /*isvararg*/ false);
+      break;
+    case AT_Float:
+      ft = FunctionType::get(Type::getFloatTy(getGlobalContext()), args,
+                             /*isvararg*/ false);
+      break;
+    default:
+      llvm_unreachable("Unhandled return type.");
+    }
+  }
   else
     llvm_unreachable("Unhandled return size.");
 
@@ -485,38 +540,53 @@ bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
   if (numargs > 0) {
     unsigned numInts = 0;
     unsigned numDoubles = 0;
+    unsigned numFloats = 0;
     for (int I = 0, E = numargs; I != E; ++I) {
       switch (ArgTypes[I]) {
       case AT_Ptr: {
         Value *f = Builder.CreateLoad(
-            IREmitter
-                .Regs[ConvToDirective(Mips::A0) + numInts + (numDoubles << 1)]);
+            IREmitter.Regs[ConvToDirective(Mips::A0) + numInts +
+                           (numDoubles << 1) + numFloats]);
         if (I == 0 && First)
           *First = GetFirstInstruction(*First, f);
         Value *addrbuf = IREmitter.AccessShadowMemory(f, false);
         params.push_back(Builder.CreatePtrToInt(
             addrbuf, Type::getInt32Ty(getGlobalContext())));
-        ReadMap[ConvToDirective(Mips::A0) + numInts++] = true;
+        ReadMap[ConvToDirective(Mips::A0) + numInts++ + (numDoubles << 1) +
+                numFloats] = true;
         break;
       }
       case AT_Int32: {
         Value *f = Builder.CreateLoad(
-            IREmitter
-                .Regs[ConvToDirective(Mips::A0) + numInts + (numDoubles << 1)]);
+            IREmitter.Regs[ConvToDirective(Mips::A0) + numInts +
+                           (numDoubles << 1) + numFloats]);
         if (I == 0 && First)
           *First = GetFirstInstruction(*First, f);
         params.push_back(f);
-        ReadMap[ConvToDirective(Mips::A0) + numInts++] = true;
+        ReadMap[ConvToDirective(Mips::A0) + numInts++ + (numDoubles << 1) +
+                numFloats] = true;
+        break;
+      }
+      case AT_Float: {
+        Value *f =
+            Builder.CreateLoad(IREmitter.Regs[ConvToDirective(Mips::F12) +
+                                              (numDoubles << 1) + numFloats]);
+        if (I == 0 && First)
+          *First = GetFirstInstruction(*First, f);
+        params.push_back(f);
+        ReadMap[ConvToDirective(Mips::F12) + (numDoubles << 1) + numFloats++] =
+            true;
         break;
       }
       case AT_Double: {
         Value *f = Builder.CreateLoad(
-            IREmitter.DblRegs[ConvToDirectiveDbl(Mips::F12) + numDoubles]);
+            IREmitter.DblRegs[ConvToDirectiveDbl(Mips::F12) + numDoubles +
+                              ((numFloats + 1) >> 1)]);
         if (I == 0 && First)
           *First = GetFirstInstruction(*First, f);
         params.push_back(f);
-        IREmitter.DblReadMap[ConvToDirectiveDbl(Mips::F12) + numDoubles++] =
-            true;
+        IREmitter.DblReadMap[ConvToDirectiveDbl(Mips::F12) + numDoubles++ +
+                             ((numFloats + 1) >> 1)] = true;
         break;
       }
       default:
@@ -533,11 +603,16 @@ bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
     switch (ArgTypes[numargs]) {
     case AT_Double:
       Builder.CreateStore(V, IREmitter.DblRegs[ConvToDirectiveDbl(Mips::F0)]);
+      IREmitter.DblWriteMap[ConvToDirectiveDbl(Mips::F0)] = true;
+      break;
+    case AT_Float:
+      Builder.CreateStore(V, IREmitter.Regs[ConvToDirective(Mips::F0)]);
+      IREmitter.WriteMap[ConvToDirective(Mips::F0)] = true;
       break;
     default:
       llvm_unreachable("Unhandled return type for HandleGenericDouble");
     }
-    IREmitter.DblWriteMap[ConvToDirectiveDbl(Mips::F0)] = true;
+
   }
 
   return true;

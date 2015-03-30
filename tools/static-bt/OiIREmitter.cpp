@@ -156,13 +156,14 @@ bool OiIREmitter::ProcessIndirectJumps() {
     Instruction *Ins = IndirectJumps[I].first;
     uint64_t Addr = IndirectJumps[I].second;
     Value *first = IndirectJumpsIndexes[I];
-    Ins->dump();
-    first->dump();
     Builder.SetInsertPoint(Ins);
     Value *Target = AccessJumpTable(first, &first);
     IndirectBrInst *v =
         Builder.CreateIndirectBr(Target, IndirectDestinations.size());
     for (int I = 0, E = IndirectDestinations.size(); I != E; ++I) {
+      BasicBlock *targetBB = IndirectDestinations[I];
+      if (targetBB->getParent()->getName() != Ins->getParent()->getParent()->getName())
+        continue;
       v->addDestination(IndirectDestinations[I]);
     }
     Ins->eraseFromParent();
@@ -181,7 +182,12 @@ bool OiIREmitter::ProcessIndirectJumps() {
       InsMap[Addr] = dyn_cast<Instruction>(first);
       continue;
     }
-    llvm_unreachable("Indirect calls on non-oneregion code not supported");
+    Value *Target = AccessJumpTable(first, &first);
+    HandleFunctionExitPoint(&first);
+    Builder.CreateCall(Target);
+    HandleFunctionEntryPoint();
+    Ins->eraseFromParent();
+    InsMap[Addr] = dyn_cast<Instruction>(first);
   }
 
   return true;
@@ -378,9 +384,6 @@ void OiIREmitter::StartMainFunction(uint64_t Addr) {
     BuildLocalRegisterFile();
     InsertStartupCode(Addr);
     CurFunAddr = Addr;
-    // TODO: restore this; problem with .PDR relocations!
-    //    if (!ProcessIndirectJumps())
-    //      llvm_unreachable("ProcessIndirectJumps failed.");
   } else {
     CurFunAddr = CurAddr + GetInstructionSize();
     SpilledRegs.clear();

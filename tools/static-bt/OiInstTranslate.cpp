@@ -49,7 +49,6 @@ void OiInstTranslate::FinishFunction() {
     if (DebugIR)
       IREmitter.Builder.GetInsertBlock()->getParent()->dump();
   }
-  // Builder.CreateRetVoid();
 }
 
 void OiInstTranslate::FinishModule() {
@@ -58,6 +57,9 @@ void OiInstTranslate::FinishModule() {
   // Update shadow image initializer in case ProcessIndirectJumps changed
   // memory
   IREmitter.UpdateShadowImage();
+  if (DebugIR && !OneRegion)
+    IREmitter.Builder.GetInsertBlock()->getParent()->getParent()->dump();
+
   if (OneRegion) {
     IREmitter.FixEntryPoint();
     IREmitter.CleanRegs();
@@ -533,6 +535,9 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
           return Syscalls.HandleLibcFprintf(V, First);
         if (val == "__isoc99_scanf")
           return Syscalls.HandleLibcScanf(V, First);
+        if (val == "__xstat") {
+          return Syscalls.HandleXstat(V, First);
+        }
         if (val == "sprintf") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Ptr,
@@ -572,6 +577,16 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Double};
           return Syscalls.HandleGenericDouble(V, "sqrt", 1, 1, ArgTypes, First);
         }
+        if (val == "sqrtf") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Float,
+                                               SyscallsIface::AT_Float};
+          return Syscalls.HandleGenericDouble(V, "sqrtf", 1, 1, ArgTypes, First);
+        }
+        if (val == "log10") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "log10", 1, 1, ArgTypes, First);
+        }
         if (val == "exp") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
                                                SyscallsIface::AT_Double};
@@ -582,6 +597,16 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Double};
           return Syscalls.HandleGenericDouble(V, "ldexp", 2, 1, ArgTypes, First);
+        }
+        if (val == "exp2") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "exp2", 1, 1, ArgTypes, First);
+        }
+        if (val == "tan") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "tan", 1, 1, ArgTypes, First);
         }
         if (val == "frexp") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
@@ -601,6 +626,15 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
         }
         if (val == "atof")
           return Syscalls.HandleLibcAtof(V, First);
+        if (val == "abort") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "abort", 0, 0, ArgTypes, First);
+        }
+        if (val == "time") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "time", 1, 1, ArgTypes, First);
+        }
         if (val == "rand") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "rand", 0, 1, ArgTypes, First);
@@ -797,6 +831,18 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "putchar", 1, 1, ArgTypes, First);
         }
+        if (val == "_IO_putc") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "_IO_putc", 2, 1, ArgTypes, First);
+        }
+        if (val == "putc") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "putc", 2, 1, ArgTypes, First);
+        }
         if (val == "memchr") {
           SyscallsIface::ArgType ArgTypes[] = {
               SyscallsIface::AT_Ptr, SyscallsIface::AT_Int32,
@@ -833,6 +879,13 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Ptr};
           return Syscalls.HandleGenericInt(V, "realloc", 2, 1, ArgTypes, First);
+        }
+        if (val == "difftime") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "difftime", 2, 1, ArgTypes,
+                                              First);
         }
         if (val == "__assert_fail") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
@@ -1433,11 +1486,26 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     break;
   }
   case Mips::FSQRT_D32: {
-    DebugOut << "Handling FSQRT\n";
+    DebugOut << "Handling FSQRT_D32\n";
     Value *o0, *o1, *first = 0;
     if (HandleDoubleSrcOperand(MI->getOperand(1), o1, &first) &&
         HandleDoubleDstOperand(MI->getOperand(0), o0)) {
       std::vector<Type *> types(1, Type::getDoubleTy(getGlobalContext()));
+      Value *SqrtFunc = Intrinsic::getDeclaration(IREmitter.TheModule.get(),
+                                                  Intrinsic::sqrt, types);
+      Value *V = Builder.CreateCall(SqrtFunc, o1);
+      Builder.CreateStore(V, o0);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::FSQRT_S: {
+    DebugOut << "Handling FSQRT_S\n";
+    Value *o0, *o1, *first = 0;
+    if (HandleFloatSrcOperand(MI->getOperand(1), o1, &first) &&
+        HandleFloatDstOperand(MI->getOperand(0), o0)) {
+      std::vector<Type *> types(1, Type::getFloatTy(getGlobalContext()));
       Value *SqrtFunc = Intrinsic::getDeclaration(IREmitter.TheModule.get(),
                                                   Intrinsic::sqrt, types);
       Value *V = Builder.CreateCall(SqrtFunc, o1);
@@ -1465,6 +1533,21 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     if (HandleDoubleSrcOperand(MI->getOperand(1), o1, &first) &&
         HandleDoubleDstOperand(MI->getOperand(0), o0)) {
       std::vector<Type *> types(1, Type::getDoubleTy(getGlobalContext()));
+      Value *FabsFunc = Intrinsic::getDeclaration(IREmitter.TheModule.get(),
+                                                  Intrinsic::fabs, types);
+      Value *V = Builder.CreateCall(FabsFunc, o1);
+      Builder.CreateStore(V, o0);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::FABS_S: {
+    DebugOut << "Handling FABS_S\n";
+    Value *o0, *o1, *first = 0;
+    if (HandleFloatSrcOperand(MI->getOperand(1), o1, &first) &&
+        HandleFloatDstOperand(MI->getOperand(0), o0)) {
+      std::vector<Type *> types(1, Type::getFloatTy(getGlobalContext()));
       Value *FabsFunc = Intrinsic::getDeclaration(IREmitter.TheModule.get(),
                                                   Intrinsic::fabs, types);
       Value *V = Builder.CreateCall(FabsFunc, o1);
@@ -2150,6 +2233,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       if (!first)
         first = v;
       assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.CreateBB(IREmitter.CurAddr + GetInstructionSize());
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
       IREmitter.FunctionRetMap[IREmitter.CurAddr] = IREmitter.CurFunAddr;
     } else {

@@ -155,6 +155,66 @@ unsigned conv32(unsigned regnum) {
     return Mips::F32;
   case Mips::D33_64:
     return Mips::F33;
+  case Mips::D34_64:
+    return Mips::F34;
+  case Mips::D35_64:
+    return Mips::F35;
+  case Mips::D36_64:
+    return Mips::F36;
+  case Mips::D37_64:
+    return Mips::F37;
+  case Mips::D38_64:
+    return Mips::F38;
+  case Mips::D39_64:
+    return Mips::F39;
+  case Mips::D40_64:
+    return Mips::F40;
+  case Mips::D41_64:
+    return Mips::F41;
+  case Mips::D42_64:
+    return Mips::F42;
+  case Mips::D43_64:
+    return Mips::F43;
+  case Mips::D44_64:
+    return Mips::F44;
+  case Mips::D45_64:
+    return Mips::F45;
+  case Mips::D46_64:
+    return Mips::F46;
+  case Mips::D47_64:
+    return Mips::F47;
+  case Mips::D48_64:
+    return Mips::F48;
+  case Mips::D49_64:
+    return Mips::F49;
+  case Mips::D50_64:
+    return Mips::F50;
+  case Mips::D51_64:
+    return Mips::F51;
+  case Mips::D52_64:
+    return Mips::F52;
+  case Mips::D53_64:
+    return Mips::F53;
+  case Mips::D54_64:
+    return Mips::F54;
+  case Mips::D55_64:
+    return Mips::F55;
+  case Mips::D56_64:
+    return Mips::F56;
+  case Mips::D57_64:
+    return Mips::F57;
+  case Mips::D58_64:
+    return Mips::F58;
+  case Mips::D59_64:
+    return Mips::F59;
+  case Mips::D60_64:
+    return Mips::F60;
+  case Mips::D61_64:
+    return Mips::F61;
+  case Mips::D62_64:
+    return Mips::F62;
+  case Mips::D63_64:
+    return Mips::F63;
 
     //    return regnum - 1;
   }
@@ -529,6 +589,7 @@ unsigned ConvToDirective(unsigned regnum) {
   case Mips::F63:
     return 191;
   }
+  outs() << regnum << "\n";
   llvm_unreachable("Invalid register");
   return -1;
 }

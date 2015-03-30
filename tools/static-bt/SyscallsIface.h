@@ -14,7 +14,7 @@ namespace llvm {
 
 class SyscallsIface {
 public:
-  enum ArgType { AT_Int32, AT_Double, AT_Ptr, AT_PtrPtr };
+  enum ArgType { AT_Int32, AT_Float, AT_Double, AT_Ptr, AT_PtrPtr };
 
   SyscallsIface(OiIREmitter &ir, StringRef CodeTarget)
       : CodeTarget(CodeTarget), IREmitter(ir), TheModule(ir.TheModule),
@@ -37,6 +37,8 @@ public:
   bool HandleLibcPrintf(Value *&V, Value **First = 0);
   bool HandleLibcScanf(Value *&V, Value **First = 0);
   bool HandleLibcAtof(Value *&V, Value **First);
+  bool HandleXstat(Value *&V, Value **First);
+
 
 private:
   Function *createTranslateCTypeFunction();

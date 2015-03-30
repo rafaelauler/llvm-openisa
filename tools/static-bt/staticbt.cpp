@@ -179,6 +179,7 @@ void OptimizeAndWriteBitcode(OiInstTranslate *oit) {
   if (Optimize) {
     OurFPM.add(createPromoteMemoryToRegisterPass());
     OurFPM.add(new OiCombinePass());
+    OurFPM.add(createVerifierPass());
     OurFPM.add(createInstructionCombiningPass());
     OurFPM.add(createReassociatePass());
     OurFPM.add(createGVNPass());
