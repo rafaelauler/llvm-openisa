@@ -635,6 +635,42 @@ GetSymbolsList(const ObjectFile *Obj, const SectionRef &i) {
   return Symbols;
 }
 
+llvm::StringMap<uint64_t>
+GetComdatSymbolsList(const ObjectFile *o, uint64_t &TotalSize) {
+  TotalSize = 0;
+
+  std::error_code ec;
+  // Make a list of all the symbols in this section.
+  llvm::StringMap<uint64_t> Symbols;
+  for (auto Symbol : o->symbols()) {
+    section_iterator Section = o->section_end();
+    uint64_t Size;
+    SymbolRef::Type Type;
+    uint32_t Flags = Symbol.getFlags();
+    if (error(Symbol.getType(Type)))
+      continue;
+    if (error(Symbol.getSize(Size)))
+      continue;
+    if (error(Symbol.getSection(Section)))
+      continue;
+
+    if (Section != o->section_end())
+      continue;
+    if (Type != SymbolRef::ST_Data)
+      continue;
+    if ((Flags & SymbolRef::SF_Common) == 0)
+      continue;
+
+    StringRef Name;
+    if (error(Symbol.getName(Name)))
+      break;
+    Symbols[Name] = TotalSize;
+    TotalSize += Size;
+  }
+
+  return Symbols;
+}
+
 Value *GetFirstInstruction(Value *o0, Value *o1) {
   if (o0 && isa<Instruction>(o0))
     return o0;

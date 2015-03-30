@@ -512,7 +512,8 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
     } else { // Need to handle the relocation to find the correct jump address
       relocation_iterator ri = (*IREmitter.CurSection).relocation_end();
       StringRef val;
-      if (RelocReader.CheckRelocation(ri, val)) {
+      bool comdat;
+      if (RelocReader.CheckRelocation(ri, val, comdat)) {
         if (val == "write")
           return Syscalls.HandleSyscallWrite(V, First);
         if (val == "atoi")

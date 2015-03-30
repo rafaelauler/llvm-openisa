@@ -196,6 +196,9 @@ bool OiIREmitter::ProcessIndirectJumps() {
 void OiIREmitter::BuildShadowImage() {
   ShadowSize = 0;
 
+  uint64_t TotalComdatSize = 0;
+  ComdatSymbols = GetComdatSymbolsList(Obj, TotalComdatSize);
+
   std::error_code ec;
   for (auto &i : Obj->sections()) {
     if (error(ec))
@@ -207,6 +210,14 @@ void OiIREmitter::BuildShadowImage() {
     uint64_t SectSize = i.getSize();
     if (SectSize + SectionAddr > ShadowSize)
       ShadowSize = SectSize + SectionAddr;
+  }
+
+  // Put our comdat symbols last
+  uint64_t ComdatSectionAddress = ShadowSize;
+  ShadowSize += TotalComdatSize;
+  // Update Comdat symbols addresses
+  for (auto &sym : ComdatSymbols) {
+    sym.setValue(sym.getValue() + ComdatSectionAddress);
   }
 
   // Allocate some space for the stack

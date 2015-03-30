@@ -55,7 +55,7 @@ public:
         DblReadMap(), DblWriteMap(), FunctionCallMap(), FunctionRetMap(),
         IndirectCallMap(), CurFunAddr(0), CurBlockAddr(0), StackSize(Stacksz),
         IndirectDestinations(), IndirectDestinationsAddrs(), IndirectJumps(),
-        IndirectCalls() {
+        IndirectCalls(), ComdatSymbols() {
     BuildShadowImage();
     BuildRegisterFile();
     if (CodeTarget == "arm") {
@@ -97,6 +97,7 @@ public:
   std::vector<std::pair<Instruction *, uint64_t>> IndirectJumps;
   std::vector<Value *> IndirectJumpsIndexes;
   std::vector<std::pair<Instruction *, uint64_t>> IndirectCalls;
+  llvm::StringMap<uint64_t> ComdatSymbols;
 
   void AddIndirectJump(Instruction *Ins, Value *Idx) {
     IndirectJumps.push_back(std::make_pair(Ins, CurAddr));

@@ -9,8 +9,21 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type) {
   relocation_iterator Rel = (*CurSection).relocation_end();
   std::error_code ec;
   StringRef Name;
-  if (!CheckRelocation(Rel, Name))
+  bool Comdat;
+  if (!CheckRelocation(Rel, Name, Comdat))
     return false;
+
+  if (Comdat) {
+    auto it = ComdatSymbols.find(Name);
+    assert (it != ComdatSymbols.end());
+    Res = it->getValue();
+    if (Type) {
+      if (error(Rel->getType(*Type)))
+        llvm_unreachable("Error getting relocation type");
+    }
+    return true;
+  }
+
   for (auto i : Obj->sections()) {
     if (error(ec))
       break;
@@ -73,7 +86,7 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type) {
 }
 
 bool RelocationReader::CheckRelocation(relocation_iterator &Rel,
-                                       StringRef &Name) {
+                                       StringRef &Name, bool &Comdat) {
   std::error_code ec;
   uint64_t offset = GetELFOffset(*CurSection);
   for (const SectionRef &RelocSec : SectionRelocMap[*CurSection]) {
@@ -88,6 +101,8 @@ bool RelocationReader::CheckRelocation(relocation_iterator &Rel,
 
       Rel = Reloc;
       SymbolRef symb = *(Reloc.getSymbol());
+      uint32_t Flags = symb.getFlags();
+      Comdat = Flags & SymbolRef::SF_Common;
       if (!error(symb.getName(Name))) {
         return true;
       }
