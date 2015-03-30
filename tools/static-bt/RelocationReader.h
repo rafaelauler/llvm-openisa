@@ -34,13 +34,14 @@ public:
   }
   bool ResolveRelocation(uint64_t &Res, uint64_t *Type = 0);
   bool CheckRelocation(relocation_iterator &Rel, StringRef &Name, bool &Comdat);
+  void ResolveAllDataRelocations(std::vector<uint8_t>& ShadowImage);
 
 private:
   const ObjectFile *Obj;
   const SectionRef *&CurSection;
   uint64_t &CurAddr;
   llvm::StringMap<uint64_t> &ComdatSymbols;
-  // Set of relocation sections for the each section
+  // Set of relocation sections for each section
   std::map<SectionRef, SmallVector<SectionRef, 1>> SectionRelocMap;
 };
 }
