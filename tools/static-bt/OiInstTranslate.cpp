@@ -1587,11 +1587,12 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   case Mips::CVT_S_W: {
     DebugOut << "Handling CVT.S.W\n";
     Value *o0, *o1, *first = 0;
-    if (HandleAluSrcOperand(MI->getOperand(1), o1, &first) &&
+    if (HandleFloatSrcOperand(MI->getOperand(1), o1, &first) &&
         HandleFloatDstOperand(MI->getOperand(0), o0)) {
       Value *V;
-      Value *v1 =
-          Builder.CreateSIToFP(o1, Type::getFloatTy(getGlobalContext()));
+      Value *v1 = Builder.CreateSIToFP(
+          Builder.CreateBitCast(o1, Type::getInt32Ty(getGlobalContext())),
+          Type::getFloatTy(getGlobalContext()));
       HandleSaveFloat(v1, V);
       Builder.CreateStore(V, o0);
       Value *first = GetFirstInstruction(first, o1, v1);
@@ -1683,10 +1684,16 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   }
   case Mips::MTC1: {
     DebugOut << "Handling MTC1\n";
-    Value *o0, *o1, *first = 0;
+    Value *o0, *o0float, *o1, *first = 0;
     if (HandleAluSrcOperand(MI->getOperand(1), o1, &first) &&
-        HandleDoubleDstOperand(MI->getOperand(0), o0)) {
+        HandleDoubleDstOperand(MI->getOperand(0), o0) &&
+        HandleFloatDstOperand(MI->getOperand(0), o0float)) {
       Value *hi, *lo;
+      // First store it in the float bank
+      Builder.CreateStore(
+          o1, Builder.CreateBitCast(o0float,
+                                    Type::getInt32PtrTy(getGlobalContext())));
+      // Now store it in the double bank
       Value *previousVal = Builder.CreateLoad(o0);
       HandleSaveDouble(previousVal, lo, hi);
       if (ConvToDirective(conv32(MI->getOperand(0).getReg())) % 2) {
