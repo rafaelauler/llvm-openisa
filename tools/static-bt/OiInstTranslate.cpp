@@ -1630,14 +1630,19 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   }
   case Mips::TRUNC_W_D32: {
     DebugOut << "Handling TRUNC.W.D\n";
-    Value *o0, *o1, *first = 0;
+    Value *o0, *o0float, *o1, *first = 0;
     if (HandleDoubleSrcOperand(MI->getOperand(1), o1, &first) &&
-        HandleDoubleDstOperand(MI->getOperand(0), o0)) {
+        HandleDoubleDstOperand(MI->getOperand(0), o0) &&
+        HandleFloatDstOperand(MI->getOperand(0), o0float)) {
       Value *v1 =
           Builder.CreateFPToSI(o1, Type::getInt32Ty(getGlobalContext()));
       Value *v2 = Builder.CreateZExt(v1, Type::getInt64Ty(getGlobalContext()));
       Value *v3 =
           Builder.CreateBitCast(v2, Type::getDoubleTy(getGlobalContext()));
+      // First store it in the float bank
+      Builder.CreateStore(
+          Builder.CreateBitCast(v1, Type::getFloatTy(getGlobalContext())),
+          o0float);
       Builder.CreateStore(v3, o0);
       first = GetFirstInstruction(first, o1, v1);
       assert(isa<Instruction>(first) && "Need to rework map logic");
