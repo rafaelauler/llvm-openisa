@@ -33,7 +33,7 @@ public:
     }
   }
   bool ResolveRelocation(uint64_t &Res, uint64_t *Type = 0);
-  bool CheckRelocation(relocation_iterator &Rel, StringRef &Name, bool &Comdat);
+  bool CheckRelocation(relocation_iterator &Rel, StringRef &Name);
   void ResolveAllDataRelocations(std::vector<uint8_t>& ShadowImage);
 
 private:

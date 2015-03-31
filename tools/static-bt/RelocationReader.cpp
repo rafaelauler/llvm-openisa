@@ -11,13 +11,11 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type) {
   relocation_iterator Rel = (*CurSection).relocation_end();
   std::error_code ec;
   StringRef Name;
-  bool Comdat;
-  if (!CheckRelocation(Rel, Name, Comdat))
+  if (!CheckRelocation(Rel, Name))
     return false;
 
-  if (Comdat) {
-    auto it = ComdatSymbols.find(Name);
-    assert (it != ComdatSymbols.end());
+  auto it = ComdatSymbols.find(Name);
+  if (it != ComdatSymbols.end()) {
     Res = it->getValue();
     if (Type) {
       if (error(Rel->getType(*Type)))
@@ -88,7 +86,7 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type) {
 }
 
 bool RelocationReader::CheckRelocation(relocation_iterator &Rel,
-                                       StringRef &Name, bool &Comdat) {
+                                       StringRef &Name) {
   std::error_code ec;
   uint64_t offset = GetELFOffset(*CurSection);
   for (const SectionRef &RelocSec : SectionRelocMap[*CurSection]) {
@@ -103,8 +101,6 @@ bool RelocationReader::CheckRelocation(relocation_iterator &Rel,
 
       Rel = Reloc;
       SymbolRef symb = *(Reloc.getSymbol());
-      uint32_t Flags = symb.getFlags();
-      Comdat = Flags & SymbolRef::SF_Common;
       if (!error(symb.getName(Name))) {
         return true;
       }
@@ -137,12 +133,9 @@ void RelocationReader::ResolveAllDataRelocations(
         if (error(symb.getName(Name))) {
           return;
         }
-        uint32_t Flags = symb.getFlags();
-        bool Comdat = Flags & SymbolRef::SF_Common;
 
-        if (Comdat) {
-          auto it = ComdatSymbols.find(Name);
-          assert (it != ComdatSymbols.end());
+        auto it = ComdatSymbols.find(Name);
+        if (it != ComdatSymbols.end()) {
           // Patch it!
           *(int *)(&ShadowImage[PatchAddress]) = it->getValue();
           outs() << "Patching " << format("%8" PRIx64, PatchAddress) << " with ";

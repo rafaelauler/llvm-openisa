@@ -218,6 +218,8 @@ void OiIREmitter::BuildShadowImage() {
   // Update Comdat symbols addresses
   for (auto &sym : ComdatSymbols) {
     sym.setValue(sym.getValue() + ComdatSectionAddress);
+    outs() << "COMDAT/BSS symbol \"" << sym.getKey() << "\" @"
+           << format("%8" PRIx64, sym.getValue()) << "\n ";
   }
 
   // Allocate some space for the stack
@@ -231,7 +233,10 @@ void OiIREmitter::BuildShadowImage() {
     uint64_t SectSize = i.getSize();
     StringRef SecName;
     if (error(i.getName(SecName)))
-      break;
+      continue;
+    // Map only text and data sections
+    if ((!i.isText() && !i.isData()) || i.isBSS())
+      continue;
 
     uint64_t Offset = 0;
     if (SectionAddr == 0)
@@ -239,7 +244,7 @@ void OiIREmitter::BuildShadowImage() {
 
     StringRef Bytes;
     if (error(i.getContents(Bytes)))
-      break;
+      continue;;
     StringRefMemoryObject memoryObject(Bytes);
     memoryObject.readBytes(&ShadowImage[0] + SectionAddr + Offset, SectionAddr,
                            SectSize);

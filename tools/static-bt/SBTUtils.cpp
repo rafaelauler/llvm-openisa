@@ -640,8 +640,34 @@ GetComdatSymbolsList(const ObjectFile *o, uint64_t &TotalSize) {
   TotalSize = 0;
 
   std::error_code ec;
-  // Make a list of all the symbols in this section.
   llvm::StringMap<uint64_t> Symbols;
+  section_iterator BSSSection = o->section_end();
+  // first put in BSS symbols
+  for (auto &i : o->sections()) {
+    if (!i.isBSS())
+      continue;
+    uint64_t SectSize = i.getSize();
+    TotalSize += SectSize;
+    BSSSection = i;
+    break;
+  }
+  if (BSSSection != o->section_end() && TotalSize > 0) {
+    for (auto Symbol : o->symbols()) {
+      section_iterator Section = o->section_end();
+      if (error(Symbol.getSection(Section)))
+        continue;
+      if (Section != BSSSection)
+        continue;
+      uint64_t Address;
+      StringRef Name;
+      if (error(Symbol.getName(Name)))
+        continue;
+      if (error(Symbol.getAddress(Address)))
+        continue;
+      assert(Address < TotalSize);
+      Symbols[Name] = Address;
+    }
+  }
   for (auto Symbol : o->symbols()) {
     section_iterator Section = o->section_end();
     uint64_t Size;
@@ -663,14 +689,13 @@ GetComdatSymbolsList(const ObjectFile *o, uint64_t &TotalSize) {
 
     StringRef Name;
     if (error(Symbol.getName(Name)))
-      break;
+      continue;
     Symbols[Name] = TotalSize;
     TotalSize += Size;
   }
 
   return Symbols;
 }
-
 Value *GetFirstInstruction(Value *o0, Value *o1) {
   if (o0 && isa<Instruction>(o0))
     return o0;
