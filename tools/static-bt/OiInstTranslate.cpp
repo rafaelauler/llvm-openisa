@@ -1636,14 +1636,31 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
         HandleFloatDstOperand(MI->getOperand(0), o0float)) {
       Value *v1 =
           Builder.CreateFPToSI(o1, Type::getInt32Ty(getGlobalContext()));
-      Value *v2 = Builder.CreateZExt(v1, Type::getInt64Ty(getGlobalContext()));
-      Value *v3 =
-          Builder.CreateBitCast(v2, Type::getDoubleTy(getGlobalContext()));
       // First store it in the float bank
       Builder.CreateStore(
           Builder.CreateBitCast(v1, Type::getFloatTy(getGlobalContext())),
           o0float);
-      Builder.CreateStore(v3, o0);
+
+      // now the lengthy load-update-and-store-back double trickery
+      Value *hi, *lo;
+      Value *previousVal = Builder.CreateLoad(o0);
+      HandleSaveDouble(previousVal, lo, hi);
+      if (ConvToDirective(conv32(MI->getOperand(0).getReg())) % 2) {
+        hi = v1;
+      } else {
+        lo = v1;
+      }
+      Value *v3 =
+          Builder.CreateZExtOrTrunc(hi, Type::getInt64Ty(getGlobalContext()));
+      Value *v4 =
+          Builder.CreateZExtOrTrunc(lo, Type::getInt64Ty(getGlobalContext()));
+      Value *v5 = Builder.CreateShl(
+          v3, ConstantInt::get(Type::getInt64Ty(getGlobalContext()), 32));
+      Value *v6 = Builder.CreateOr(v5, v4);
+      Value *dblSrc =
+          Builder.CreateBitCast(v6, Type::getDoubleTy(getGlobalContext()));
+      Builder.CreateStore(dblSrc, o0);
+
       first = GetFirstInstruction(first, o1, v1);
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
