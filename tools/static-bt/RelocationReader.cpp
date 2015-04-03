@@ -137,9 +137,11 @@ void RelocationReader::ResolveAllDataRelocations(
         auto it = ComdatSymbols.find(Name);
         if (it != ComdatSymbols.end()) {
           // Patch it!
-          *(int *)(&ShadowImage[PatchAddress]) = it->getValue();
-          outs() << "Patching " << format("%8" PRIx64, PatchAddress) << " with ";
-          outs() << format("%8" PRIx64, it->getValue()) << "\n";
+          *(int *)(&ShadowImage[PatchAddress]) =
+              it->getValue() + *(int *)(&ShadowImage[PatchAddress]);
+          outs() << "Patching " << format("%8" PRIx64, PatchAddress) << " with "
+                 << format("%8" PRIx64, *(int *)(&ShadowImage[PatchAddress]))
+                 << "\n";
           continue;
         }
 
@@ -175,10 +177,11 @@ void RelocationReader::ResolveAllDataRelocations(
           }
 
           // Patch it!
-          *(int *)(&ShadowImage[PatchAddress]) = TargetAddress;
-          outs() << "Patching " << format("%8" PRIx64, PatchAddress) << " with ";
-          outs() << format("%8" PRIx64, TargetAddress) << "\n";
-
+          *(int *)(&ShadowImage[PatchAddress]) =
+              TargetAddress + *(int *)(&ShadowImage[PatchAddress]);
+          outs() << "Patching " << format("%8" PRIx64, PatchAddress) << " with "
+                 << format("%8" PRIx64, *(int *)(&ShadowImage[PatchAddress]))
+                 << "\n";
           break;
         }
 
