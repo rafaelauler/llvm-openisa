@@ -1378,7 +1378,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
       Value *cmp;
       Value *fcc = Builder.CreateLoad(IREmitter.Regs[258]);
-      if (MI->getOpcode() == Mips::MOVT_D32)
+      if (MI->getOpcode() == Mips::MOVT_S)
         cmp = Builder.CreateICmpNE(fcc, zero);
       else // case MOVF_I
         cmp = Builder.CreateICmpEQ(fcc, zero);
