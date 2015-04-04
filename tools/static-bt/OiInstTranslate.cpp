@@ -2010,7 +2010,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
         o2 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
         HandleBranchTarget(MI->getOperand(1), True);
         cmp = Builder.CreateICmpSLE(o1, o2);
-      } else if (MI->getOpcode() == Mips::BLEZ) {
+      } else if (MI->getOpcode() == Mips::BGEZ) {
         o2 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
         HandleBranchTarget(MI->getOperand(1), True);
         cmp = Builder.CreateICmpSGE(o1, o2);
