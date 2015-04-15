@@ -8,8 +8,7 @@ set(LLVM_LINK_COMPONENTS
   Support
   )
 
-include_directories(../../../obj/lib/Target/Mips)
-
+#include_directories(../../../obj/lib/Target/Mips)
 add_llvm_tool(static-bt
   staticbt.cpp
   SBTUtils.cpp
@@ -20,3 +19,7 @@ add_llvm_tool(static-bt
   StringRefMemoryObject.cpp
   SyscallsIface.cpp
   )
+
+add_dependencies(static-bt MipsCommonTableGen)
+
+include_directories( ${CMAKE_CURRENT_BINARY_DIR}/../../lib/Target/Mips )

@@ -12,6 +12,7 @@ set(LLVM_LINK_COMPONENTS
   MC
   ObjCARCOpts
   ScalarOpts
+  PrintfBreak
   Support
   Target
   TransformUtils
