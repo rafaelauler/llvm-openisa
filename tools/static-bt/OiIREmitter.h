@@ -102,11 +102,14 @@ public:
   std::vector<uint64_t> FunctionAddrs;
   std::vector<BasicBlock *> FunctionBBs;
   // Properties of the hash function used in indirect calls
-  unsigned HashA;
-  unsigned HashB;
-  unsigned HashC;
-  unsigned HashP;
-  unsigned HashM;
+  struct HashParams {
+    unsigned A;
+    unsigned B;
+    unsigned C;
+    unsigned P;
+    unsigned M;
+  };
+  HashParams IndirectCallsHash;
 
   void AddIndirectJump(Instruction *Ins, Value *Idx) {
     IndirectJumps.push_back(std::make_pair(Ins, CurAddr));
@@ -117,8 +120,10 @@ public:
     IndirectCallsIndexes.push_back(Idx);
   }
   bool ProcessIndirectJumps();
-  void CreateHashCallTable();
-  void SelectHashFunctionCallTable();
+  template <typename T>
+  Value *CreateHashTableFor(ArrayRef<T> Addrs, const HashParams &Hash);
+  template <typename T>
+  HashParams SelectHashFunctionFor(ArrayRef<T> Addrs);
   void BuildShadowImage();
   void UpdateShadowImage();
   void BuildRegisterFile();
@@ -134,7 +139,8 @@ public:
   Value *AccessShadowMemory(Value *Idx, bool IsLoad, int width = 32,
                             bool isFloat = false, Value **First = 0);
   Value *AccessJumpTable(Value *Idx, Value **First = 0);
-  Value *AccessHashTable(Value *Idx, Value **First = 0);
+  Value *AccessHashTable(Value *Idx, Value **First, const HashParams &Hash,
+                         Value *TableBasePtr);
   void InsertStartupCode(uint64_t Addr);
   BasicBlock *CreateBB(uint64_t Addr = 0, Function *F = 0);
   void UpdateInsertPoint();
