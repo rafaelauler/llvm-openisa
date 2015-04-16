@@ -41,7 +41,6 @@ public:
   typedef DenseMap<uint32_t, Value *> SpilledRegsTy;
   typedef DenseMap<uint32_t, std::vector<uint32_t>> FunctionCallMapTy;
   typedef DenseMap<uint32_t, uint32_t> FunctionRetMapTy;
-  typedef std::set<uint32_t> IndirectCallMapTy;
 
   OiIREmitter(const ObjectFile *obj, uint64_t Stacksz, StringRef CodeTarget)
       : Obj(obj), TheModule(new Module("outputtest", getGlobalContext())),
@@ -53,7 +52,7 @@ public:
         FirstFunction(true), EntryPointBB(nullptr), CurAddr(0),
         CurSection(nullptr), BBMap(), InsMap(), ReadMap(), WriteMap(),
         DblReadMap(), DblWriteMap(), FunctionCallMap(), FunctionRetMap(),
-        IndirectCallMap(), CurFunAddr(0), CurBlockAddr(0), StackSize(Stacksz),
+        CurFunAddr(0), CurBlockAddr(0), StackSize(Stacksz),
         IndirectDestinations(), IndirectDestinationsAddrs(), IndirectJumps(),
         IndirectCalls(), ComdatSymbols() {
     BuildShadowImage();
@@ -85,34 +84,48 @@ public:
   DenseMap<int32_t, bool> ReadMap, WriteMap, DblReadMap, DblWriteMap;
   FunctionCallMapTy FunctionCallMap; // Used only in one-region mode
   FunctionRetMapTy FunctionRetMap;   // Used only in one-region mode
-  IndirectCallMapTy IndirectCallMap;
   uint64_t CurFunAddr;
   uint64_t CurBlockAddr;
   uint64_t StackSize;
   uint64_t ShadowSize;
   Value *ShadowImageValue;
   Value *IndirectJumpTableValue;
+  Value *IndirectCallTableValue;
   std::vector<BasicBlock *> IndirectDestinations;
   std::vector<uint32_t> IndirectDestinationsAddrs;
   std::vector<std::pair<Instruction *, uint64_t>> IndirectJumps;
   std::vector<Value *> IndirectJumpsIndexes;
   std::vector<std::pair<Instruction *, uint64_t>> IndirectCalls;
+  std::vector<Value *> IndirectCallsIndexes;
   llvm::StringMap<uint64_t> ComdatSymbols;
+
+  std::vector<uint64_t> FunctionAddrs;
+  std::vector<BasicBlock *> FunctionBBs;
+  // Properties of the hash function used in indirect calls
+  unsigned HashA;
+  unsigned HashB;
+  unsigned HashC;
+  unsigned HashP;
+  unsigned HashM;
 
   void AddIndirectJump(Instruction *Ins, Value *Idx) {
     IndirectJumps.push_back(std::make_pair(Ins, CurAddr));
     IndirectJumpsIndexes.push_back(Idx);
   }
-  void AddIndirectCall(Instruction *Ins) {
+  void AddIndirectCall(Instruction *Ins, Value *Idx) {
     IndirectCalls.push_back(std::make_pair(Ins, CurAddr));
+    IndirectCallsIndexes.push_back(Idx);
   }
   bool ProcessIndirectJumps();
+  void CreateHashCallTable();
+  void SelectHashFunctionCallTable();
   void BuildShadowImage();
   void UpdateShadowImage();
   void BuildRegisterFile();
   void BuildLocalRegisterFile();
   bool HandleBackEdge(uint64_t Addr, BasicBlock *&Target);
-  bool HandleIndirectCallOneRegion(Value *src, Value **First = 0);
+  bool HandleIndirectCallOneRegion(uint64_t Addr, Value *src,
+                                   Value **First = 0);
   bool HandleLocalCallOneRegion(uint64_t Addr, Value *&V, Value **First = 0);
   std::vector<uint32_t> GetCallSitesFor(uint32_t FuncAddr);
   bool BuildReturnTablesOneRegion();
@@ -121,6 +134,7 @@ public:
   Value *AccessShadowMemory(Value *Idx, bool IsLoad, int width = 32,
                             bool isFloat = false, Value **First = 0);
   Value *AccessJumpTable(Value *Idx, Value **First = 0);
+  Value *AccessHashTable(Value *Idx, Value **First = 0);
   void InsertStartupCode(uint64_t Addr);
   BasicBlock *CreateBB(uint64_t Addr = 0, Function *F = 0);
   void UpdateInsertPoint();

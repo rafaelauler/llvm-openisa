@@ -19,6 +19,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Object/ELF.h"
 #include <system_error>
+#include <cstdlib>
 using namespace llvm;
 
 namespace llvm {
@@ -139,45 +140,53 @@ bool OiIREmitter::ProcessIndirectJumps() {
 
   if (TableSize == 0) {
     IndirectJumpTableValue = 0;
-    return true;
-  }
+  } else {
+    ConstantArray *c = dyn_cast<ConstantArray>(ConstantArray::get(
+        ArrayType::get(Type::getInt8PtrTy(getGlobalContext()), TableSize),
+        ArrayRef<Constant *>(&IndirectJumpTable[0], TableSize)));
 
-  ConstantArray *c = dyn_cast<ConstantArray>(ConstantArray::get(
-      ArrayType::get(Type::getInt8PtrTy(getGlobalContext()), TableSize),
-      ArrayRef<Constant *>(&IndirectJumpTable[0], TableSize)));
+    GlobalVariable *gv = new GlobalVariable(*TheModule, c->getType(), false,
+                                            GlobalValue::ExternalLinkage, c,
+                                            "IndirectJumpTable");
 
-  GlobalVariable *gv =
-      new GlobalVariable(*TheModule, c->getType(), false,
-                         GlobalValue::ExternalLinkage, c, "IndirectJumpTable");
+    IndirectJumpTableValue = gv;
 
-  IndirectJumpTableValue = gv;
-
-  for (unsigned I = 0; I < IndirectJumps.size(); ++I) {
-    Instruction *Ins = IndirectJumps[I].first;
-    uint64_t Addr = IndirectJumps[I].second;
-    Value *first = IndirectJumpsIndexes[I];
-    Builder.SetInsertPoint(Ins);
-    Value *Target = AccessJumpTable(first, &first);
-    IndirectBrInst *v =
-        Builder.CreateIndirectBr(Target, IndirectDestinations.size());
-    for (int I = 0, E = IndirectDestinations.size(); I != E; ++I) {
-      BasicBlock *targetBB = IndirectDestinations[I];
-      if (targetBB->getParent()->getName() != Ins->getParent()->getParent()->getName())
-        continue;
-      v->addDestination(IndirectDestinations[I]);
+    for (unsigned I = 0; I < IndirectJumps.size(); ++I) {
+      Instruction *Ins = IndirectJumps[I].first;
+      uint64_t Addr = IndirectJumps[I].second;
+      Value *first = IndirectJumpsIndexes[I];
+      Builder.SetInsertPoint(Ins);
+      Value *Target = AccessJumpTable(first, &first);
+      IndirectBrInst *v =
+          Builder.CreateIndirectBr(Target, IndirectDestinations.size());
+      for (int I = 0, E = IndirectDestinations.size(); I != E; ++I) {
+        BasicBlock *targetBB = IndirectDestinations[I];
+        if (targetBB->getParent()->getName() !=
+            Ins->getParent()->getParent()->getName())
+          continue;
+        v->addDestination(IndirectDestinations[I]);
+      }
+      Ins->eraseFromParent();
+      first = GetFirstInstruction(first, v);
+      InsMap[Addr] = dyn_cast<Instruction>(first);
     }
-    Ins->eraseFromParent();
-    first = GetFirstInstruction(first, v);
-    InsMap[Addr] = dyn_cast<Instruction>(first);
   }
 
-  for (auto C : IndirectCalls) {
+  if (IndirectCalls.size() > 0) {
+    SelectHashFunctionCallTable();
+    printf("Selected hash function = (%d * (k - %d) + %d) %% %d %% %d \n",
+           HashA, HashC, HashB, HashP, HashM);
+    CreateHashCallTable();
+  }
+
+  for (unsigned I = 0; I < IndirectCalls.size(); ++I) {
+    auto C = IndirectCalls[I];
     Instruction *Ins = C.first;
     uint64_t Addr = C.second;
-    Value *first = Ins->op_begin()->get();
+    Value *first = IndirectCallsIndexes[I];
     Builder.SetInsertPoint(Ins);
     if (OneRegion) {
-      HandleIndirectCallOneRegion(first, &first);
+      HandleIndirectCallOneRegion(Addr, first, &first);
       Ins->eraseFromParent();
       InsMap[Addr] = dyn_cast<Instruction>(first);
       continue;
@@ -348,6 +357,7 @@ void OiIREmitter::BuildLocalRegisterFile() {
 void OiIREmitter::StartFunction(StringRef N, uint64_t Addr) {
   FunctionType *FT;
   Function *F;
+  FunctionAddrs.push_back(Addr);
   if (FirstFunction) {
     if (OneRegion) {
       SmallVector<Type *, 8> args(2, Type::getInt32Ty(getGlobalContext()));
@@ -634,13 +644,6 @@ void OiIREmitter::CleanRegs() {
 }
 
 bool OiIREmitter::BuildReturnTablesOneRegion() {
-  for (const auto &I : IndirectDestinationsAddrs) {
-    // targetaddr = I
-    for (const auto &J : IndirectCallMap) {
-      // retaddr = J
-      FunctionCallMap[I].push_back(J);
-    }
-  }
   for (FunctionRetMapTy::iterator I = FunctionRetMap.begin(),
                                   E = FunctionRetMap.end();
        I != E; ++I) {
@@ -744,22 +747,23 @@ bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
   return true;
 }
 
-bool OiIREmitter::HandleIndirectCallOneRegion(Value *src, Value **First) {
+bool OiIREmitter::HandleIndirectCallOneRegion(uint64_t Addr, Value *src,
+                                              Value **First) {
   Value *f;
-  Value *Target = AccessJumpTable(src, &f);
-  IndirectCallMap.insert(CurAddr + GetInstructionSize());
+  Value *Target = AccessHashTable(src, &f);
+  for (auto FnAddr : FunctionAddrs)
+    FunctionCallMap[FnAddr].push_back(Addr + GetInstructionSize());
   Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
-                                       CurAddr + GetInstructionSize()),
+                                       Addr + GetInstructionSize()),
                       Regs[ConvToDirective(Mips::RA)]);
   WriteMap[ConvToDirective(Mips::RA)] = true;
   IndirectBrInst *v =
-      Builder.CreateIndirectBr(Target, IndirectDestinations.size());
-  for (int I = 0, E = IndirectDestinations.size(); I != E; ++I) {
-    v->addDestination(IndirectDestinations[I]);
+      Builder.CreateIndirectBr(Target, FunctionBBs.size());
+  for (int I = 0, E = FunctionBBs.size(); I != E; ++I) {
+    v->addDestination(FunctionBBs[I]);
   }
   if (First)
     *First = GetFirstInstruction(*First, src, f);
-  CreateBB(CurAddr + GetInstructionSize());
   return true;
 }
 
@@ -878,4 +882,137 @@ Value *OiIREmitter::AccessJumpTable(Value *Idx, Value **First) {
   if (First)
     *First = GetFirstInstruction(*First, Add);
   return v;
+}
+
+Value *OiIREmitter::AccessHashTable(Value *Idx, Value **First) {
+  SmallVector<Value *, 4> Idxs;
+  Value *M = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), HashM);
+  Value *P = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), HashP);
+  Value *A = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), HashA);
+  Value *B = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), HashB);
+  Value *C = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), HashC);
+  Value *Top = Builder.CreateSub(Idx, C);
+
+  Value *Add = Builder.CreateAdd(
+      Builder.CreatePtrToInt(IndirectCallTableValue,
+                             Type::getInt32Ty(getGlobalContext())),
+      Builder.CreateShl(
+          Builder.CreateURem(
+              Builder.CreateURem(
+                  Builder.CreateAdd(Builder.CreateMul(Top, A), B), P),
+              M),
+          ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 2)));
+
+  Value *v =
+      Builder.CreateIntToPtr(Builder.CreateLoad(Builder.CreateIntToPtr(
+                                 Add, Type::getInt32PtrTy(getGlobalContext()))),
+                             Type::getInt32PtrTy(getGlobalContext()));
+
+  if (First)
+    *First = GetFirstInstruction(*First, Top, Add);
+  return v;
+}
+
+void OiIREmitter::SelectHashFunctionCallTable() {
+  const int NumFuncs = FunctionAddrs.size();
+  // We want to hash the addresses in functionaddrs with a function:
+  //   hash(k) = ((a(k - c) + b) mod p) mod m
+  // where HashA = a
+  //       HashB = b
+  //       HashC = c
+  //       HashP = p
+  //       HashM = m
+
+  // First we select a prime number that is larger than the largest key
+  // in our set.
+  unsigned MaxKey = 0;
+  unsigned MinKey = 0xFFFFFFFF;
+  for (auto Addr : FunctionAddrs) {
+    if ((unsigned)Addr > MaxKey)
+      MaxKey = (unsigned)Addr;
+    if ((unsigned)Addr < MinKey)
+      MinKey = (unsigned)Addr;
+  }
+  // Select b
+  HashC = MinKey;
+  MaxKey = MaxKey - MinKey;
+  // Pick a prime number
+  unsigned P;
+  for (P = MaxKey; P < 0xFFFFFFFF; ++P) {
+    bool Prime = true;
+    for (unsigned J = 2; J < (P >> 1); ++J) {
+      if (P % J == 0) {
+        Prime = false;
+        break;
+      }
+    }
+    if (Prime)
+      break;
+  }
+  if (P == 0)
+    P = 3;
+
+  assert(P < 0xFFFFFFFF && "Couldn't find a prime number");
+  // Now try to pick values for a, b, m that provides a perfect hash
+  HashP = P;
+  HashM = NumFuncs * NumFuncs;
+  assert (HashM < 10000000 && "Hash is too large for this application");
+  bool *Map = new bool[HashM];
+  bool Conflict = true;
+  unsigned Trials = 0;
+  while (Conflict) {
+    assert(Trials++ < 100 && "Couldn't find a good hash function in 100 trials");
+    Conflict = false;
+    for (int I = 0, E = HashM; I != E; ++I)
+      Map[I] = false;
+    HashA = rand();
+    HashB = rand();
+    for (auto Addr : FunctionAddrs) {
+      unsigned k = (unsigned) Addr;
+      unsigned h = (HashA * (k - HashC) + HashB) % HashP % HashM;
+      if (Map[h]) {
+        Conflict = true;
+        break;
+      }
+      Map[h] = true;
+    }
+  }
+  delete [] Map;
+}
+
+void OiIREmitter::CreateHashCallTable() {
+  Constant **Map = new Constant*[HashM];
+
+  for (unsigned I = 0; I < HashM; ++I)
+    Map[I] = nullptr;
+
+  for (auto Addr : FunctionAddrs) {
+    std::string Idx = Twine("bb").concat(Twine::utohexstr(Addr)).str();
+    assert (BBMap[Idx] != 0 && "Missing basic block for function");
+    // Populate FunctionBBs to be used when creating indirect calls later
+    FunctionBBs.push_back(BBMap[Idx]);
+    Constant *Target = BlockAddress::get(BBMap[Idx]);
+    unsigned k = (unsigned) Addr;
+    unsigned h = (HashA * (k - HashC) + HashB) % HashP % HashM;
+    Map[h] = Target;
+  }
+
+  for (unsigned I = 0; I < HashM; ++I) {
+    if (Map[I] == nullptr)
+      Map[I] = ConstantExpr::getIntToPtr(
+          ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
+          Type::getInt8PtrTy(getGlobalContext()));
+  }
+
+  ConstantArray *c = dyn_cast<ConstantArray>(ConstantArray::get(
+      ArrayType::get(Type::getInt8PtrTy(getGlobalContext()), HashM),
+      ArrayRef<Constant *>(&Map[0], HashM)));
+
+  GlobalVariable *gv =
+      new GlobalVariable(*TheModule, c->getType(), false,
+                         GlobalValue::ExternalLinkage, c, "IndirectCallTable");
+
+  IndirectCallTableValue = gv;
+
+  delete [] Map;
 }

@@ -133,6 +133,10 @@ void RelocationReader::ResolveAllDataRelocations(
         if (error(symb.getName(Name))) {
           return;
         }
+        // If the target of this relocation is the code section, leave
+        // this to ProcessIndirectJumps()
+        if (Name == ".text")
+          continue;
 
         auto it = ComdatSymbols.find(Name);
         if (it != ComdatSymbols.end()) {
@@ -163,10 +167,6 @@ void RelocationReader::ResolveAllDataRelocations(
           section_iterator seci = Obj->section_end();
           // Check if it is relative to a section
           if ((!error(si.getSection(seci))) && seci != Obj->section_end()) {
-            // If the target of this relocation lives in a code section, leave
-            // this to ProcessIndirectJumps()
-            if (seci->isText())
-              continue;
             uint64_t SectionAddr = seci->getAddress();
 
             // Relocatable file

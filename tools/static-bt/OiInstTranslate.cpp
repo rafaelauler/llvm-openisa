@@ -66,7 +66,7 @@ void OiInstTranslate::FinishModule() {
     IREmitter.FixBBTerminators();
     IREmitter.BuildReturnTablesOneRegion();
     if (DebugIR)
-      IREmitter.Builder.GetInsertBlock()->getParent()->dump();
+      IREmitter.Builder.GetInsertBlock()->getParent()->getParent()->dump();
   }
 }
 
@@ -716,6 +716,17 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "getc", 1, 1, ArgTypes, First);
         }
+        if (val == "ungetc") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "ungetc", 2, 1, ArgTypes, First);
+        }
+        if (val == "getenv") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "getenv", 1, 1, ArgTypes, First);
+        }
         if (val == "fgets") {
           SyscallsIface::ArgType ArgTypes[] = {
               SyscallsIface::AT_Ptr, SyscallsIface::AT_Int32,
@@ -897,6 +908,10 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
         }
         if (val == "__ctype_toupper_loc")
           return Syscalls.HandleCTypeToUpperLoc(V, First);
+        if (val == "__ctype_tolower_loc")
+          return Syscalls.HandleCTypeToLowerLoc(V, First);
+        if (val == "__ctype_b_loc")
+          return Syscalls.HandleCTypeBLoc(V, First);
 
         //        printf("%s\n", val.str().c_str());
       }
@@ -1155,6 +1170,32 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       Value *v = Builder.CreateLoad(IREmitter.Regs[256]);
       ReadMap[256] = true;
       Value *v2 = Builder.CreateStore(v, o0);
+      Value *first = GetFirstInstruction(o0, v, v2);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::MTHI: {
+    DebugOut << "Handling MTHI\n";
+    Value *o0, *first = 0;
+    if (HandleAluSrcOperand(MI->getOperand(0), o0, &first)) {
+      Value *v = IREmitter.Regs[257];
+      WriteMap[257] = true;
+      Value *v2 = Builder.CreateStore(o0, v);
+      Value *first = GetFirstInstruction(o0, v, v2);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::MTLO: {
+    DebugOut << "Handling MTLO\n";
+    Value *o0, *first = 0;
+    if (HandleAluSrcOperand(MI->getOperand(0), o0, &first)) {
+      Value *v = IREmitter.Regs[256];
+      WriteMap[256] = true;
+      Value *v2 = Builder.CreateStore(o0, v);
       Value *first = GetFirstInstruction(o0, v, v2);
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
@@ -2218,12 +2259,13 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   case Mips::JALR: {
     assert(OneRegion && "Can't handle indirect calls without -oneregion yet.");
     Value *src, *first = 0;
-    if (HandleAluSrcOperand(MI->getOperand(0), src, &first)) {
+    if (HandleAluSrcOperand(MI->getOperand(1), src, &first)) {
       // Create a dummy instruction to be replaced later
-      Value *Dummy = Builder.CreateNeg(src);
-      first = GetFirstInstruction(first, Dummy);
-      IREmitter.AddIndirectCall(dyn_cast<Instruction>(Dummy));
+      Value *Dummy = Builder.CreateRetVoid();
+      first = GetFirstInstruction(first, src, Dummy);
+      IREmitter.AddIndirectCall(dyn_cast<Instruction>(Dummy), src);
       assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.CreateBB(IREmitter.CurAddr + GetInstructionSize());
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
     } else {
       llvm_unreachable("Failed to handle JALR.");

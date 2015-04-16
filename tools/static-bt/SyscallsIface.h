@@ -31,6 +31,8 @@ public:
   bool HandleGenericDouble(Value *&V, StringRef Name, int numargs, int numret,
                            ArgType *ArgTypes, Value **First);
   bool HandleCTypeToUpperLoc(Value *&V, Value **First);
+  bool HandleCTypeToLowerLoc(Value *&V, Value **First);
+  bool HandleCTypeBLoc(Value *&V, Value **First);
   bool HandleLibcPuts(Value *&V, Value **First = 0);
   bool HandleLibcMemset(Value *&V, Value **First = 0);
   bool HandleLibcFprintf(Value *&V, Value **First = 0);
@@ -42,6 +44,8 @@ public:
 
 private:
   Function *createTranslateCTypeFunction();
+  Function *createTranslateBLocFunction();
+  Function *createTranslateToLowerFunction();
 
   StringRef CodeTarget;
   OiIREmitter &IREmitter;
