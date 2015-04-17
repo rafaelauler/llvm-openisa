@@ -651,6 +651,28 @@ void OiIREmitter::CleanRegs() {
   }
 }
 
+void OiIREmitter::BuildReturnAddressesHash() {
+  std::vector<uint32_t> CallSites;
+  for (auto &elmt : FunctionCallMap) {
+    for (auto &addr : elmt.second) {
+      bool found = false;
+      for (auto &j : CallSites) {
+        if (j == addr) {
+          found = true;
+          break;
+        }
+      }
+      if (!found)
+        CallSites.push_back(addr);
+    }
+  }
+  HashParams Hash = SelectHashFunctionFor<uint32_t>(CallSites);
+  printf("Selected hash function = (%d * (k - %d) + %d) %% %d %% %d \n",
+         Hash.A, Hash.C, Hash.B, Hash.P, Hash.M);
+  ReturnAddressesTableValue = CreateHashTableFor<uint32_t>(CallSites, Hash);
+  ReturnAddressesHash = Hash;
+}
+
 bool OiIREmitter::BuildReturnTablesOneRegion() {
   for (FunctionRetMapTy::iterator I = FunctionRetMap.begin(),
                                   E = FunctionRetMap.end();
@@ -678,11 +700,11 @@ bool OiIREmitter::BuildReturnTablesOneRegion() {
 
     // Create a hash table
     if (CallSites.size() > 3) {
-      HashParams Hash = SelectHashFunctionFor<uint32_t>(CallSites);
-      printf("Selected hash function = (%d * (k - %d) + %d) %% %d %% %d \n",
-             Hash.A, Hash.C, Hash.B, Hash.P, Hash.M);
-      Value *BasePtr = CreateHashTableFor<uint32_t>(CallSites, Hash);
-      Value *Target = AccessHashTable(ra, 0, Hash, BasePtr);
+      if (ReturnAddressesTableValue == nullptr)
+        BuildReturnAddressesHash();
+      assert(ReturnAddressesTableValue != nullptr && "Missing hash table");
+      Value *BasePtr = ReturnAddressesTableValue;
+      Value *Target = AccessHashTable(ra, 0, ReturnAddressesHash, BasePtr);
       std::vector<BasicBlock *> CallSitesBBs;
       for (auto CallAddr : CallSites) {
         std::string Idx = Twine("bb").concat(Twine::utohexstr(CallAddr)).str();

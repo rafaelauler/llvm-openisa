@@ -39,7 +39,7 @@ using namespace object;
 class OiIREmitter {
 public:
   typedef DenseMap<uint32_t, Value *> SpilledRegsTy;
-  typedef DenseMap<uint32_t, std::vector<uint32_t>> FunctionCallMapTy;
+  typedef std::map<uint32_t, std::vector<uint32_t>> FunctionCallMapTy;
   typedef DenseMap<uint32_t, uint32_t> FunctionRetMapTy;
 
   OiIREmitter(const ObjectFile *obj, uint64_t Stacksz, StringRef CodeTarget)
@@ -53,8 +53,9 @@ public:
         CurSection(nullptr), BBMap(), InsMap(), ReadMap(), WriteMap(),
         DblReadMap(), DblWriteMap(), FunctionCallMap(), FunctionRetMap(),
         CurFunAddr(0), CurBlockAddr(0), StackSize(Stacksz),
-        IndirectDestinations(), IndirectDestinationsAddrs(), IndirectJumps(),
-        IndirectCalls(), ComdatSymbols() {
+        ReturnAddressesTableValue(nullptr), IndirectDestinations(),
+        IndirectDestinationsAddrs(), IndirectJumps(), IndirectCalls(),
+        ComdatSymbols() {
     BuildShadowImage();
     BuildRegisterFile();
     if (CodeTarget == "arm") {
@@ -91,6 +92,7 @@ public:
   Value *ShadowImageValue;
   Value *IndirectJumpTableValue;
   Value *IndirectCallTableValue;
+  Value *ReturnAddressesTableValue;
   std::vector<BasicBlock *> IndirectDestinations;
   std::vector<uint32_t> IndirectDestinationsAddrs;
   std::vector<std::pair<Instruction *, uint64_t>> IndirectJumps;
@@ -110,6 +112,7 @@ public:
     unsigned M;
   };
   HashParams IndirectCallsHash;
+  HashParams ReturnAddressesHash;
 
   void AddIndirectJump(Instruction *Ins, Value *Idx) {
     IndirectJumps.push_back(std::make_pair(Ins, CurAddr));
@@ -133,6 +136,7 @@ public:
                                    Value **First = 0);
   bool HandleLocalCallOneRegion(uint64_t Addr, Value *&V, Value **First = 0);
   std::vector<uint32_t> GetCallSitesFor(uint32_t FuncAddr);
+  void BuildReturnAddressesHash();
   bool BuildReturnTablesOneRegion();
   bool HandleLocalCall(uint64_t Addr, Value *&V, Value **First = 0);
   Value *AccessSpillMemory(unsigned Idx, bool IsLoad);
