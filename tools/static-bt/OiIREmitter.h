@@ -126,8 +126,7 @@ public:
   bool ProcessIndirectJumps();
   template <typename T>
   Value *CreateHashTableFor(ArrayRef<T> Addrs, const HashParams &Hash);
-  template <typename T>
-  HashParams SelectHashFunctionFor(ArrayRef<T> Addrs);
+  template <typename T> HashParams SelectHashFunctionFor(ArrayRef<T> Addrs);
   void BuildShadowImage();
   void UpdateShadowImage();
   void BuildRegisterFile();

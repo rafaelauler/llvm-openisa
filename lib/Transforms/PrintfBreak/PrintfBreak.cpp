@@ -67,7 +67,8 @@ namespace {
         bool hasFloat = false;
         for (int I = 1, E = FunCall->getNumOperands() - 1; I < E; ++I) {
           Value *CurOp = FunCall->getArgOperand(I);
-          if (CurOp->getType()->isFloatTy() ||
+          if (CurOp->getType()->isPointerTy() ||
+              CurOp->getType()->isFloatTy() ||
               CurOp->getType()->isDoubleTy())
             hasFloat = true;
         }

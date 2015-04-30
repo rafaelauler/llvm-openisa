@@ -2257,9 +2257,22 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   }
   case Mips::JALR64:
   case Mips::JALR: {
-    assert(OneRegion && "Can't handle indirect calls without -oneregion yet.");
     Value *src, *first = 0;
-    if (HandleAluSrcOperand(MI->getOperand(1), src, &first)) {
+    if (!HandleAluSrcOperand(MI->getOperand(1), src, &first)) {
+      llvm_unreachable("Failed to handle JALR.");
+      break;
+    }
+    if (!OneRegion) {
+      IREmitter.HandleFunctionExitPoint(&first);
+      Value *Dummy = Builder.CreateNeg(src);
+      IREmitter.HandleFunctionEntryPoint();
+      first = GetFirstInstruction(first, src, Dummy);
+      IREmitter.AddIndirectCall(dyn_cast<Instruction>(Dummy), src);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.CreateBB(IREmitter.CurAddr + GetInstructionSize());
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    } else {
+      // One region
       // Create a dummy instruction to be replaced later
       Value *Dummy = Builder.CreateRetVoid();
       first = GetFirstInstruction(first, src, Dummy);
@@ -2267,8 +2280,6 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.CreateBB(IREmitter.CurAddr + GetInstructionSize());
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
-    } else {
-      llvm_unreachable("Failed to handle JALR.");
     }
     break;
   }

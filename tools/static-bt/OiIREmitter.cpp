@@ -204,9 +204,10 @@ bool OiIREmitter::ProcessIndirectJumps() {
     }
     Value *Target = AccessHashTable(first, &first, IndirectCallsHash,
                                     IndirectCallTableValue);
-    HandleFunctionExitPoint(&first);
-    Builder.CreateCall(Target);
-    HandleFunctionEntryPoint();
+    Type *ft = PointerType::getUnqual(
+        FunctionType::get(Type::getVoidTy(getGlobalContext()),
+                          /*isvararg*/ false));
+    Builder.CreateCall(Builder.CreatePointerCast(Target, ft));
     Ins->eraseFromParent();
     InsMap[Addr] = dyn_cast<Instruction>(first);
   }
@@ -1034,7 +1035,18 @@ Value *OiIREmitter::CreateHashTableFor(ArrayRef<T> Addrs,
   for (auto Addr : Addrs) {
     std::string Idx = Twine("bb").concat(Twine::utohexstr(Addr)).str();
     assert (BBMap[Idx] != 0 && "Missing basic block for address");
-    Constant *Target = BlockAddress::get(BBMap[Idx]);
+    Constant *Target = nullptr;
+    BasicBlock *BB = BBMap[Idx];
+    if (&(*BB->getParent()->begin()) != BB)
+      Target = BlockAddress::get(BBMap[Idx]);
+    else {
+      std::string FunIdx = Twine("a").concat(Twine::utohexstr(Addr)).str();
+      FunctionType *FT =
+          FunctionType::get(Type::getVoidTy(getGlobalContext()), false);
+      Function *F = reinterpret_cast<Function *>(
+          TheModule->getOrInsertFunction(FunIdx, FT));
+      Target = ConstantExpr::getBitCast(F, Type::getInt8PtrTy(getGlobalContext()));
+    }
     unsigned k = (unsigned) Addr;
     unsigned h = (Hash.A * (k - Hash.C) + Hash.B) % Hash.P % Hash.M;
     Map[h] = Target;
