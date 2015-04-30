@@ -62,8 +62,10 @@ namespace {
         return false;
 
       Function *Callee = FunCall->getCalledFunction();
-      if (Callee == nullptr || Callee->getName() != "printf" ||
-          FunCall->getNumArgOperands() <= 4) {
+      if (Callee == nullptr || Callee->getName() != "printf")
+        return false;
+
+      if (FunCall->getNumArgOperands() <= 4) {
         bool hasFloat = false;
         for (int I = 1, E = FunCall->getNumOperands() - 1; I < E; ++I) {
           Value *CurOp = FunCall->getArgOperand(I);
