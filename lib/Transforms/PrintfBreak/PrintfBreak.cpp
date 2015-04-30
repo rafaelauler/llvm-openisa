@@ -17,6 +17,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/raw_ostream.h"
@@ -158,7 +159,15 @@ namespace {
         assert (cur.size() == 1);
         // Build new global value
         Constant *c = nullptr;
-        if (cur[0]->getType()->isFloatTy() || cur[0]->getType()->isDoubleTy()) {
+        bool ConvertToPuts = false;
+        size_t pos = SubStrs[I].find("%s");
+        StringRef PreString, PostString;
+        if (pos != StringRef::npos) {
+          PreString = SubStrs[I].slice(0, pos);
+          PostString = SubStrs[I].slice(pos + 2, SubStrs[I].size());
+          ConvertToPuts = true;
+        } else if (cur[0]->getType()->isFloatTy() ||
+                   cur[0]->getType()->isDoubleTy()) {
           SmallVector<char, 20> Buf;
           c = ConstantDataArray::getString(
               getGlobalContext(),
@@ -168,16 +177,65 @@ namespace {
         } else {
           c = ConstantDataArray::getString(getGlobalContext(), SubStrs[I]);
         }
-        GlobalVariable *gv = new GlobalVariable(
-            *m, c->getType(), false, GlobalValue::ExternalLinkage, c);
-        cur.insert(cur.begin(),
-                   ConstantExpr::getGetElementPtr(
-                       gv, Idxs, Type::getInt8PtrTy(getGlobalContext())));
-        errs() << SubStrs[I] << "\n";
-        for (auto aa : cur) {
-          aa->dump();
+        if (!ConvertToPuts) {
+          GlobalVariable *gv = new GlobalVariable(
+              *m, c->getType(), false, GlobalValue::ExternalLinkage, c);
+          cur.insert(cur.begin(),
+                     ConstantExpr::getGetElementPtr(
+                         gv, Idxs, Type::getInt8PtrTy(getGlobalContext())));
+          errs() << SubStrs[I] << "\n";
+          for (auto aa : cur) {
+            aa->dump();
+          }
+          LastCall = Builder.CreateCall(Callee, cur);
+        } else {
+          // Convert this to 3 puts
+          if (PreString.size() > 0) {
+            std::vector<Value *> PreStrOperands;
+            c = ConstantDataArray::getString(getGlobalContext(), PreString);
+            GlobalVariable *gv = new GlobalVariable(
+                *m, c->getType(), false, GlobalValue::ExternalLinkage, c);
+            PreStrOperands.insert(
+                PreStrOperands.begin(),
+                ConstantExpr::getGetElementPtr(
+                    gv, Idxs, Type::getInt8PtrTy(getGlobalContext())));
+            SmallVector<Type *, 8> args(1,
+                                        Type::getInt8PtrTy(getGlobalContext()));
+            FunctionType *ft = FunctionType::get(
+                Type::getInt32Ty(getGlobalContext()), args, /*isvararg*/ false);
+            Value *fun = m->getOrInsertFunction("puts", ft);
+            errs() << "Emitting pre-string puts..\n";
+            for (auto aa : PreStrOperands) {
+              aa->dump();
+            }
+            LastCall = Builder.CreateCall(fun, PreStrOperands);
+          }
+          SmallVector<Type *, 8> args(1,
+                                      Type::getInt8PtrTy(getGlobalContext()));
+          FunctionType *ft = FunctionType::get(
+              Type::getInt32Ty(getGlobalContext()), args, /*isvararg*/ false);
+          Value *fun = m->getOrInsertFunction("puts", ft);
+          errs() << "Emitting puts..\n";
+          for (auto aa : cur) {
+            aa->dump();
+          }
+          LastCall = Builder.CreateCall(fun, cur);
+          if (PostString.size() > 0) {
+            std::vector<Value *> PostStrOperands;
+            c = ConstantDataArray::getString(getGlobalContext(), PostString);
+            GlobalVariable *gv = new GlobalVariable(
+                *m, c->getType(), false, GlobalValue::ExternalLinkage, c);
+            PostStrOperands.insert(
+                PostStrOperands.begin(),
+                ConstantExpr::getGetElementPtr(
+                    gv, Idxs, Type::getInt8PtrTy(getGlobalContext())));
+            errs() << "Emitting post-string puts..\n";
+            for (auto aa : PostStrOperands) {
+              aa->dump();
+            }
+            LastCall = Builder.CreateCall(fun, PostStrOperands);
+          }
         }
-        LastCall = Builder.CreateCall(Callee, cur);
       }
       FunCall->replaceAllUsesWith(LastCall);
       ++PrintfBreakCounter;

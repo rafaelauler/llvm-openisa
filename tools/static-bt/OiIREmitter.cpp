@@ -18,6 +18,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Object/ELF.h"
+#include <algorithm>
 #include <system_error>
 #include <cstdlib>
 using namespace llvm;
@@ -130,10 +131,8 @@ bool OiIREmitter::ProcessIndirectJumps() {
       IndirectJumpTable.push_back(BlockAddress::get(BB));
       IndirectDestinations.push_back(BB);
       IndirectDestinationsAddrs.push_back(TargetAddr);
-      int JumpTableIndex = IndirectJumpTable.size() - 1;
-      //      IndirectJumpTable[JumpTableIndex]->dump();
-      // Patch ShadowImage with the translated address
-      *(int *)(&ShadowImage[offset]) = JumpTableIndex;
+      // Patch ShadowImage with fixed address
+      *(int *)(&ShadowImage[offset]) = TargetAddr;
     }
   }
   uint64_t TableSize = IndirectJumpTable.size();
@@ -141,22 +140,26 @@ bool OiIREmitter::ProcessIndirectJumps() {
   if (TableSize == 0) {
     IndirectJumpTableValue = 0;
   } else {
-    ConstantArray *c = dyn_cast<ConstantArray>(ConstantArray::get(
-        ArrayType::get(Type::getInt8PtrTy(getGlobalContext()), TableSize),
-        ArrayRef<Constant *>(&IndirectJumpTable[0], TableSize)));
-
-    GlobalVariable *gv = new GlobalVariable(*TheModule, c->getType(), false,
-                                            GlobalValue::ExternalLinkage, c,
-                                            "IndirectJumpTable");
-
-    IndirectJumpTableValue = gv;
+    std::sort(IndirectDestinationsAddrs.begin(), IndirectDestinationsAddrs.end());
+    IndirectDestinationsAddrs.erase(
+        std::unique(IndirectDestinationsAddrs.begin(),
+                    IndirectDestinationsAddrs.end()),
+        IndirectDestinationsAddrs.end());
+    IndirectJumpsHash =
+        SelectHashFunctionFor<uint32_t>(IndirectDestinationsAddrs);
+    printf("Selected hash function = (%d * (k - %d) + %d) %% %d %% %d \n",
+           IndirectJumpsHash.A, IndirectJumpsHash.C, IndirectJumpsHash.B,
+           IndirectJumpsHash.P, IndirectJumpsHash.M);
+    IndirectJumpTableValue = CreateHashTableFor<uint32_t>(
+        IndirectDestinationsAddrs, IndirectJumpsHash);
 
     for (unsigned I = 0; I < IndirectJumps.size(); ++I) {
       Instruction *Ins = IndirectJumps[I].first;
       uint64_t Addr = IndirectJumps[I].second;
       Value *first = IndirectJumpsIndexes[I];
       Builder.SetInsertPoint(Ins);
-      Value *Target = AccessJumpTable(first, &first);
+      Value *Target = AccessHashTable(first, &first, IndirectJumpsHash,
+                                      IndirectJumpTableValue);
       IndirectBrInst *v =
           Builder.CreateIndirectBr(Target, IndirectDestinations.size());
       for (int I = 0, E = IndirectDestinations.size(); I != E; ++I) {
@@ -199,7 +202,8 @@ bool OiIREmitter::ProcessIndirectJumps() {
       InsMap[Addr] = dyn_cast<Instruction>(first);
       continue;
     }
-    Value *Target = AccessJumpTable(first, &first);
+    Value *Target = AccessHashTable(first, &first, IndirectCallsHash,
+                                    IndirectCallTableValue);
     HandleFunctionExitPoint(&first);
     Builder.CreateCall(Target);
     HandleFunctionEntryPoint();
@@ -799,7 +803,7 @@ bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
 
 bool OiIREmitter::HandleIndirectCallOneRegion(uint64_t Addr, Value *src,
                                               Value **First) {
-  Value *f;
+  Value *f = nullptr;
   Value *Target =
       AccessHashTable(src, &f, IndirectCallsHash, IndirectCallTableValue);
   for (auto FnAddr : FunctionAddrs)
@@ -916,23 +920,6 @@ Value *OiIREmitter::AccessShadowMemory(Value *Idx, bool IsLoad, int width,
     return load;
   }
   return ptr;
-}
-
-Value *OiIREmitter::AccessJumpTable(Value *Idx, Value **First) {
-  SmallVector<Value *, 4> Idxs;
-  Value *Add = Builder.CreateAdd(
-      Builder.CreatePtrToInt(IndirectJumpTableValue,
-                             Type::getInt32Ty(getGlobalContext())),
-      Builder.CreateShl(
-          Idx, ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 2)));
-  Value *v =
-      Builder.CreateIntToPtr(Builder.CreateLoad(Builder.CreateIntToPtr(
-                                 Add, Type::getInt32PtrTy(getGlobalContext()))),
-                             Type::getInt32PtrTy(getGlobalContext()));
-
-  if (First)
-    *First = GetFirstInstruction(*First, Add);
-  return v;
 }
 
 Value *OiIREmitter::AccessHashTable(Value *Idx, Value **First,

@@ -113,6 +113,7 @@ public:
   };
   HashParams IndirectCallsHash;
   HashParams ReturnAddressesHash;
+  HashParams IndirectJumpsHash;
 
   void AddIndirectJump(Instruction *Ins, Value *Idx) {
     IndirectJumps.push_back(std::make_pair(Ins, CurAddr));
