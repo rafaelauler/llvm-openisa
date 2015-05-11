@@ -163,10 +163,13 @@ bool SyscallsIface::HandleGenericInt(Value *&V, StringRef Name, int numargs,
       if (NoShadow) {
         V = Builder.CreateStore(V, IREmitter.Regs[ConvToDirective(Mips::V0)]);
       } else {
+        Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
+        Value *cmp = Builder.CreateICmpEQ(V, zero);
         Value *ptr = Builder.CreatePtrToInt(
             IREmitter.ShadowImageValue, Type::getInt32Ty(getGlobalContext()));
         Value *fixed = Builder.CreateSub(V, ptr);
-        V = Builder.CreateStore(fixed,
+        Value *final = Builder.CreateSelect(cmp, zero, fixed);
+        V = Builder.CreateStore(final,
                                 IREmitter.Regs[ConvToDirective(Mips::V0)]);
       }
       break;
