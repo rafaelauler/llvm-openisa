@@ -88,16 +88,22 @@ bool OiInstTranslate::HandleAluSrcOperand(const MCOperand &o, Value *&V,
   } else if (o.isImm()) {
     uint64_t myimm = o.getImm();
     uint64_t reltype = 0;
-    if (RelocReader.ResolveRelocation(myimm, &reltype)) {
+    Value *V0 = nullptr;
+    bool UndefinedSymbol = false;
+    if (RelocReader.ResolveRelocation(V0, &reltype, &UndefinedSymbol)) {
       if (reltype == ELF::R_MIPS_LO16) {
-        Value *V0 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
-                                     myimm + o.getImm());
+        V0 = ConstantExpr::getAdd(cast<Constant>(V0),
+                                     Builder.getInt32(o.getImm()));
         Value *V1 = 0, *fixedV0 = 0;
         if (NoShadow) {
           Value *shadow = Builder.CreatePtrToInt(
               IREmitter.ShadowImageValue, Type::getInt32Ty(getGlobalContext()));
           fixedV0 = Builder.CreateAdd(V0, shadow);
           V1 = fixedV0;
+        } else if (UndefinedSymbol) {
+          V1 = Builder.CreateSub(
+              V0, Builder.CreatePtrToInt(IREmitter.ShadowImageValue,
+                                         Type::getInt32Ty(getGlobalContext())));
         } else {
           V1 = V0;
         }
@@ -172,16 +178,22 @@ bool OiInstTranslate::HandleDoubleMemOperand(const MCOperand &o,
     uint64_t myimm = o2.getImm();
     uint64_t reltype = 0;
     Value *idx, *addr, *base;
-    if (RelocReader.ResolveRelocation(myimm, &reltype)) {
+    Value *V0 = nullptr;
+    bool UndefinedSymbol = false;
+    if (RelocReader.ResolveRelocation(V0, &reltype, &UndefinedSymbol)) {
       if (reltype == ELF::R_MIPS_LO16) {
-        Value *V0 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
-                                     myimm + o2.getImm());
+        V0 = ConstantExpr::getAdd(cast<Constant>(V0),
+                                     Builder.getInt32(o2.getImm()));
         Value *V1 = 0, *fixedV0 = 0;
         if (NoShadow) {
           Value *shadow = Builder.CreatePtrToInt(
               IREmitter.ShadowImageValue, Type::getInt32Ty(getGlobalContext()));
           fixedV0 = Builder.CreateAdd(V0, shadow);
           V1 = fixedV0;
+        } else if (UndefinedSymbol) {
+          V1 = Builder.CreateSub(
+              V0, Builder.CreatePtrToInt(IREmitter.ShadowImageValue,
+                                         Type::getInt32Ty(getGlobalContext())));
         } else {
           V1 = V0;
         }
@@ -229,16 +241,22 @@ bool OiInstTranslate::HandleFloatMemOperand(const MCOperand &o,
     uint64_t myimm = o2.getImm();
     uint64_t reltype = 0;
     Value *idx, *addr, *base;
-    if (RelocReader.ResolveRelocation(myimm, &reltype)) {
+    Value *V0 = nullptr;
+    bool UndefinedSymbol = false;
+    if (RelocReader.ResolveRelocation(V0, &reltype, &UndefinedSymbol)) {
       if (reltype == ELF::R_MIPS_LO16) {
-        Value *V0 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
-                                     myimm + o2.getImm());
+        V0 = ConstantExpr::getAdd(cast<Constant>(V0),
+                                     Builder.getInt32(o2.getImm()));
         Value *V1 = 0, *fixedV0 = 0;
         if (NoShadow) {
           Value *shadow = Builder.CreatePtrToInt(
               IREmitter.ShadowImageValue, Type::getInt32Ty(getGlobalContext()));
           fixedV0 = Builder.CreateAdd(V0, shadow);
           V1 = fixedV0;
+        } else if (UndefinedSymbol) {
+          V1 = Builder.CreateSub(
+              V0, Builder.CreatePtrToInt(IREmitter.ShadowImageValue,
+                                         Type::getInt32Ty(getGlobalContext())));
         } else {
           V1 = V0;
         }
@@ -337,14 +355,20 @@ bool OiInstTranslate::HandleLUiOperand(const MCOperand &o, Value *&V,
   if (o.isImm()) {
     uint64_t addr = o.getImm();
 
-    if (RelocReader.ResolveRelocation(addr)) {
-      addr += o.getImm();
-      Value *idx = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), addr);
+    Value *idx = nullptr;
+    bool UndefinedSymbol = false;
+    if (RelocReader.ResolveRelocation(idx, nullptr, &UndefinedSymbol)) {
+      idx = ConstantExpr::getAdd(cast<Constant>(idx),
+                                    Builder.getInt32(o.getImm()));
       if (NoShadow) {
         Value *shadow = Builder.CreatePtrToInt(
             IREmitter.ShadowImageValue, Type::getInt32Ty(getGlobalContext()));
         Value *fixedIdx = Builder.CreateAdd(idx, shadow);
         idx = fixedIdx;
+      } else if (UndefinedSymbol) {
+        idx = Builder.CreateSub(
+            idx, Builder.CreatePtrToInt(IREmitter.ShadowImageValue,
+                                       Type::getInt32Ty(getGlobalContext())));
       }
       Value *V1 = Builder.CreateLShr(
           idx, ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 16));
@@ -382,16 +406,22 @@ bool OiInstTranslate::HandleMemOperand(const MCOperand &o, const MCOperand &o2,
     uint64_t myimm = o2.getImm() + offset;
     uint64_t reltype = 0;
     Value *idx, *addr;
-    if (RelocReader.ResolveRelocation(myimm, &reltype)) {
+    Value *V0 = nullptr;
+    bool UndefinedSymbol = false;
+    if (RelocReader.ResolveRelocation(V0, &reltype, &UndefinedSymbol)) {
       if (reltype == ELF::R_MIPS_LO16) {
-        Value *V0 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
-                                     myimm + o2.getImm());
+        V0 = ConstantExpr::getAdd(cast<Constant>(V0),
+                                     Builder.getInt32(o2.getImm()));
         Value *V1 = 0;
         if (NoShadow) {
           Value *shadow = Builder.CreatePtrToInt(
               IREmitter.ShadowImageValue, Type::getInt32Ty(getGlobalContext()));
           Value *fixedV0 = Builder.CreateAdd(V0, shadow);
           V0 = fixedV0;
+        } else if (UndefinedSymbol) {
+          V0 = Builder.CreateSub(
+              V0, Builder.CreatePtrToInt(IREmitter.ShadowImageValue,
+                                         Type::getInt32Ty(getGlobalContext())));
         }
         V1 = V0;
         if (First != 0)
@@ -448,7 +478,8 @@ bool OiInstTranslate::HandleSpilledOperand(const MCOperand &o,
   if (reg == 30)
     Idx += 1000000;
   uint64_t reltype = 0;
-  assert(!RelocReader.ResolveRelocation(Idx, &reltype) &&
+  StringRef Unused;
+  assert(!RelocReader.ResolveRelocation(Idx, &reltype, Unused) &&
          "Invalid spilled operand");
   V = IREmitter.AccessSpillMemory(Idx, IsLoad);
   if (First)
@@ -506,7 +537,8 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
   if (o.isImm()) {
     if (o.getImm() != 0U) {
       uint64_t targetaddr;
-      if (RelocReader.ResolveRelocation(targetaddr))
+      StringRef Unused;
+      if (RelocReader.ResolveRelocation(targetaddr, nullptr, Unused))
         return IREmitter.HandleLocalCall(o.getImm() + targetaddr, V, First);
       return IREmitter.HandleLocalCall(o.getImm(), V, First);
     } else { // Need to handle the relocation to find the correct jump address
@@ -714,7 +746,7 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
         if (val == "_IO_getc") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "getc", 1, 1, ArgTypes, First);
+          return Syscalls.HandleGenericInt(V, "_IO_getc", 1, 1, ArgTypes, First);
         }
         if (val == "ungetc") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
@@ -916,7 +948,8 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
         //        printf("%s\n", val.str().c_str());
       }
       uint64_t targetaddr;
-      if (RelocReader.ResolveRelocation(targetaddr))
+      StringRef Unused;
+      if (RelocReader.ResolveRelocation(targetaddr, nullptr, Unused))
         return IREmitter.HandleLocalCall(targetaddr, V, First);
       outs() << val << "\n";
       llvm_unreachable("Unrecognized function call");
@@ -1009,7 +1042,8 @@ bool OiInstTranslate::HandleBranchTarget(const MCOperand &o,
       else
         tgtaddr = o.getImm();
       uint64_t rel = 0;
-      if (RelocReader.ResolveRelocation(rel)) {
+      StringRef Unused;
+      if (RelocReader.ResolveRelocation(rel, nullptr, Unused)) {
         tgtaddr += rel;
       }
       assert(tgtaddr != IREmitter.CurAddr);
@@ -1019,7 +1053,8 @@ bool OiInstTranslate::HandleBranchTarget(const MCOperand &o,
       return true;
     } else { // Need to handle the relocation to find the correct jump address
       uint64_t targetaddr;
-      if (RelocReader.ResolveRelocation(targetaddr)) {
+      StringRef Unused;
+      if (RelocReader.ResolveRelocation(targetaddr, nullptr, Unused)) {
         Target = IREmitter.CreateBB(targetaddr);
         return true;
       }

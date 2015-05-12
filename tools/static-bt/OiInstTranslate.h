@@ -38,8 +38,8 @@ public:
                   uint64_t Stacksz, StringRef CodeTarget)
       : MCInstPrinter(MAI, MII, MRI), Obj(obj),
         IREmitter(obj, Stacksz, CodeTarget),
-        RelocReader(obj, IREmitter.CurSection, IREmitter.CurAddr,
-                    IREmitter.ComdatSymbols),
+        RelocReader(&*IREmitter.TheModule, obj, IREmitter.CurSection,
+                    IREmitter.CurAddr, IREmitter.ComdatSymbols),
         Syscalls(IREmitter, CodeTarget), Builder(IREmitter.Builder),
         ReadMap(IREmitter.ReadMap), WriteMap(IREmitter.WriteMap),
         CodeTarget(CodeTarget) {

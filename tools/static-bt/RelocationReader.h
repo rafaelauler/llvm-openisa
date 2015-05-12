@@ -17,14 +17,17 @@ class ObjectFile;
 }
 
 class OiIREmitter;
+class Module;
+class Value;
 
 using namespace object;
 
 class RelocationReader {
 public:
-  RelocationReader(const ObjectFile *obj, const SectionRef *&secptr,
-                   uint64_t &addrptr, llvm::StringMap<uint64_t> &comdatsymbols)
-      : Obj(obj), CurSection(secptr), CurAddr(addrptr),
+  RelocationReader(llvm::Module *M, const ObjectFile *obj,
+                   const SectionRef *&secptr, uint64_t &addrptr,
+                   llvm::StringMap<uint64_t> &comdatsymbols)
+      : TheModule(M), Obj(obj), CurSection(secptr), CurAddr(addrptr),
         ComdatSymbols(comdatsymbols) {
     for (const SectionRef &Section : Obj->sections()) {
       section_iterator Sec2 = Section.getRelocatedSection();
@@ -32,11 +35,15 @@ public:
         SectionRelocMap[*Sec2].push_back(Section);
     }
   }
-  bool ResolveRelocation(uint64_t &Res, uint64_t *Type = 0);
+  bool ResolveRelocation(uint64_t &Res, uint64_t *Type,
+                         StringRef &SymbolNotFound);
+  bool ResolveRelocation(llvm::Value *&Res, uint64_t *Type,
+                         bool *UndefinedSymbol);
   bool CheckRelocation(relocation_iterator &Rel, StringRef &Name);
   void ResolveAllDataRelocations(std::vector<uint8_t>& ShadowImage);
 
 private:
+  Module *TheModule;
   const ObjectFile *Obj;
   const SectionRef *&CurSection;
   uint64_t &CurAddr;

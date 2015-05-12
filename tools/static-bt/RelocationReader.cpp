@@ -1,26 +1,30 @@
 #include "RelocationReader.h"
 #include "SBTUtils.h"
 #include "llvm/Object/ELF.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
-bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type) {
+bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type,
+                                         StringRef &SymbolNotFound) {
   relocation_iterator Rel = (*CurSection).relocation_end();
   std::error_code ec;
   StringRef Name;
   if (!CheckRelocation(Rel, Name))
     return false;
 
+  if (Type) {
+    if (error(Rel->getType(*Type)))
+      llvm_unreachable("Error getting relocation type");
+  }
+
   auto it = ComdatSymbols.find(Name);
   if (it != ComdatSymbols.end()) {
     Res = it->getValue();
-    if (Type) {
-      if (error(Rel->getType(*Type)))
-        llvm_unreachable("Error getting relocation type");
-    }
     return true;
   }
 
@@ -41,10 +45,6 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type) {
     }
 
     Res = SectionAddr;
-    if (Type) {
-      if (error(Rel->getType(*Type)))
-        llvm_unreachable("Error getting relocation type");
-    }
     return true;
   }
 
@@ -75,13 +75,33 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type) {
       Res += SectionAddr;
     }
 
-    if (Type) {
-      if (error(Rel->getType(*Type)))
-        llvm_unreachable("Error getting relocation type");
-    }
     return true;
   }
 
+  outs() << "Unresolved relocation: " << Name << "\n";
+  SymbolNotFound = Name;
+  return false;
+}
+
+bool RelocationReader::ResolveRelocation(Value *&Res, uint64_t *Type,
+                                         bool *UndefinedSymbol) {
+  uint64_t IntRes;
+  StringRef SymbolNotFound;
+  if (UndefinedSymbol)
+    *UndefinedSymbol = false;
+  if (ResolveRelocation(IntRes, Type, SymbolNotFound)) {
+    Res = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), IntRes);
+    return true;
+  }
+  if (SymbolNotFound.size() > 0) {
+    Res = ConstantExpr::getPointerCast(
+        TheModule->getOrInsertGlobal(SymbolNotFound,
+                                     Type::getInt32Ty(getGlobalContext())),
+        Type::getInt32Ty(getGlobalContext()));
+    if (UndefinedSymbol)
+      *UndefinedSymbol = true;
+    return true;
+  }
   return false;
 }
 
@@ -149,6 +169,7 @@ void RelocationReader::ResolveAllDataRelocations(
           continue;
         }
 
+        bool Patched = false;
         // Now we look up for this symbol in the list of all symbols...
         for (const auto &si : Obj->symbols()) {
           StringRef SName;
@@ -182,8 +203,12 @@ void RelocationReader::ResolveAllDataRelocations(
           outs() << "Patching " << format("%8" PRIx64, PatchAddress) << " with "
                  << format("%8" PRIx64, *(int *)(&ShadowImage[PatchAddress]))
                  << "\n";
+          Patched = true;
           break;
         }
+
+        if (!Patched)
+          outs() << "Unresolved data relocation: " << Name << "\n";
 
       }
     }
