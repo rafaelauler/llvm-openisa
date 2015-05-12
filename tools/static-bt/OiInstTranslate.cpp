@@ -750,7 +750,7 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
         }
         if (val == "ungetc") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "ungetc", 2, 1, ArgTypes, First);
         }
