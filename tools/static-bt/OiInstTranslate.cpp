@@ -923,6 +923,16 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Ptr};
           return Syscalls.HandleGenericInt(V, "realloc", 2, 1, ArgTypes, First);
         }
+        if (val == "system") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "system", 1, 1, ArgTypes, First);
+        }
+        if (val == "remove") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "remove", 1, 1, ArgTypes, First);
+        }
         if (val == "difftime") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32,
@@ -1585,6 +1595,18 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       Value *SqrtFunc = Intrinsic::getDeclaration(IREmitter.TheModule.get(),
                                                   Intrinsic::sqrt, types);
       Value *V = Builder.CreateCall(SqrtFunc, o1);
+      Builder.CreateStore(V, o0);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::FNEG_S: {
+    DebugOut << "Handling FNEG_S\n";
+    Value *o0, *o1, *first = 0;
+    if (HandleFloatSrcOperand(MI->getOperand(1), o1, &first) &&
+        HandleFloatDstOperand(MI->getOperand(0), o0)) {
+      Value *V = Builder.CreateFNeg(o1);
       Builder.CreateStore(V, o0);
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
