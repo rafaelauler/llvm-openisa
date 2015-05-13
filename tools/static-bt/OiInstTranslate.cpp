@@ -585,6 +585,12 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "vsprintf", 3, 1, ArgTypes, First);
         }
+        if (val == "fputs") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fputs", 2, 1, ArgTypes, First);
+        }
         if (val == "atan") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
                                                SyscallsIface::AT_Double};
