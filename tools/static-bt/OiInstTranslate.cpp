@@ -704,6 +704,11 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "fclose", 1, 1, ArgTypes, First);
         }
+        if (val == "rewind") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "rewind", 1, 1, ArgTypes, First);
+        }
         if (val == "fopen") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Ptr,
