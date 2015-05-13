@@ -732,6 +732,13 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "strcmp", 2, 1, ArgTypes, First);
         }
+        if (val == "memcmp") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "memcmp", 3, 1, ArgTypes, First);
+        }
         if (val == "strcoll") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Ptr,
@@ -761,6 +768,12 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Ptr};
           return Syscalls.HandleGenericInt(V, "strcat", 2, 1, ArgTypes, First);
+        }
+        if (val == "rename") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "rename", 2, 1, ArgTypes, First);
         }
         if (val == "strncat") {
           SyscallsIface::ArgType ArgTypes[] = {
