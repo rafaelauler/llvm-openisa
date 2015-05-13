@@ -721,6 +721,12 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "strcmp", 2, 1, ArgTypes, First);
         }
+        if (val == "strcoll") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "strcoll", 2, 1, ArgTypes, First);
+        }
         if (val == "strncmp") {
           SyscallsIface::ArgType ArgTypes[] = {
               SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
