@@ -153,6 +153,7 @@ public:
   void StartMainFunction(uint64_t Addr);
   void HandleFunctionEntryPoint(Value **First = 0);
   void HandleFunctionExitPoint(Value **First = 0);
+  void FixEntryBB();
   void FixBBTerminators();
   void FixEntryPoint();
   void UpdateCurAddr(uint64_t val) {

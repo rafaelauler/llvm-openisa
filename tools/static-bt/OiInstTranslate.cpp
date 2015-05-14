@@ -45,6 +45,7 @@ void OiInstTranslate::StartMainFunction(uint64_t Addr) {
 void OiInstTranslate::FinishFunction() {
   if (!OneRegion) {
     IREmitter.CleanRegs();
+    IREmitter.FixEntryBB();
     IREmitter.FixBBTerminators();
     if (DebugIR)
       IREmitter.Builder.GetInsertBlock()->getParent()->dump();

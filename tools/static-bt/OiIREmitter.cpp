@@ -10,6 +10,7 @@
 #include "StringRefMemoryObject.h"
 #include "SBTUtils.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -564,6 +565,18 @@ void OiIREmitter::HandleFunctionExitPoint(Value **First) {
   for (int I = 0; I < 64; ++I) {
     Builder.CreateStore(Builder.CreateLoad(DblRegs[I]), DblGlobalRegs[I]);
   }
+}
+
+void OiIREmitter::FixEntryBB() {
+  BasicBlock *BB = &Builder.GetInsertBlock()->getParent()->getEntryBlock();
+  assert (BB != nullptr && "Cannot find entry basic block");
+  // If entry BB already has no predecessors, we're done
+  if (pred_begin(BB) == pred_end(BB))
+    return;
+  BasicBlock *NewEntry = BasicBlock::Create(
+      getGlobalContext(), "newentry", Builder.GetInsertBlock()->getParent(), BB);
+  Builder.SetInsertPoint(NewEntry);
+  Builder.CreateBr(BB);
 }
 
 void OiIREmitter::FixBBTerminators() {
