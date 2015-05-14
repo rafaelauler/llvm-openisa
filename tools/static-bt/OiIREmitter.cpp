@@ -760,6 +760,12 @@ bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
     return true;
   }
 
+  if (Addr == CurAddr) {
+    Target = CreateBB(Addr);
+    UpdateInsertPoint();
+    return true;
+  }
+
   Instruction *TgtIns = InsMap[Addr];
   while (TgtIns == 0 && Addr < CurAddr) {
     Addr += GetInstructionSize();

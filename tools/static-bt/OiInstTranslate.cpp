@@ -1088,30 +1088,21 @@ bool OiInstTranslate::HandleFCmpOperand(const MCOperand &o, Value *o0,
 bool OiInstTranslate::HandleBranchTarget(const MCOperand &o,
                                          BasicBlock *&Target, bool IsRelative) {
   if (o.isImm()) {
-    if (o.getImm() != 0U) {
-      uint64_t tgtaddr;
-      if (IsRelative)
-        tgtaddr = (IREmitter.CurAddr + o.getImm()) & 0xFFFFFFFFULL;
-      else
-        tgtaddr = o.getImm();
-      uint64_t rel = 0;
-      StringRef Unused;
-      if (RelocReader.ResolveRelocation(rel, nullptr, Unused)) {
-        tgtaddr += rel;
-      }
-      assert(tgtaddr != IREmitter.CurAddr);
-      if (tgtaddr < IREmitter.CurAddr)
-        return IREmitter.HandleBackEdge(tgtaddr, Target);
-      Target = IREmitter.CreateBB(tgtaddr);
-      return true;
-    } else { // Need to handle the relocation to find the correct jump address
-      uint64_t targetaddr;
-      StringRef Unused;
-      if (RelocReader.ResolveRelocation(targetaddr, nullptr, Unused)) {
-        Target = IREmitter.CreateBB(targetaddr);
-        return true;
-      }
+    uint64_t tgtaddr;
+    if (IsRelative)
+      tgtaddr = (IREmitter.CurAddr + o.getImm()) & 0xFFFFFFFFULL;
+    else
+      tgtaddr = o.getImm();
+    uint64_t rel = 0;
+    StringRef Unused;
+    if (RelocReader.ResolveRelocation(rel, nullptr, Unused)) {
+      tgtaddr += rel;
     }
+    //    assert(tgtaddr != IREmitter.CurAddr);
+    if (tgtaddr <= IREmitter.CurAddr)
+      return IREmitter.HandleBackEdge(tgtaddr, Target);
+    Target = IREmitter.CreateBB(tgtaddr);
+    return true;
   }
   llvm_unreachable("Unrecognized branch target");
 }
