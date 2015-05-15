@@ -1005,13 +1005,13 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
         }
         if (val == "_IO_putc") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "_IO_putc", 2, 1, ArgTypes, First);
         }
         if (val == "putc") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "putc", 2, 1, ArgTypes, First);
         }
