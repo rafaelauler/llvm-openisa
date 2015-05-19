@@ -929,6 +929,12 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
           return Syscalls.HandleGenericInt(V, "__errno_location", 0, 1,
                                            ArgTypes, First);
         }
+        if (val == "strerror") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "strerror", 1, 1, ArgTypes,
+                                           First);
+        }
         if (val == "__isoc99_sscanf" || val == "sscanf") {
           SyscallsIface::ArgType ArgTypes[] = {
               SyscallsIface::AT_Ptr, SyscallsIface::AT_Ptr,
@@ -2100,6 +2106,29 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     if (HandleDoubleSrcOperand(MI->getOperand(1), o1, &first) &&
         HandleAluSrcOperand(MI->getOperand(2), o2) &&
         HandleDoubleDstOperand(MI->getOperand(0), o0)) {
+      Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
+      Value *cmp;
+      if (MI->getOpcode() == Mips::MOVN_I_D32) {
+        cmp = Builder.CreateICmpNE(o2, zero);
+      } else {
+        cmp = Builder.CreateICmpEQ(o2, zero);
+      }
+      Value *loaddst = Builder.CreateLoad(o0);
+      Value *select = Builder.CreateSelect(cmp, o1, loaddst, "movz_n");
+      Builder.CreateStore(select, o0);
+      first = GetFirstInstruction(first, o1, o2, cmp, loaddst);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::MOVN_I_S:
+  case Mips::MOVZ_I_S: {
+    DebugOut << "Handling MOVN (S), MOVZ (S)\n";
+    Value *o0, *o1, *o2, *first = 0;
+    if (HandleFloatSrcOperand(MI->getOperand(1), o1, &first) &&
+        HandleAluSrcOperand(MI->getOperand(2), o2) &&
+        HandleFloatDstOperand(MI->getOperand(0), o0)) {
       Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0U);
       Value *cmp;
       if (MI->getOpcode() == Mips::MOVN_I_D32) {
