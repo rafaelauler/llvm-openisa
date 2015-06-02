@@ -1269,6 +1269,12 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
+  case Mips::BREAK: {
+    DebugOut << "Handling BREAK\n";
+    Value *v = Builder.CreateUnreachable();
+    IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(v);
+    break;
+  }
   case Mips::MUL: {
     DebugOut << "Handling MUL\n";
     Value *o0, *o1, *o2, *first = 0;
