@@ -297,21 +297,21 @@ static void ExecutionLoop(StringRef file, int argc, char **argv) {
               SourceFile.close();
             }
             LastFileName = dli.FileName;
-            SourceFile.open(LastFileName.c_str(), ios::in);            
+            SourceFile.open(LastFileName.c_str(), ios::in);
           }  else if (lineNum == LastLine) {
             continue;
           }
           if (SourceFile.is_open()) {
-            string lineContents;            
+            string lineContents;
             SourceFile.seekg(0, ios::beg);
-            for (unsigned i = 0; i < lineNum; ++i) 
+            for (unsigned i = 0; i < lineNum; ++i)
               if (!getline (SourceFile, lineContents))
                 break;
             if (FullPath)
               DebugOut << "\033[1;35m[" << LastFileName << ":" <<
                 lineNum << "]\033[0m  ";
             else
-              DebugOut << "\033[1;35m[" << basename(LastFileName.c_str()) 
+              DebugOut << "\033[1;35m[" << basename(LastFileName.c_str())
                        << ":" << lineNum << "]\033[0m  ";
             DebugOut << "\033[0;33m" << lineContents << "\033[0m\n";
             LastLine = lineNum;
@@ -320,7 +320,7 @@ static void ExecutionLoop(StringRef file, int argc, char **argv) {
       }
     } // end if (Verbosity > 1)
     if (Verbosity > 0) {
-      DebugOut << "\033[1;32m[\033[1;37m0x" << format("%04" PRIx64, CurPC) 
+      DebugOut << "\033[1;32m[\033[1;37m0x" << format("%04" PRIx64, CurPC)
                << "\033[1;32m]\033[0m";
     }
 #endif
@@ -336,7 +336,7 @@ static void ExecutionLoop(StringRef file, int argc, char **argv) {
         Size = 1; // skip illegible bytes
     }
   } while (CurPC != 0 && (Cap == 0 || numEmulated < Cap));
-  
+
 }
 
 int main(int argc, char **argv) {

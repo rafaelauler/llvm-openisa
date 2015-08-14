@@ -1024,7 +1024,8 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
     if (Verbosity > 0)
       DebugOut << " \tHandling NOP\n";
     break;
-  default: 
+  default:
+    DebugOut << "Unimplemented opcode number: " << MI->getOpcode() << "\n";
     llvm_unreachable("Unimplemented instruction!");
   }
   return CurPC + 8;
