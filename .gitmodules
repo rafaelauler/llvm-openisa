@@ -1,0 +1,9 @@
+[submodule "tools/clang"]
+	path = tools/clang
+	url = http://llvm.org/git/clang.git
+[submodule "tools/git"]
+	path = tools/lld
+	url = http://llvm.org/git/lld.git
+[submodule "projects/compiler-rt"]
+	path = projects/compiler-rt
+	url = http://llvm.org/git/compiler-rt.git
