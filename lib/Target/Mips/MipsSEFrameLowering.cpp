@@ -34,17 +34,17 @@ namespace {
 typedef MachineBasicBlock::iterator Iter;
 
 static std::pair<unsigned, unsigned> getMFHiLoOpc(unsigned Src) {
-  if (Mips::ACC64RegClass.contains(Src))
-    return std::make_pair((unsigned)Mips::PseudoMFHI,
-                          (unsigned)Mips::PseudoMFLO);
-
-  if (Mips::ACC64DSPRegClass.contains(Src))
-    return std::make_pair((unsigned)Mips::MFHI_DSP, (unsigned)Mips::MFLO_DSP);
-
-  if (Mips::ACC128RegClass.contains(Src))
-    return std::make_pair((unsigned)Mips::PseudoMFHI64,
-                          (unsigned)Mips::PseudoMFLO64);
-
+//  if (Mips::ACC64RegClass.contains(Src))
+//    return std::make_pair((unsigned)Mips::PseudoMFHI,
+//                          (unsigned)Mips::PseudoMFLO);
+//
+//  if (Mips::ACC64DSPRegClass.contains(Src))
+//    return std::make_pair((unsigned)Mips::MFHI_DSP, (unsigned)Mips::MFLO_DSP);
+//
+//  if (Mips::ACC128RegClass.contains(Src))
+//    return std::make_pair((unsigned)Mips::PseudoMFHI64,
+//                          (unsigned)Mips::PseudoMFLO64);
+//
   return std::make_pair(0, 0);
 }
 
@@ -90,44 +90,44 @@ bool ExpandPseudo::expand() {
 
 bool ExpandPseudo::expandInstr(MachineBasicBlock &MBB, Iter I) {
   switch(I->getOpcode()) {
-  case Mips::LOAD_CCOND_DSP:
-    expandLoadCCond(MBB, I);
-    break;
-  case Mips::STORE_CCOND_DSP:
-    expandStoreCCond(MBB, I);
-    break;
-  case Mips::LOAD_ACC64:
-  case Mips::LOAD_ACC64DSP:
-    expandLoadACC(MBB, I, 4);
-    break;
-  case Mips::LOAD_ACC128:
-    expandLoadACC(MBB, I, 8);
-    break;
-  case Mips::STORE_ACC64:
-    expandStoreACC(MBB, I, Mips::PseudoMFHI, Mips::PseudoMFLO, 4);
-    break;
-  case Mips::STORE_ACC64DSP:
-    expandStoreACC(MBB, I, Mips::MFHI_DSP, Mips::MFLO_DSP, 4);
-    break;
-  case Mips::STORE_ACC128:
-    expandStoreACC(MBB, I, Mips::PseudoMFHI64, Mips::PseudoMFLO64, 8);
-    break;
-  case Mips::BuildPairF64:
-    if (expandBuildPairF64(MBB, I, false))
-      MBB.erase(I);
-    return false;
-  case Mips::BuildPairF64_64:
-    if (expandBuildPairF64(MBB, I, true))
-      MBB.erase(I);
-    return false;
-  case Mips::ExtractElementF64:
-    if (expandExtractElementF64(MBB, I, false))
-      MBB.erase(I);
-    return false;
-  case Mips::ExtractElementF64_64:
-    if (expandExtractElementF64(MBB, I, true))
-      MBB.erase(I);
-    return false;
+//  case Mips::LOAD_CCOND_DSP:
+//    expandLoadCCond(MBB, I);
+//    break;
+//  case Mips::STORE_CCOND_DSP:
+//    expandStoreCCond(MBB, I);
+//    break;
+//  case Mips::LOAD_ACC64:
+//  case Mips::LOAD_ACC64DSP:
+//    expandLoadACC(MBB, I, 4);
+//    break;
+//  case Mips::LOAD_ACC128:
+//    expandLoadACC(MBB, I, 8);
+//    break;
+//  case Mips::STORE_ACC64:
+//    expandStoreACC(MBB, I, Mips::PseudoMFHI, Mips::PseudoMFLO, 4);
+//    break;
+//  case Mips::STORE_ACC64DSP:
+//    expandStoreACC(MBB, I, Mips::MFHI_DSP, Mips::MFLO_DSP, 4);
+//    break;
+//  case Mips::STORE_ACC128:
+//    expandStoreACC(MBB, I, Mips::PseudoMFHI64, Mips::PseudoMFLO64, 8);
+//    break;
+//  case Mips::BuildPairF64:
+//    if (expandBuildPairF64(MBB, I, false))
+//      MBB.erase(I);
+//    return false;
+//  case Mips::BuildPairF64_64:
+//    if (expandBuildPairF64(MBB, I, true))
+//      MBB.erase(I);
+//    return false;
+//  case Mips::ExtractElementF64:
+//    if (expandExtractElementF64(MBB, I, false))
+//      MBB.erase(I);
+//    return false;
+//  case Mips::ExtractElementF64_64:
+//    if (expandExtractElementF64(MBB, I, true))
+//      MBB.erase(I);
+//    return false;
   case TargetOpcode::COPY:
     if (!expandCopy(MBB, I))
       return false;
@@ -424,7 +424,8 @@ void MipsSEFrameLowering::emitPrologue(MachineFunction &MF) const {
   unsigned SP = STI.isABI_N64() ? Mips::SP_64 : Mips::SP;
   unsigned FP = STI.isABI_N64() ? Mips::FP_64 : Mips::FP;
   unsigned ZERO = STI.isABI_N64() ? Mips::ZERO_64 : Mips::ZERO;
-  unsigned ADDu = STI.isABI_N64() ? Mips::DADDu : Mips::ADDu;
+  //  unsigned ADDu = STI.isABI_N64() ? Mips::DADDu : Mips::ADDu;
+  unsigned ADDu = Mips::ADDu;
 
   // First, compute final stack size.
   uint64_t StackSize = MFI->getStackSize();
@@ -558,7 +559,8 @@ void MipsSEFrameLowering::emitEpilogue(MachineFunction &MF,
   unsigned SP = STI.isABI_N64() ? Mips::SP_64 : Mips::SP;
   unsigned FP = STI.isABI_N64() ? Mips::FP_64 : Mips::FP;
   unsigned ZERO = STI.isABI_N64() ? Mips::ZERO_64 : Mips::ZERO;
-  unsigned ADDu = STI.isABI_N64() ? Mips::DADDu : Mips::ADDu;
+  //  unsigned ADDu = STI.isABI_N64() ? Mips::DADDu : Mips::ADDu;
+  unsigned ADDu = Mips::ADDu;
 
   // if framepointer enabled, restore the stack pointer.
   if (hasFP(MF)) {

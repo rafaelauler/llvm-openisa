@@ -223,14 +223,14 @@ unsigned MipsFastISel::materialize32BitInt(int64_t Imm,
     return ResultReg;
   }
   unsigned Lo = Imm & 0xFFFF;
-  unsigned Hi = (Imm >> 16) & 0xFFFF;
+  //  unsigned Hi = (Imm >> 16) & 0xFFFF;
   if (Lo) {
     // Both Lo and Hi have nonzero bits.
     unsigned TmpReg = createResultReg(RC);
-    emitInst(Mips::LUi, TmpReg).addImm(Hi);
+    //    emitInst(Mips::LUi, TmpReg).addImm(Hi);
     emitInst(Mips::ORi, ResultReg).addReg(TmpReg).addImm(Lo);
   } else {
-    emitInst(Mips::LUi, ResultReg).addImm(Hi);
+    //    emitInst(Mips::LUi, ResultReg).addImm(Hi);
   }
   return ResultReg;
 }

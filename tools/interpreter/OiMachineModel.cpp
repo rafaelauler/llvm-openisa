@@ -261,9 +261,7 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
 
   switch (MI->getOpcode()) {
   case Mips::ADDiu:
-  case Mips::ADDi:
   case Mips::ADDu:
-  case Mips::ADD:
     {
       if (Verbosity > 0)
         DebugOut << "\tHandling ADDiu, ADDi, ADDu, ADD\n";
@@ -283,7 +281,6 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
       return CurPC + 8;
     }
   case Mips::SUBu:
-  case Mips::SUB:
     {
       if (Verbosity > 0)
         DebugOut << " \tHandling SUBu, SUB\n";
@@ -297,65 +294,65 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
       Bank[o0] = o1 - o2;
       return CurPC + 8;
     }
-  case Mips::MUL:
+  case Mips::MUL_OI:
     {
       if (Verbosity > 0)
-        DebugOut << " \tHandling MUL\n";
+        DebugOut << " \tHandling MUL_OI\n";
       uint32_t o1 = HandleAluSrcOperand(MI->getOperand(1));
       uint32_t o2 = HandleAluSrcOperand(MI->getOperand(2));
       uint32_t o0 = HandleAluDstOperand(MI->getOperand(0));
       Bank[o0] = o1 * o2;
       return CurPC + 8;
     }
-  case Mips::MULTu:
-    {
-      if (Verbosity > 0)
-        DebugOut << " \tHandling MULTU\n";
-      uint64_t o1 = HandleAluSrcOperand(MI->getOperand(0));
-      uint64_t o2 = HandleAluSrcOperand(MI->getOperand(1));
-      uint64_t ans = o1 * o2;
-      Hi = ans >> 32;
-      Lo = ans & 0xFFFFFFFFULL;
-      return CurPC + 8;
-    }
-  case Mips::MULT:
-    {
-      if (Verbosity > 0)
-        DebugOut << " \tHandling MULT\n";
-      int64_t o1 = HandleAluSrcOperand(MI->getOperand(0));
-      int64_t o2 = HandleAluSrcOperand(MI->getOperand(1));
-      uint64_t ans = (uint64_t)(o1 * o2);
-      Hi = ans >> 32;
-      Lo = ans & 0xFFFFFFFFULL;
-      return CurPC + 8;
-    }
-  case Mips::SDIV:
-  case Mips::UDIV:
-    {
-      if (Verbosity > 0)
-        DebugOut << " \tHandling DIV\n";
-      uint32_t o1 = HandleAluSrcOperand(MI->getOperand(0));
-      uint32_t o2 = HandleAluSrcOperand(MI->getOperand(1));
-      Lo = o1 / o2;
-      Hi = o1 % o2;
-      return CurPC + 8;
-    }
-  case Mips::MFHI:
-    {
-      if (Verbosity > 0)
-        DebugOut << " \tHandling MFHI\n";
-      uint32_t o0 = HandleAluDstOperand(MI->getOperand(0));
-      Bank[o0] = Hi;
-      return CurPC + 8;
-    }
-  case Mips::MFLO:
-    {
-      if (Verbosity > 0)
-        DebugOut << " \tHandling MFLO\n";
-      uint32_t o0 = HandleAluDstOperand(MI->getOperand(0));
-      Bank[o0] = Lo;
-      return CurPC + 8;
-    }
+//  case Mips::MULTu:
+//    {
+//      if (Verbosity > 0)
+//        DebugOut << " \tHandling MULTU\n";
+//      uint64_t o1 = HandleAluSrcOperand(MI->getOperand(0));
+//      uint64_t o2 = HandleAluSrcOperand(MI->getOperand(1));
+//      uint64_t ans = o1 * o2;
+//      Hi = ans >> 32;
+//      Lo = ans & 0xFFFFFFFFULL;
+//      return CurPC + 8;
+//    }
+//  case Mips::MULT:
+//    {
+//      if (Verbosity > 0)
+//        DebugOut << " \tHandling MULT\n";
+//      int64_t o1 = HandleAluSrcOperand(MI->getOperand(0));
+//      int64_t o2 = HandleAluSrcOperand(MI->getOperand(1));
+//      uint64_t ans = (uint64_t)(o1 * o2);
+//      Hi = ans >> 32;
+//      Lo = ans & 0xFFFFFFFFULL;
+//      return CurPC + 8;
+//    }
+//  case Mips::SDIV:
+//  case Mips::UDIV:
+//    {
+//      if (Verbosity > 0)
+//        DebugOut << " \tHandling DIV\n";
+//      uint32_t o1 = HandleAluSrcOperand(MI->getOperand(0));
+//      uint32_t o2 = HandleAluSrcOperand(MI->getOperand(1));
+//      Lo = o1 / o2;
+//      Hi = o1 % o2;
+//      return CurPC + 8;
+//    }
+//  case Mips::MFHI:
+//    {
+//      if (Verbosity > 0)
+//        DebugOut << " \tHandling MFHI\n";
+//      uint32_t o0 = HandleAluDstOperand(MI->getOperand(0));
+//      Bank[o0] = Hi;
+//      return CurPC + 8;
+//    }
+//  case Mips::MFLO:
+//    {
+//      if (Verbosity > 0)
+//        DebugOut << " \tHandling MFLO\n";
+//      uint32_t o0 = HandleAluDstOperand(MI->getOperand(0));
+//      Bank[o0] = Lo;
+//      return CurPC + 8;
+//    }
   case Mips::LDC1:
     {
       if (Verbosity > 0)
@@ -810,21 +807,21 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
         return HandleBranchTarget(MI->getOperand(1), true, CurPC);
       return CurPC + 8;
     }
-  case Mips::LUi:
-  case Mips::LUi64: {
-    if (Verbosity > 0)
-      DebugOut << " \tHandling LUi\n";
-    HandleAluDstOperand(MI->getOperand(0));
-    HandleLUiOperand(MI->getOperand(1));
-#ifndef NDEBUG
-    if (Verbosity > 0)
-      DebugOut << "\t\033[0;31mWarning, LUI ignored\033[0m\n";
-#endif
-    //Bank[o0] = o1;
-    return CurPC + 8;
-  }
-  case Mips::LW:
-  case Mips::LW64: {
+//  case Mips::LUi:
+//  case Mips::LUi64: {
+//    if (Verbosity > 0)
+//      DebugOut << " \tHandling LUi\n";
+//    HandleAluDstOperand(MI->getOperand(0));
+//    HandleLUiOperand(MI->getOperand(1));
+//#ifndef NDEBUG
+//    if (Verbosity > 0)
+//      DebugOut << "\t\033[0;31mWarning, LUI ignored\033[0m\n";
+//#endif
+//    //Bank[o0] = o1;
+//    return CurPC + 8;
+//  }
+  case Mips::LW: {
+    //  case Mips::LW64:
     if (Verbosity > 0)
       DebugOut << " \tHandling LW\n";
     uint32_t o0 = HandleAluDstOperand(MI->getOperand(0));
@@ -956,8 +953,8 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
     *o1 = (uint16_t)(o0 & 0xFFFF);
     return CurPC + 8;
   }
-  case Mips::SW:
-  case Mips::SW64: {
+  case Mips::SW: {
+    //  case Mips::SW64: {
     if (Verbosity > 0)
       DebugOut << " \tHandling SW\n";
     uint32_t o0 = HandleAluSrcOperand(MI->getOperand(0));
@@ -997,7 +994,6 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
     *o1 = o0;
     return CurPC + 8;
   }
-  case Mips::JALR64:
   case Mips::JALR: {
     if (Verbosity > 0)
       DebugOut << " \tHandling JALR\n";
@@ -1010,7 +1006,6 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
     Bank[31] = CurPC + 8;
     return HandleBranchTarget(MI->getOperand(0), false, CurPC);
   }
-  case Mips::JR64:
   case Mips::JR: {
     if (Verbosity > 0)
       DebugOut << " \tHandling JR\n";

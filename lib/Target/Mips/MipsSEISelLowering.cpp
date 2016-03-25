@@ -1110,56 +1110,6 @@ MipsSETargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   switch (MI->getOpcode()) {
   default:
     return MipsTargetLowering::EmitInstrWithCustomInserter(MI, BB);
-  case Mips::BPOSGE32_PSEUDO:
-    return emitBPOSGE32(MI, BB);
-  case Mips::SNZ_B_PSEUDO:
-    return emitMSACBranchPseudo(MI, BB, Mips::BNZ_B);
-  case Mips::SNZ_H_PSEUDO:
-    return emitMSACBranchPseudo(MI, BB, Mips::BNZ_H);
-  case Mips::SNZ_W_PSEUDO:
-    return emitMSACBranchPseudo(MI, BB, Mips::BNZ_W);
-  case Mips::SNZ_D_PSEUDO:
-    return emitMSACBranchPseudo(MI, BB, Mips::BNZ_D);
-  case Mips::SNZ_V_PSEUDO:
-    return emitMSACBranchPseudo(MI, BB, Mips::BNZ_V);
-  case Mips::SZ_B_PSEUDO:
-    return emitMSACBranchPseudo(MI, BB, Mips::BZ_B);
-  case Mips::SZ_H_PSEUDO:
-    return emitMSACBranchPseudo(MI, BB, Mips::BZ_H);
-  case Mips::SZ_W_PSEUDO:
-    return emitMSACBranchPseudo(MI, BB, Mips::BZ_W);
-  case Mips::SZ_D_PSEUDO:
-    return emitMSACBranchPseudo(MI, BB, Mips::BZ_D);
-  case Mips::SZ_V_PSEUDO:
-    return emitMSACBranchPseudo(MI, BB, Mips::BZ_V);
-  case Mips::COPY_FW_PSEUDO:
-    return emitCOPY_FW(MI, BB);
-  case Mips::COPY_FD_PSEUDO:
-    return emitCOPY_FD(MI, BB);
-  case Mips::INSERT_FW_PSEUDO:
-    return emitINSERT_FW(MI, BB);
-  case Mips::INSERT_FD_PSEUDO:
-    return emitINSERT_FD(MI, BB);
-  case Mips::INSERT_B_VIDX_PSEUDO:
-    return emitINSERT_DF_VIDX(MI, BB, 1, false);
-  case Mips::INSERT_H_VIDX_PSEUDO:
-    return emitINSERT_DF_VIDX(MI, BB, 2, false);
-  case Mips::INSERT_W_VIDX_PSEUDO:
-    return emitINSERT_DF_VIDX(MI, BB, 4, false);
-  case Mips::INSERT_D_VIDX_PSEUDO:
-    return emitINSERT_DF_VIDX(MI, BB, 8, false);
-  case Mips::INSERT_FW_VIDX_PSEUDO:
-    return emitINSERT_DF_VIDX(MI, BB, 4, true);
-  case Mips::INSERT_FD_VIDX_PSEUDO:
-    return emitINSERT_DF_VIDX(MI, BB, 8, true);
-  case Mips::FILL_FW_PSEUDO:
-    return emitFILL_FW(MI, BB);
-  case Mips::FILL_FD_PSEUDO:
-    return emitFILL_FD(MI, BB);
-  case Mips::FEXP2_W_1_PSEUDO:
-    return emitFEXP2_W_1(MI, BB);
-  case Mips::FEXP2_D_1_PSEUDO:
-    return emitFEXP2_D_1(MI, BB);
   }
 }
 
@@ -1183,11 +1133,11 @@ getOpndList(SmallVectorImpl<SDValue> &Ops,
             std::deque< std::pair<unsigned, SDValue> > &RegsToPass,
             bool IsPICCall, bool GlobalOrExternal, bool InternalLinkage,
             bool IsCallReloc, CallLoweringInfo &CLI, SDValue Callee,
-            SDValue Chain) const {
+            SDValue Chain, unsigned nargs) const {
   Ops.push_back(Callee);
   MipsTargetLowering::getOpndList(Ops, RegsToPass, IsPICCall, GlobalOrExternal,
                                   InternalLinkage, IsCallReloc, CLI, Callee,
-                                  Chain);
+                                  Chain, nargs);
 }
 
 SDValue MipsSETargetLowering::lowerLOAD(SDValue Op, SelectionDAG &DAG) const {
@@ -2729,134 +2679,13 @@ SDValue MipsSETargetLowering::lowerVECTOR_SHUFFLE(SDValue Op,
 
 MachineBasicBlock * MipsSETargetLowering::
 emitBPOSGE32(MachineInstr *MI, MachineBasicBlock *BB) const{
-  // $bb:
-  //  bposge32_pseudo $vr0
-  //  =>
-  // $bb:
-  //  bposge32 $tbb
-  // $fbb:
-  //  li $vr2, 0
-  //  b $sink
-  // $tbb:
-  //  li $vr1, 1
-  // $sink:
-  //  $vr0 = phi($vr2, $fbb, $vr1, $tbb)
-
-  MachineRegisterInfo &RegInfo = BB->getParent()->getRegInfo();
-  const TargetInstrInfo *TII =
-      getTargetMachine().getSubtargetImpl()->getInstrInfo();
-  const TargetRegisterClass *RC = &Mips::GPR32RegClass;
-  DebugLoc DL = MI->getDebugLoc();
-  const BasicBlock *LLVM_BB = BB->getBasicBlock();
-  MachineFunction::iterator It = std::next(MachineFunction::iterator(BB));
-  MachineFunction *F = BB->getParent();
-  MachineBasicBlock *FBB = F->CreateMachineBasicBlock(LLVM_BB);
-  MachineBasicBlock *TBB = F->CreateMachineBasicBlock(LLVM_BB);
-  MachineBasicBlock *Sink  = F->CreateMachineBasicBlock(LLVM_BB);
-  F->insert(It, FBB);
-  F->insert(It, TBB);
-  F->insert(It, Sink);
-
-  // Transfer the remainder of BB and its successor edges to Sink.
-  Sink->splice(Sink->begin(), BB, std::next(MachineBasicBlock::iterator(MI)),
-               BB->end());
-  Sink->transferSuccessorsAndUpdatePHIs(BB);
-
-  // Add successors.
-  BB->addSuccessor(FBB);
-  BB->addSuccessor(TBB);
-  FBB->addSuccessor(Sink);
-  TBB->addSuccessor(Sink);
-
-  // Insert the real bposge32 instruction to $BB.
-  BuildMI(BB, DL, TII->get(Mips::BPOSGE32)).addMBB(TBB);
-
-  // Fill $FBB.
-  unsigned VR2 = RegInfo.createVirtualRegister(RC);
-  BuildMI(*FBB, FBB->end(), DL, TII->get(Mips::ADDiu), VR2)
-    .addReg(Mips::ZERO).addImm(0);
-  BuildMI(*FBB, FBB->end(), DL, TII->get(Mips::B)).addMBB(Sink);
-
-  // Fill $TBB.
-  unsigned VR1 = RegInfo.createVirtualRegister(RC);
-  BuildMI(*TBB, TBB->end(), DL, TII->get(Mips::ADDiu), VR1)
-    .addReg(Mips::ZERO).addImm(1);
-
-  // Insert phi function to $Sink.
-  BuildMI(*Sink, Sink->begin(), DL, TII->get(Mips::PHI),
-          MI->getOperand(0).getReg())
-    .addReg(VR2).addMBB(FBB).addReg(VR1).addMBB(TBB);
-
-  MI->eraseFromParent();   // The pseudo instruction is gone now.
-  return Sink;
+  return BB;
 }
 
 MachineBasicBlock * MipsSETargetLowering::
 emitMSACBranchPseudo(MachineInstr *MI, MachineBasicBlock *BB,
                      unsigned BranchOp) const{
-  // $bb:
-  //  vany_nonzero $rd, $ws
-  //  =>
-  // $bb:
-  //  bnz.b $ws, $tbb
-  //  b $fbb
-  // $fbb:
-  //  li $rd1, 0
-  //  b $sink
-  // $tbb:
-  //  li $rd2, 1
-  // $sink:
-  //  $rd = phi($rd1, $fbb, $rd2, $tbb)
-
-  MachineRegisterInfo &RegInfo = BB->getParent()->getRegInfo();
-  const TargetInstrInfo *TII =
-      getTargetMachine().getSubtargetImpl()->getInstrInfo();
-  const TargetRegisterClass *RC = &Mips::GPR32RegClass;
-  DebugLoc DL = MI->getDebugLoc();
-  const BasicBlock *LLVM_BB = BB->getBasicBlock();
-  MachineFunction::iterator It = std::next(MachineFunction::iterator(BB));
-  MachineFunction *F = BB->getParent();
-  MachineBasicBlock *FBB = F->CreateMachineBasicBlock(LLVM_BB);
-  MachineBasicBlock *TBB = F->CreateMachineBasicBlock(LLVM_BB);
-  MachineBasicBlock *Sink  = F->CreateMachineBasicBlock(LLVM_BB);
-  F->insert(It, FBB);
-  F->insert(It, TBB);
-  F->insert(It, Sink);
-
-  // Transfer the remainder of BB and its successor edges to Sink.
-  Sink->splice(Sink->begin(), BB, std::next(MachineBasicBlock::iterator(MI)),
-               BB->end());
-  Sink->transferSuccessorsAndUpdatePHIs(BB);
-
-  // Add successors.
-  BB->addSuccessor(FBB);
-  BB->addSuccessor(TBB);
-  FBB->addSuccessor(Sink);
-  TBB->addSuccessor(Sink);
-
-  // Insert the real bnz.b instruction to $BB.
-  BuildMI(BB, DL, TII->get(BranchOp))
-    .addReg(MI->getOperand(1).getReg())
-    .addMBB(TBB);
-
-  // Fill $FBB.
-  unsigned RD1 = RegInfo.createVirtualRegister(RC);
-  BuildMI(*FBB, FBB->end(), DL, TII->get(Mips::ADDiu), RD1)
-    .addReg(Mips::ZERO).addImm(0);
-  BuildMI(*FBB, FBB->end(), DL, TII->get(Mips::B)).addMBB(Sink);
-
-  // Fill $TBB.
-  unsigned RD2 = RegInfo.createVirtualRegister(RC);
-  BuildMI(*TBB, TBB->end(), DL, TII->get(Mips::ADDiu), RD2)
-    .addReg(Mips::ZERO).addImm(1);
-
-  // Insert phi function to $Sink.
-  BuildMI(*Sink, Sink->begin(), DL, TII->get(Mips::PHI),
-          MI->getOperand(0).getReg())
-    .addReg(RD1).addMBB(FBB).addReg(RD2).addMBB(TBB);
-
-  MI->eraseFromParent();   // The pseudo instruction is gone now.
-  return Sink;
+  return BB;
 }
 
 // Emit the COPY_FW pseudo instruction.
@@ -2871,24 +2700,6 @@ emitMSACBranchPseudo(MachineInstr *MI, MachineBasicBlock *BB,
 // for lane 1 because it would require FR=0 mode which isn't supported by MSA.
 MachineBasicBlock * MipsSETargetLowering::
 emitCOPY_FW(MachineInstr *MI, MachineBasicBlock *BB) const{
-  const TargetInstrInfo *TII =
-      getTargetMachine().getSubtargetImpl()->getInstrInfo();
-  MachineRegisterInfo &RegInfo = BB->getParent()->getRegInfo();
-  DebugLoc DL = MI->getDebugLoc();
-  unsigned Fd = MI->getOperand(0).getReg();
-  unsigned Ws = MI->getOperand(1).getReg();
-  unsigned Lane = MI->getOperand(2).getImm();
-
-  if (Lane == 0)
-    BuildMI(*BB, MI, DL, TII->get(Mips::COPY), Fd).addReg(Ws, 0, Mips::sub_lo);
-  else {
-    unsigned Wt = RegInfo.createVirtualRegister(&Mips::MSA128WRegClass);
-
-    BuildMI(*BB, MI, DL, TII->get(Mips::SPLATI_W), Wt).addReg(Ws).addImm(Lane);
-    BuildMI(*BB, MI, DL, TII->get(Mips::COPY), Fd).addReg(Wt, 0, Mips::sub_lo);
-  }
-
-  MI->eraseFromParent();   // The pseudo instruction is gone now.
   return BB;
 }
 
@@ -2904,26 +2715,6 @@ emitCOPY_FW(MachineInstr *MI, MachineBasicBlock *BB) const{
 // valid because FR=1 mode which is the only supported mode in MSA.
 MachineBasicBlock * MipsSETargetLowering::
 emitCOPY_FD(MachineInstr *MI, MachineBasicBlock *BB) const{
-  assert(Subtarget.isFP64bit());
-
-  const TargetInstrInfo *TII =
-      getTargetMachine().getSubtargetImpl()->getInstrInfo();
-  MachineRegisterInfo &RegInfo = BB->getParent()->getRegInfo();
-  unsigned Fd  = MI->getOperand(0).getReg();
-  unsigned Ws  = MI->getOperand(1).getReg();
-  unsigned Lane = MI->getOperand(2).getImm() * 2;
-  DebugLoc DL = MI->getDebugLoc();
-
-  if (Lane == 0)
-    BuildMI(*BB, MI, DL, TII->get(Mips::COPY), Fd).addReg(Ws, 0, Mips::sub_64);
-  else {
-    unsigned Wt = RegInfo.createVirtualRegister(&Mips::MSA128DRegClass);
-
-    BuildMI(*BB, MI, DL, TII->get(Mips::SPLATI_D), Wt).addReg(Ws).addImm(1);
-    BuildMI(*BB, MI, DL, TII->get(Mips::COPY), Fd).addReg(Wt, 0, Mips::sub_64);
-  }
-
-  MI->eraseFromParent();   // The pseudo instruction is gone now.
   return BB;
 }
 
@@ -2936,27 +2727,6 @@ emitCOPY_FD(MachineInstr *MI, MachineBasicBlock *BB) const{
 MachineBasicBlock *
 MipsSETargetLowering::emitINSERT_FW(MachineInstr *MI,
                                     MachineBasicBlock *BB) const {
-  const TargetInstrInfo *TII =
-      getTargetMachine().getSubtargetImpl()->getInstrInfo();
-  MachineRegisterInfo &RegInfo = BB->getParent()->getRegInfo();
-  DebugLoc DL = MI->getDebugLoc();
-  unsigned Wd = MI->getOperand(0).getReg();
-  unsigned Wd_in = MI->getOperand(1).getReg();
-  unsigned Lane = MI->getOperand(2).getImm();
-  unsigned Fs = MI->getOperand(3).getReg();
-  unsigned Wt = RegInfo.createVirtualRegister(&Mips::MSA128WRegClass);
-
-  BuildMI(*BB, MI, DL, TII->get(Mips::SUBREG_TO_REG), Wt)
-      .addImm(0)
-      .addReg(Fs)
-      .addImm(Mips::sub_lo);
-  BuildMI(*BB, MI, DL, TII->get(Mips::INSVE_W), Wd)
-      .addReg(Wd_in)
-      .addImm(Lane)
-      .addReg(Wt)
-      .addImm(0);
-
-  MI->eraseFromParent(); // The pseudo instruction is gone now.
   return BB;
 }
 
@@ -2969,29 +2739,6 @@ MipsSETargetLowering::emitINSERT_FW(MachineInstr *MI,
 MachineBasicBlock *
 MipsSETargetLowering::emitINSERT_FD(MachineInstr *MI,
                                     MachineBasicBlock *BB) const {
-  assert(Subtarget.isFP64bit());
-
-  const TargetInstrInfo *TII =
-      getTargetMachine().getSubtargetImpl()->getInstrInfo();
-  MachineRegisterInfo &RegInfo = BB->getParent()->getRegInfo();
-  DebugLoc DL = MI->getDebugLoc();
-  unsigned Wd = MI->getOperand(0).getReg();
-  unsigned Wd_in = MI->getOperand(1).getReg();
-  unsigned Lane = MI->getOperand(2).getImm();
-  unsigned Fs = MI->getOperand(3).getReg();
-  unsigned Wt = RegInfo.createVirtualRegister(&Mips::MSA128DRegClass);
-
-  BuildMI(*BB, MI, DL, TII->get(Mips::SUBREG_TO_REG), Wt)
-      .addImm(0)
-      .addReg(Fs)
-      .addImm(Mips::sub_64);
-  BuildMI(*BB, MI, DL, TII->get(Mips::INSVE_D), Wd)
-      .addReg(Wd_in)
-      .addImm(Lane)
-      .addReg(Wt)
-      .addImm(0);
-
-  MI->eraseFromParent(); // The pseudo instruction is gone now.
   return BB;
 }
 
@@ -3020,104 +2767,6 @@ MipsSETargetLowering::emitINSERT_DF_VIDX(MachineInstr *MI,
                                          MachineBasicBlock *BB,
                                          unsigned EltSizeInBytes,
                                          bool IsFP) const {
-  const TargetInstrInfo *TII =
-      getTargetMachine().getSubtargetImpl()->getInstrInfo();
-  MachineRegisterInfo &RegInfo = BB->getParent()->getRegInfo();
-  DebugLoc DL = MI->getDebugLoc();
-  unsigned Wd = MI->getOperand(0).getReg();
-  unsigned SrcVecReg = MI->getOperand(1).getReg();
-  unsigned LaneReg = MI->getOperand(2).getReg();
-  unsigned SrcValReg = MI->getOperand(3).getReg();
-
-  const TargetRegisterClass *VecRC = nullptr;
-  const TargetRegisterClass *GPRRC =
-      Subtarget.isGP64bit() ? &Mips::GPR64RegClass : &Mips::GPR32RegClass;
-  unsigned EltLog2Size;
-  unsigned InsertOp = 0;
-  unsigned InsveOp = 0;
-  switch (EltSizeInBytes) {
-  default:
-    llvm_unreachable("Unexpected size");
-  case 1:
-    EltLog2Size = 0;
-    InsertOp = Mips::INSERT_B;
-    InsveOp = Mips::INSVE_B;
-    VecRC = &Mips::MSA128BRegClass;
-    break;
-  case 2:
-    EltLog2Size = 1;
-    InsertOp = Mips::INSERT_H;
-    InsveOp = Mips::INSVE_H;
-    VecRC = &Mips::MSA128HRegClass;
-    break;
-  case 4:
-    EltLog2Size = 2;
-    InsertOp = Mips::INSERT_W;
-    InsveOp = Mips::INSVE_W;
-    VecRC = &Mips::MSA128WRegClass;
-    break;
-  case 8:
-    EltLog2Size = 3;
-    InsertOp = Mips::INSERT_D;
-    InsveOp = Mips::INSVE_D;
-    VecRC = &Mips::MSA128DRegClass;
-    break;
-  }
-
-  if (IsFP) {
-    unsigned Wt = RegInfo.createVirtualRegister(VecRC);
-    BuildMI(*BB, MI, DL, TII->get(Mips::SUBREG_TO_REG), Wt)
-        .addImm(0)
-        .addReg(SrcValReg)
-        .addImm(EltSizeInBytes == 8 ? Mips::sub_64 : Mips::sub_lo);
-    SrcValReg = Wt;
-  }
-
-  // Convert the lane index into a byte index
-  if (EltSizeInBytes != 1) {
-    unsigned LaneTmp1 = RegInfo.createVirtualRegister(GPRRC);
-    BuildMI(*BB, MI, DL, TII->get(Mips::SLL), LaneTmp1)
-        .addReg(LaneReg)
-        .addImm(EltLog2Size);
-    LaneReg = LaneTmp1;
-  }
-
-  // Rotate bytes around so that the desired lane is element zero
-  unsigned WdTmp1 = RegInfo.createVirtualRegister(VecRC);
-  BuildMI(*BB, MI, DL, TII->get(Mips::SLD_B), WdTmp1)
-      .addReg(SrcVecReg)
-      .addReg(SrcVecReg)
-      .addReg(LaneReg);
-
-  unsigned WdTmp2 = RegInfo.createVirtualRegister(VecRC);
-  if (IsFP) {
-    // Use insve.df to insert to element zero
-    BuildMI(*BB, MI, DL, TII->get(InsveOp), WdTmp2)
-        .addReg(WdTmp1)
-        .addImm(0)
-        .addReg(SrcValReg)
-        .addImm(0);
-  } else {
-    // Use insert.df to insert to element zero
-    BuildMI(*BB, MI, DL, TII->get(InsertOp), WdTmp2)
-        .addReg(WdTmp1)
-        .addReg(SrcValReg)
-        .addImm(0);
-  }
-
-  // Rotate elements the rest of the way for a full rotation.
-  // sld.df inteprets $rt modulo the number of columns so we only need to negate
-  // the lane index to do this.
-  unsigned LaneTmp2 = RegInfo.createVirtualRegister(GPRRC);
-  BuildMI(*BB, MI, DL, TII->get(Mips::SUB), LaneTmp2)
-      .addReg(Mips::ZERO)
-      .addReg(LaneReg);
-  BuildMI(*BB, MI, DL, TII->get(Mips::SLD_B), Wd)
-      .addReg(WdTmp2)
-      .addReg(WdTmp2)
-      .addReg(LaneTmp2);
-
-  MI->eraseFromParent(); // The pseudo instruction is gone now.
   return BB;
 }
 
@@ -3131,23 +2780,6 @@ MipsSETargetLowering::emitINSERT_DF_VIDX(MachineInstr *MI,
 MachineBasicBlock *
 MipsSETargetLowering::emitFILL_FW(MachineInstr *MI,
                                   MachineBasicBlock *BB) const {
-  const TargetInstrInfo *TII =
-      getTargetMachine().getSubtargetImpl()->getInstrInfo();
-  MachineRegisterInfo &RegInfo = BB->getParent()->getRegInfo();
-  DebugLoc DL = MI->getDebugLoc();
-  unsigned Wd = MI->getOperand(0).getReg();
-  unsigned Fs = MI->getOperand(1).getReg();
-  unsigned Wt1 = RegInfo.createVirtualRegister(&Mips::MSA128WRegClass);
-  unsigned Wt2 = RegInfo.createVirtualRegister(&Mips::MSA128WRegClass);
-
-  BuildMI(*BB, MI, DL, TII->get(Mips::IMPLICIT_DEF), Wt1);
-  BuildMI(*BB, MI, DL, TII->get(Mips::INSERT_SUBREG), Wt2)
-      .addReg(Wt1)
-      .addReg(Fs)
-      .addImm(Mips::sub_lo);
-  BuildMI(*BB, MI, DL, TII->get(Mips::SPLATI_W), Wd).addReg(Wt2).addImm(0);
-
-  MI->eraseFromParent(); // The pseudo instruction is gone now.
   return BB;
 }
 
@@ -3161,25 +2793,6 @@ MipsSETargetLowering::emitFILL_FW(MachineInstr *MI,
 MachineBasicBlock *
 MipsSETargetLowering::emitFILL_FD(MachineInstr *MI,
                                   MachineBasicBlock *BB) const {
-  assert(Subtarget.isFP64bit());
-
-  const TargetInstrInfo *TII =
-      getTargetMachine().getSubtargetImpl()->getInstrInfo();
-  MachineRegisterInfo &RegInfo = BB->getParent()->getRegInfo();
-  DebugLoc DL = MI->getDebugLoc();
-  unsigned Wd = MI->getOperand(0).getReg();
-  unsigned Fs = MI->getOperand(1).getReg();
-  unsigned Wt1 = RegInfo.createVirtualRegister(&Mips::MSA128DRegClass);
-  unsigned Wt2 = RegInfo.createVirtualRegister(&Mips::MSA128DRegClass);
-
-  BuildMI(*BB, MI, DL, TII->get(Mips::IMPLICIT_DEF), Wt1);
-  BuildMI(*BB, MI, DL, TII->get(Mips::INSERT_SUBREG), Wt2)
-      .addReg(Wt1)
-      .addReg(Fs)
-      .addImm(Mips::sub_64);
-  BuildMI(*BB, MI, DL, TII->get(Mips::SPLATI_D), Wd).addReg(Wt2).addImm(0);
-
-  MI->eraseFromParent();   // The pseudo instruction is gone now.
   return BB;
 }
 
@@ -3192,24 +2805,6 @@ MipsSETargetLowering::emitFILL_FD(MachineInstr *MI,
 MachineBasicBlock *
 MipsSETargetLowering::emitFEXP2_W_1(MachineInstr *MI,
                                     MachineBasicBlock *BB) const {
-  const TargetInstrInfo *TII =
-      getTargetMachine().getSubtargetImpl()->getInstrInfo();
-  MachineRegisterInfo &RegInfo = BB->getParent()->getRegInfo();
-  const TargetRegisterClass *RC = &Mips::MSA128WRegClass;
-  unsigned Ws1 = RegInfo.createVirtualRegister(RC);
-  unsigned Ws2 = RegInfo.createVirtualRegister(RC);
-  DebugLoc DL = MI->getDebugLoc();
-
-  // Splat 1.0 into a vector
-  BuildMI(*BB, MI, DL, TII->get(Mips::LDI_W), Ws1).addImm(1);
-  BuildMI(*BB, MI, DL, TII->get(Mips::FFINT_U_W), Ws2).addReg(Ws1);
-
-  // Emit 1.0 * fexp2(Wt)
-  BuildMI(*BB, MI, DL, TII->get(Mips::FEXP2_W), MI->getOperand(0).getReg())
-      .addReg(Ws2)
-      .addReg(MI->getOperand(1).getReg());
-
-  MI->eraseFromParent(); // The pseudo instruction is gone now.
   return BB;
 }
 
@@ -3222,23 +2817,5 @@ MipsSETargetLowering::emitFEXP2_W_1(MachineInstr *MI,
 MachineBasicBlock *
 MipsSETargetLowering::emitFEXP2_D_1(MachineInstr *MI,
                                     MachineBasicBlock *BB) const {
-  const TargetInstrInfo *TII =
-      getTargetMachine().getSubtargetImpl()->getInstrInfo();
-  MachineRegisterInfo &RegInfo = BB->getParent()->getRegInfo();
-  const TargetRegisterClass *RC = &Mips::MSA128DRegClass;
-  unsigned Ws1 = RegInfo.createVirtualRegister(RC);
-  unsigned Ws2 = RegInfo.createVirtualRegister(RC);
-  DebugLoc DL = MI->getDebugLoc();
-
-  // Splat 1.0 into a vector
-  BuildMI(*BB, MI, DL, TII->get(Mips::LDI_D), Ws1).addImm(1);
-  BuildMI(*BB, MI, DL, TII->get(Mips::FFINT_U_D), Ws2).addReg(Ws1);
-
-  // Emit 1.0 * fexp2(Wt)
-  BuildMI(*BB, MI, DL, TII->get(Mips::FEXP2_D), MI->getOperand(0).getReg())
-      .addReg(Ws2)
-      .addReg(MI->getOperand(1).getReg());
-
-  MI->eraseFromParent(); // The pseudo instruction is gone now.
   return BB;
 }

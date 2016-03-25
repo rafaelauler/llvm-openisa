@@ -163,7 +163,7 @@ MCOperand MipsMCInstLower::createSub(MachineBasicBlock *BB1,
 
 void MipsMCInstLower::
 lowerLongBranchLUi(const MachineInstr *MI, MCInst &OutMI) const {
-  OutMI.setOpcode(Mips::LUi);
+  //  OutMI.setOpcode(Mips::LUi);
 
   // Lower register operand.
   OutMI.addOperand(LowerOperand(MI->getOperand(0)));
@@ -202,17 +202,17 @@ bool MipsMCInstLower::lowerLongBranch(const MachineInstr *MI,
     lowerLongBranchADDiu(MI, OutMI, Mips::ADDiu,
                          MCSymbolRefExpr::VK_Mips_ABS_LO);
     return true;
-  case Mips::LONG_BRANCH_DADDiu:
-    unsigned TargetFlags = MI->getOperand(2).getTargetFlags();
-    if (TargetFlags == MipsII::MO_ABS_HI)
-      lowerLongBranchADDiu(MI, OutMI, Mips::DADDiu,
-                           MCSymbolRefExpr::VK_Mips_ABS_HI);
-    else if (TargetFlags == MipsII::MO_ABS_LO)
-      lowerLongBranchADDiu(MI, OutMI, Mips::DADDiu,
-                           MCSymbolRefExpr::VK_Mips_ABS_LO);
-    else
-      report_fatal_error("Unexpected flags for LONG_BRANCH_DADDiu");
-    return true;
+//  case Mips::LONG_BRANCH_DADDiu:
+//    unsigned TargetFlags = MI->getOperand(2).getTargetFlags();
+//    if (TargetFlags == MipsII::MO_ABS_HI)
+//      lowerLongBranchADDiu(MI, OutMI, Mips::DADDiu,
+//                           MCSymbolRefExpr::VK_Mips_ABS_HI);
+//    else if (TargetFlags == MipsII::MO_ABS_LO)
+//      lowerLongBranchADDiu(MI, OutMI, Mips::DADDiu,
+//                           MCSymbolRefExpr::VK_Mips_ABS_LO);
+//    else
+//      report_fatal_error("Unexpected flags for LONG_BRANCH_DADDiu");
+//    return true;
   }
 }
 

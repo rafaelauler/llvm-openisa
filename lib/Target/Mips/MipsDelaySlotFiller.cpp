@@ -500,43 +500,14 @@ getUnderlyingObjects(const MachineInstr &MI,
 // Replace Branch with the compact branch instruction.
 Iter Filler::replaceWithCompactBranch(MachineBasicBlock &MBB,
                                       Iter Branch, DebugLoc DL) {
-  const MipsInstrInfo *TII= static_cast<const MipsInstrInfo *>(
-    TM.getSubtargetImpl()->getInstrInfo());
-
-  unsigned NewOpcode =
-    (((unsigned) Branch->getOpcode()) == Mips::BEQ) ? Mips::BEQZC_MM
-                                                    : Mips::BNEZC_MM;
-
-  const MCInstrDesc &NewDesc = TII->get(NewOpcode);
-  MachineInstrBuilder MIB = BuildMI(MBB, Branch, DL, NewDesc);
-
-  MIB.addReg(Branch->getOperand(0).getReg());
-  MIB.addMBB(Branch->getOperand(2).getMBB());
-
-  Iter tmpIter = Branch;
-  Branch = std::prev(Branch);
-  MBB.erase(tmpIter);
-
+  llvm_unreachable("Unimplemented.\n");
   return Branch;
 }
 
 // For given opcode returns opcode of corresponding instruction with short
 // delay slot.
 static int getEquivalentCallShort(int Opcode) {
-  switch (Opcode) {
-  case Mips::BGEZAL:
-    return Mips::BGEZALS_MM;
-  case Mips::BLTZAL:
-    return Mips::BLTZALS_MM;
-  case Mips::JAL:
-    return Mips::JALS_MM;
-  case Mips::JALR:
-    return Mips::JALRS_MM;
-  case Mips::JALR16_MM:
-    return Mips::JALRS16_MM;
-  default:
-    llvm_unreachable("Unexpected call instruction for microMIPS.");
-  }
+  llvm_unreachable("Unexpected call instruction for microMIPS.");
 }
 
 /// runOnMachineBasicBlock - Fill in delay slots for the given basic block.

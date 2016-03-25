@@ -65,17 +65,6 @@ bool MipsAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
       .Initialize(OutContext, TM);
 
   MipsFI = MF.getInfo<MipsFunctionInfo>();
-  if (Subtarget->inMips16Mode())
-    for (std::map<
-             const char *,
-             const llvm::Mips16HardFloatInfo::FuncSignature *>::const_iterator
-             it = MipsFI->StubsNeeded.begin();
-         it != MipsFI->StubsNeeded.end(); ++it) {
-      const char *Symbol = it->first;
-      const llvm::Mips16HardFloatInfo::FuncSignature *Signature = it->second;
-      if (StubsNeeded.find(Symbol) == StubsNeeded.end())
-        StubsNeeded[Symbol] = Signature;
-    }
   MCP = MF.getConstantPool();
 
   // In NaCl, all indirect jump targets must be aligned to bundle size.
@@ -100,18 +89,11 @@ void MipsAsmPrinter::emitPseudoIndirectBranch(MCStreamer &OutStreamer,
   bool HasLinkReg = false;
   MCInst TmpInst0;
 
-  if (Subtarget->hasMips64r6()) {
-    // MIPS64r6 should use (JALR64 ZERO_64, $rs)
-    TmpInst0.setOpcode(Mips::JALR64);
-    HasLinkReg = true;
-  } else if (Subtarget->hasMips32r6()) {
+  if (Subtarget->hasMips32r6()) {
     // MIPS32r6 should use (JALR ZERO, $rs)
     TmpInst0.setOpcode(Mips::JALR);
     HasLinkReg = true;
-  } else if (Subtarget->inMicroMipsMode())
-    // microMIPS should use (JR_MM $rs)
-    TmpInst0.setOpcode(Mips::JR_MM);
-  else {
+  } else {
     // Everything else should use (JR $rs)
     TmpInst0.setOpcode(Mips::JR);
   }
@@ -119,7 +101,7 @@ void MipsAsmPrinter::emitPseudoIndirectBranch(MCStreamer &OutStreamer,
   MCOperand MCOp;
 
   if (HasLinkReg) {
-    unsigned ZeroReg = Subtarget->isGP64bit() ? Mips::ZERO_64 : Mips::ZERO;
+    unsigned ZeroReg = Mips::ZERO;
     TmpInst0.addOperand(MCOperand::CreateReg(ZeroReg));
   }
 
@@ -141,39 +123,6 @@ void MipsAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     return;
   }
 
-  // If we just ended a constant pool, mark it as such.
-  if (InConstantPool && MI->getOpcode() != Mips::CONSTPOOL_ENTRY) {
-    OutStreamer.EmitDataRegion(MCDR_DataRegionEnd);
-    InConstantPool = false;
-  }
-  if (MI->getOpcode() == Mips::CONSTPOOL_ENTRY) {
-    // CONSTPOOL_ENTRY - This instruction represents a floating
-    //constant pool in the function.  The first operand is the ID#
-    // for this instruction, the second is the index into the
-    // MachineConstantPool that this is, the third is the size in
-    // bytes of this constant pool entry.
-    // The required alignment is specified on the basic block holding this MI.
-    //
-    unsigned LabelId = (unsigned)MI->getOperand(0).getImm();
-    unsigned CPIdx   = (unsigned)MI->getOperand(1).getIndex();
-
-    // If this is the first entry of the pool, mark it.
-    if (!InConstantPool) {
-      OutStreamer.EmitDataRegion(MCDR_DataRegion);
-      InConstantPool = true;
-    }
-
-    OutStreamer.EmitLabel(GetCPISymbol(LabelId));
-
-    const MachineConstantPoolEntry &MCPE = MCP->getConstants()[CPIdx];
-    if (MCPE.isMachineConstantPoolEntry())
-      EmitMachineConstantPoolValue(MCPE.Val.MachineCPVal);
-    else
-      EmitGlobalConstant(MCPE.Val.ConstVal);
-    return;
-  }
-
-
   MachineBasicBlock::const_instr_iterator I = MI;
   MachineBasicBlock::const_instr_iterator E = MI->getParent()->instr_end();
 
@@ -183,9 +132,7 @@ void MipsAsmPrinter::EmitInstruction(const MachineInstr *MI) {
       continue;
 
     if (I->getOpcode() == Mips::PseudoReturn ||
-        I->getOpcode() == Mips::PseudoReturn64 ||
-        I->getOpcode() == Mips::PseudoIndirectBranch ||
-        I->getOpcode() == Mips::PseudoIndirectBranch64) {
+        I->getOpcode() == Mips::PseudoIndirectBranch) {
       emitPseudoIndirectBranch(OutStreamer, &*I);
       continue;
     }
@@ -197,7 +144,7 @@ void MipsAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     // removing another test for this situation downstream in the
     // callchain.
     //
-    if (I->isPseudo() && !Subtarget->inMips16Mode()
+    if (I->isPseudo()
         && !isLongBranchPseudo(I->getOpcode()))
       llvm_unreachable("Pseudo opcode found in EmitInstruction()");
 
@@ -336,15 +283,9 @@ void MipsAsmPrinter::EmitFunctionEntryLabel() {
   if (Subtarget->isTargetNaCl())
     EmitAlignment(std::max(MF->getAlignment(), MIPS_NACL_BUNDLE_ALIGN));
 
-  if (Subtarget->inMicroMipsMode())
-    TS.emitDirectiveSetMicroMips();
-  else
-    TS.emitDirectiveSetNoMicroMips();
+  TS.emitDirectiveSetNoMicroMips();
 
-  if (Subtarget->inMips16Mode())
-    TS.emitDirectiveSetMips16();
-  else
-    TS.emitDirectiveSetNoMips16();
+  TS.emitDirectiveSetNoMips16();
 
   TS.emitDirectiveEnt(*CurrentFnSym);
   OutStreamer.EmitLabel(CurrentFnSym);
@@ -367,11 +308,9 @@ void MipsAsmPrinter::EmitFunctionBodyStart() {
   if (!IsNakedFunction)
     printSavedRegsBitmask();
 
-  if (!Subtarget->inMips16Mode()) {
-    TS.emitDirectiveSetNoReorder();
-    TS.emitDirectiveSetNoMacro();
-    TS.emitDirectiveSetNoAt();
-  }
+  TS.emitDirectiveSetNoReorder();
+  TS.emitDirectiveSetNoMacro();
+  TS.emitDirectiveSetNoAt();
 }
 
 /// EmitFunctionBodyEnd - Targets can override this to emit stuff after
@@ -382,11 +321,9 @@ void MipsAsmPrinter::EmitFunctionBodyEnd() {
   // There are instruction for this macros, but they must
   // always be at the function end, and we can't emit and
   // break with BB logic.
-  if (!Subtarget->inMips16Mode()) {
-    TS.emitDirectiveSetAt();
-    TS.emitDirectiveSetMacro();
-    TS.emitDirectiveSetReorder();
-  }
+  TS.emitDirectiveSetAt();
+  TS.emitDirectiveSetMacro();
+  TS.emitDirectiveSetReorder();
   TS.emitDirectiveEnd(CurrentFnSym->getName());
   // Make sure to terminate any constant pools that were at the end
   // of the function.
@@ -651,10 +588,6 @@ printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &O) {
   switch (MI->getOpcode()) {
   default:
     break;
-  case Mips::SWM32_MM:
-  case Mips::LWM32_MM:
-    opNum = MI->getNumOperands() - 2;
-    break;
   }
 
   printOperand(MI, opNum+1, O);
@@ -822,215 +755,10 @@ void MipsAsmPrinter::EmitMovFPIntPair(unsigned MovOpc, unsigned Reg1,
   EmitInstrRegReg(MovOpc, Reg2, FPReg2);
 }
 
-void MipsAsmPrinter::EmitSwapFPIntParams(Mips16HardFloatInfo::FPParamVariant PV,
-                                         bool LE, bool ToFP) {
-  using namespace Mips16HardFloatInfo;
-  unsigned MovOpc = ToFP ? Mips::MTC1 : Mips::MFC1;
-  switch (PV) {
-  case FSig:
-    EmitInstrRegReg(MovOpc, Mips::A0, Mips::F12);
-    break;
-  case FFSig:
-    EmitMovFPIntPair(MovOpc, Mips::A0, Mips::A1, Mips::F12, Mips::F14, LE);
-    break;
-  case FDSig:
-    EmitInstrRegReg(MovOpc, Mips::A0, Mips::F12);
-    EmitMovFPIntPair(MovOpc, Mips::A2, Mips::A3, Mips::F14, Mips::F15, LE);
-    break;
-  case DSig:
-    EmitMovFPIntPair(MovOpc, Mips::A0, Mips::A1, Mips::F12, Mips::F13, LE);
-    break;
-  case DDSig:
-    EmitMovFPIntPair(MovOpc, Mips::A0, Mips::A1, Mips::F12, Mips::F13, LE);
-    EmitMovFPIntPair(MovOpc, Mips::A2, Mips::A3, Mips::F14, Mips::F15, LE);
-    break;
-  case DFSig:
-    EmitMovFPIntPair(MovOpc, Mips::A0, Mips::A1, Mips::F12, Mips::F13, LE);
-    EmitInstrRegReg(MovOpc, Mips::A2, Mips::F14);
-    break;
-  case NoSig:
-    return;
-  }
-}
-
-void
-MipsAsmPrinter::EmitSwapFPIntRetval(Mips16HardFloatInfo::FPReturnVariant RV,
-                                    bool LE) {
-  using namespace Mips16HardFloatInfo;
-  unsigned MovOpc = Mips::MFC1;
-  switch (RV) {
-  case FRet:
-    EmitInstrRegReg(MovOpc, Mips::V0, Mips::F0);
-    break;
-  case DRet:
-    EmitMovFPIntPair(MovOpc, Mips::V0, Mips::V1, Mips::F0, Mips::F1, LE);
-    break;
-  case CFRet:
-    EmitMovFPIntPair(MovOpc, Mips::V0, Mips::V1, Mips::F0, Mips::F1, LE);
-    break;
-  case CDRet:
-    EmitMovFPIntPair(MovOpc, Mips::V0, Mips::V1, Mips::F0, Mips::F1, LE);
-    EmitMovFPIntPair(MovOpc, Mips::A0, Mips::A1, Mips::F2, Mips::F3, LE);
-    break;
-  case NoFPRet:
-    break;
-  }
-}
-
-void MipsAsmPrinter::EmitFPCallStub(
-    const char *Symbol, const Mips16HardFloatInfo::FuncSignature *Signature) {
-  MCSymbol *MSymbol = OutContext.GetOrCreateSymbol(StringRef(Symbol));
-  using namespace Mips16HardFloatInfo;
-  bool LE = Subtarget->isLittle();
-  //
-  // .global xxxx
-  //
-  OutStreamer.EmitSymbolAttribute(MSymbol, MCSA_Global);
-  const char *RetType;
-  //
-  // make the comment field identifying the return and parameter
-  // types of the floating point stub
-  // # Stub function to call rettype xxxx (params)
-  //
-  switch (Signature->RetSig) {
-  case FRet:
-    RetType = "float";
-    break;
-  case DRet:
-    RetType = "double";
-    break;
-  case CFRet:
-    RetType = "complex";
-    break;
-  case CDRet:
-    RetType = "double complex";
-    break;
-  case NoFPRet:
-    RetType = "";
-    break;
-  }
-  const char *Parms;
-  switch (Signature->ParamSig) {
-  case FSig:
-    Parms = "float";
-    break;
-  case FFSig:
-    Parms = "float, float";
-    break;
-  case FDSig:
-    Parms = "float, double";
-    break;
-  case DSig:
-    Parms = "double";
-    break;
-  case DDSig:
-    Parms = "double, double";
-    break;
-  case DFSig:
-    Parms = "double, float";
-    break;
-  case NoSig:
-    Parms = "";
-    break;
-  }
-  OutStreamer.AddComment("\t# Stub function to call " + Twine(RetType) + " " +
-                         Twine(Symbol) + " (" + Twine(Parms) + ")");
-  //
-  // probably not necessary but we save and restore the current section state
-  //
-  OutStreamer.PushSection();
-  //
-  // .section mips16.call.fpxxxx,"ax",@progbits
-  //
-  const MCSectionELF *M = OutContext.getELFSection(
-      ".mips16.call.fp." + std::string(Symbol), ELF::SHT_PROGBITS,
-      ELF::SHF_ALLOC | ELF::SHF_EXECINSTR, SectionKind::getText());
-  OutStreamer.SwitchSection(M, nullptr);
-  //
-  // .align 2
-  //
-  OutStreamer.EmitValueToAlignment(4);
-  MipsTargetStreamer &TS = getTargetStreamer();
-  //
-  // .set nomips16
-  // .set nomicromips
-  //
-  TS.emitDirectiveSetNoMips16();
-  TS.emitDirectiveSetNoMicroMips();
-  //
-  // .ent __call_stub_fp_xxxx
-  // .type  __call_stub_fp_xxxx,@function
-  //  __call_stub_fp_xxxx:
-  //
-  std::string x = "__call_stub_fp_" + std::string(Symbol);
-  MCSymbol *Stub = OutContext.GetOrCreateSymbol(StringRef(x));
-  TS.emitDirectiveEnt(*Stub);
-  MCSymbol *MType =
-      OutContext.GetOrCreateSymbol("__call_stub_fp_" + Twine(Symbol));
-  OutStreamer.EmitSymbolAttribute(MType, MCSA_ELF_TypeFunction);
-  OutStreamer.EmitLabel(Stub);
-  //
-  // we just handle non pic for now. these function will not be
-  // called otherwise. when the full stub generation is moved here
-  // we need to deal with pic.
-  //
-  if (TM.getRelocationModel() == Reloc::PIC_)
-    llvm_unreachable("should not be here if we are compiling pic");
-  TS.emitDirectiveSetReorder();
-  //
-  // We need to add a MipsMCExpr class to MCTargetDesc to fully implement
-  // stubs without raw text but this current patch is for compiler generated
-  // functions and they all return some value.
-  // The calling sequence for non pic is different in that case and we need
-  // to implement %lo and %hi in order to handle the case of no return value
-  // See the corresponding method in Mips16HardFloat for details.
-  //
-  // mov the return address to S2.
-  // we have no stack space to store it and we are about to make another call.
-  // We need to make sure that the enclosing function knows to save S2
-  // This should have already been handled.
-  //
-  // Mov $18, $31
-
-  EmitInstrRegRegReg(Mips::ADDu, Mips::S2, Mips::RA, Mips::ZERO);
-
-  EmitSwapFPIntParams(Signature->ParamSig, LE, true);
-
-  // Jal xxxx
-  //
-  EmitJal(MSymbol);
-
-  // fix return values
-  EmitSwapFPIntRetval(Signature->RetSig, LE);
-  //
-  // do the return
-  // if (Signature->RetSig == NoFPRet)
-  //  llvm_unreachable("should not be any stubs here with no return value");
-  // else
-  EmitInstrReg(Mips::JR, Mips::S2);
-
-  MCSymbol *Tmp = OutContext.CreateTempSymbol();
-  OutStreamer.EmitLabel(Tmp);
-  const MCSymbolRefExpr *E = MCSymbolRefExpr::Create(Stub, OutContext);
-  const MCSymbolRefExpr *T = MCSymbolRefExpr::Create(Tmp, OutContext);
-  const MCExpr *T_min_E = MCBinaryExpr::CreateSub(T, E, OutContext);
-  OutStreamer.EmitELFSize(Stub, T_min_E);
-  TS.emitDirectiveEnd(x);
-  OutStreamer.PopSection();
-}
 
 void MipsAsmPrinter::EmitEndOfAsmFile(Module &M) {
   // Emit needed stubs
   //
-  for (std::map<
-           const char *,
-           const llvm::Mips16HardFloatInfo::FuncSignature *>::const_iterator
-           it = StubsNeeded.begin();
-       it != StubsNeeded.end(); ++it) {
-    const char *Symbol = it->first;
-    const llvm::Mips16HardFloatInfo::FuncSignature *Signature = it->second;
-    EmitFPCallStub(Symbol, Signature);
-  }
   // return to the text section
   OutStreamer.SwitchSection(OutContext.getObjectFileInfo()->getTextSection());
 }
@@ -1063,9 +791,10 @@ void MipsAsmPrinter::NaClAlignIndirectJumpTargets(MachineFunction &MF) {
 }
 
 bool MipsAsmPrinter::isLongBranchPseudo(int Opcode) const {
-  return (Opcode == Mips::LONG_BRANCH_LUi
-          || Opcode == Mips::LONG_BRANCH_ADDiu
-          || Opcode == Mips::LONG_BRANCH_DADDiu);
+  return false;
+  //  return (Opcode == Mips::LONG_BRANCH_LUi
+  //          || Opcode == Mips::LONG_BRANCH_ADDiu
+  //          || Opcode == Mips::LONG_BRANCH_DADDiu);
 }
 
 // Force static initialization.

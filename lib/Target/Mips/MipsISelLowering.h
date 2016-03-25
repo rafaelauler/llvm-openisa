@@ -36,13 +36,8 @@ namespace llvm {
       // Tail call
       TailCall,
 
-      // Get the Higher 16 bits from a 32-bit immediate
-      // No relation with Mips Hi register
-      Hi,
-
-      // Get the Lower 16 bits from a 32-bit immediate
-      // No relation with Mips Lo register
-      Lo,
+      // Get a 32-bit immediate
+      GetImm,
 
       // Handle gp_rel (small data/bss sections) relocation.
       GPRel,
@@ -282,7 +277,7 @@ namespace llvm {
                                  MachinePointerInfo::getGOT(), false, false,
                                  false, 0);
       unsigned LoFlag = IsN32OrN64 ? MipsII::MO_GOT_OFST : MipsII::MO_ABS_LO;
-      SDValue Lo = DAG.getNode(MipsISD::Lo, DL, Ty,
+      SDValue Lo = DAG.getNode(MipsISD::GetImm, DL, Ty,
                                getTargetNode(N, Ty, DAG, LoFlag));
       return DAG.getNode(ISD::ADD, DL, Ty, Load, Lo);
     }
@@ -311,10 +306,10 @@ namespace llvm {
                                   SDValue Chain,
                                   const MachinePointerInfo &PtrInfo) const {
       SDLoc DL(N);
-      SDValue Hi = DAG.getNode(MipsISD::Hi, DL, Ty,
+      SDValue GetImm = DAG.getNode(MipsISD::GetImm, DL, Ty,
                                getTargetNode(N, Ty, DAG, HiFlag));
-      Hi = DAG.getNode(ISD::ADD, DL, Ty, Hi, getGlobalReg(DAG, Ty));
-      SDValue Wrapper = DAG.getNode(MipsISD::Wrapper, DL, Ty, Hi,
+      GetImm = DAG.getNode(ISD::ADD, DL, Ty, GetImm, getGlobalReg(DAG, Ty));
+      SDValue Wrapper = DAG.getNode(MipsISD::Wrapper, DL, Ty, GetImm,
                                     getTargetNode(N, Ty, DAG, LoFlag));
       return DAG.getLoad(Ty, DL, Chain, Wrapper, PtrInfo, false, false, false,
                          0);
@@ -328,10 +323,9 @@ namespace llvm {
     SDValue getAddrNonPIC(NodeTy *N, EVT Ty, SelectionDAG &DAG) const {
       SDLoc DL(N);
       //      SDValue Hi = getTargetNode(N, Ty, DAG, MipsII::MO_ABS_HI);
-      SDValue ZeroReg = DAG.getRegister(Mips::ZERO, Ty);
+      //      SDValue ZeroReg = DAG.getRegister(Mips::ZERO, Ty);
       SDValue Lo = getTargetNode(N, Ty, DAG, MipsII::MO_ABS_LO);
-      return DAG.getNode(ISD::ADD, DL, Ty, DAG.getNode(MipsISD::Hi, DL, Ty, ZeroReg),
-			 DAG.getNode(MipsISD::Lo, DL, Ty, Lo));
+      return DAG.getNode(MipsISD::GetImm, DL, Ty, Lo);
       //return DAG.getNode(ISD::ADD, DL, Ty,
       //                   DAG.getNode(MipsISD::Hi, DL, Ty, Hi),
       //                   DAG.getNode(MipsISD::Lo, DL, Ty, Lo));
@@ -360,7 +354,7 @@ namespace llvm {
                 std::deque< std::pair<unsigned, SDValue> > &RegsToPass,
                 bool IsPICCall, bool GlobalOrExternal, bool InternalLinkage,
                 bool IsCallReloc, CallLoweringInfo &CLI, SDValue Callee,
-                SDValue Chain) const;
+                SDValue Chain, unsigned nargs) const;
 
   protected:
     SDValue lowerLOAD(SDValue Op, SelectionDAG &DAG) const;

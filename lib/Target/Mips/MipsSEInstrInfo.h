@@ -81,6 +81,8 @@ private:
   unsigned getAnalyzableBrOpc(unsigned Opc) const override;
 
   void expandRetRA(MachineBasicBlock &MBB, MachineBasicBlock::iterator I) const;
+  void expandLoadImm(MachineBasicBlock &MBB,
+                     MachineBasicBlock::iterator I) const;
 
   std::pair<bool, bool> compareOpndSize(unsigned Opc,
                                         const MachineFunction &MF) const;

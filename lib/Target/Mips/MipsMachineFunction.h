@@ -14,7 +14,6 @@
 #ifndef LLVM_LIB_TARGET_MIPS_MIPSMACHINEFUNCTION_H
 #define LLVM_LIB_TARGET_MIPS_MIPSMACHINEFUNCTION_H
 
-#include "Mips16HardFloatInfo.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -98,9 +97,6 @@ public:
   bool hasSaveS2() const { return SaveS2; }
 
   int getMoveF64ViaSpillFI(const TargetRegisterClass *RC);
-
-  std::map<const char *, const llvm::Mips16HardFloatInfo::FuncSignature *>
-  StubsNeeded;
 
 private:
   virtual void anchor();

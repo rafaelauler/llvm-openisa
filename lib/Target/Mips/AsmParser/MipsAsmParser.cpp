@@ -1141,19 +1141,6 @@ static const MCInstrDesc &getInstDesc(unsigned Opcode) {
   return MipsInsts[Opcode];
 }
 
-static bool hasShortDelaySlot(unsigned Opcode) {
-  switch (Opcode) {
-    case Mips::JALS_MM:
-    case Mips::JALRS_MM:
-    case Mips::JALRS16_MM:
-    case Mips::BGEZALS_MM:
-    case Mips::BLTZALS_MM:
-      return true;
-    default:
-      return false;
-  }
-}
-
 bool MipsAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
                                        SmallVectorImpl<MCInst> &Instructions) {
   const MCInstrDesc &MCID = getInstDesc(Inst.getOpcode());
@@ -1169,8 +1156,6 @@ bool MipsAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
       break;
     case Mips::BEQ:
     case Mips::BNE:
-    case Mips::BEQ_MM:
-    case Mips::BNE_MM:
       assert(MCID.getNumOperands() == 3 && "unexpected number of operands");
       Offset = Inst.getOperand(2);
       if (!Offset.isImm())
@@ -1185,18 +1170,8 @@ bool MipsAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     case Mips::BGTZ:
     case Mips::BLEZ:
     case Mips::BLTZ:
-    case Mips::BGEZAL:
-    case Mips::BLTZAL:
     case Mips::BC1F:
     case Mips::BC1T:
-    case Mips::BGEZ_MM:
-    case Mips::BGTZ_MM:
-    case Mips::BLEZ_MM:
-    case Mips::BLTZ_MM:
-    case Mips::BGEZAL_MM:
-    case Mips::BLTZAL_MM:
-    case Mips::BC1F_MM:
-    case Mips::BC1T_MM:
       assert(MCID.getNumOperands() == 2 && "unexpected number of operands");
       Offset = Inst.getOperand(1);
       if (!Offset.isImm())
@@ -1207,26 +1182,7 @@ bool MipsAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
                             1LL << (inMicroMipsMode() ? 1 : 2)))
         return Error(IDLoc, "branch to misaligned address");
       break;
-    case Mips::BEQZ16_MM:
-    case Mips::BNEZ16_MM:
-      assert(MCID.getNumOperands() == 2 && "unexpected number of operands");
-      Offset = Inst.getOperand(1);
-      if (!Offset.isImm())
-        break; // We'll deal with this situation later on when applying fixups.
-      if (!isIntN(8, Offset.getImm()))
-        return Error(IDLoc, "branch target out of range");
-      if (OffsetToAlignment(Offset.getImm(), 2LL))
-        return Error(IDLoc, "branch to misaligned address");
-      break;
     }
-  }
-
-  // SSNOP is deprecated on MIPS32r6/MIPS64r6
-  // We still accept it but it is a normal nop.
-  if (hasMips32r6() && Inst.getOpcode() == Mips::SSNOP) {
-    std::string ISA = hasMips64r6() ? "MIPS64r6" : "MIPS32r6";
-    Warning(IDLoc, "ssnop is deprecated for " + ISA + " and is equivalent to a "
-                                                      "nop instruction");
   }
 
   if (MCID.hasDelaySlot() && AssemblerOptions.back()->isReorder()) {
@@ -1234,16 +1190,10 @@ bool MipsAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     // emit a NOP after it.
     Instructions.push_back(Inst);
     MCInst NopInst;
-    if (hasShortDelaySlot(Inst.getOpcode())) {
-      NopInst.setOpcode(Mips::MOVE16_MM);
-      NopInst.addOperand(MCOperand::CreateReg(Mips::ZERO));
-      NopInst.addOperand(MCOperand::CreateReg(Mips::ZERO));
-    } else {
       NopInst.setOpcode(Mips::SLL);
       NopInst.addOperand(MCOperand::CreateReg(Mips::ZERO));
       NopInst.addOperand(MCOperand::CreateReg(Mips::ZERO));
       NopInst.addOperand(MCOperand::CreateImm(0));
-    }
     Instructions.push_back(NopInst);
     return false;
   }
@@ -1251,116 +1201,9 @@ bool MipsAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
   // TODO: Handle this with the AsmOperandClass.PredicateMethod.
   if (inMicroMipsMode()) {
     MCOperand Opnd;
-    int Imm;
 
     switch (Inst.getOpcode()) {
       default:
-        break;
-      case Mips::ADDIUS5_MM:
-        Opnd = Inst.getOperand(2);
-        if (!Opnd.isImm())
-          return Error(IDLoc, "expected immediate operand kind");
-        Imm = Opnd.getImm();
-        if (Imm < -8 || Imm > 7)
-          return Error(IDLoc, "immediate operand value out of range");
-        break;
-      case Mips::ADDIUSP_MM:
-        Opnd = Inst.getOperand(0);
-        if (!Opnd.isImm())
-          return Error(IDLoc, "expected immediate operand kind");
-        Imm = Opnd.getImm();
-        if (Imm < -1032 || Imm > 1028 || (Imm < 8 && Imm > -12) ||
-            Imm % 4 != 0)
-          return Error(IDLoc, "immediate operand value out of range");
-        break;
-      case Mips::SLL16_MM:
-      case Mips::SRL16_MM:
-        Opnd = Inst.getOperand(2);
-        if (!Opnd.isImm())
-          return Error(IDLoc, "expected immediate operand kind");
-        Imm = Opnd.getImm();
-        if (Imm < 1 || Imm > 8)
-          return Error(IDLoc, "immediate operand value out of range");
-        break;
-      case Mips::LI16_MM:
-        Opnd = Inst.getOperand(1);
-        if (!Opnd.isImm())
-          return Error(IDLoc, "expected immediate operand kind");
-        Imm = Opnd.getImm();
-        if (Imm < -1 || Imm > 126)
-          return Error(IDLoc, "immediate operand value out of range");
-        break;
-      case Mips::ADDIUR2_MM:
-        Opnd = Inst.getOperand(2);
-        if (!Opnd.isImm())
-          return Error(IDLoc, "expected immediate operand kind");
-        Imm = Opnd.getImm();
-        if (!(Imm == 1 || Imm == -1 ||
-              ((Imm % 4 == 0) && Imm < 28 && Imm > 0)))
-          return Error(IDLoc, "immediate operand value out of range");
-        break;
-      case Mips::ADDIUR1SP_MM:
-        Opnd = Inst.getOperand(1);
-        if (!Opnd.isImm())
-          return Error(IDLoc, "expected immediate operand kind");
-        Imm = Opnd.getImm();
-        if (OffsetToAlignment(Imm, 4LL))
-          return Error(IDLoc, "misaligned immediate operand value");
-        if (Imm < 0 || Imm > 255)
-          return Error(IDLoc, "immediate operand value out of range");
-        break;
-      case Mips::ANDI16_MM:
-        Opnd = Inst.getOperand(2);
-        if (!Opnd.isImm())
-          return Error(IDLoc, "expected immediate operand kind");
-        Imm = Opnd.getImm();
-        if (!(Imm == 128 || (Imm >= 1 && Imm <= 4) || Imm == 7 || Imm == 8 ||
-              Imm == 15 || Imm == 16 || Imm == 31 || Imm == 32 || Imm == 63 ||
-              Imm == 64 || Imm == 255 || Imm == 32768 || Imm == 65535))
-          return Error(IDLoc, "immediate operand value out of range");
-        break;
-      case Mips::LBU16_MM:
-        Opnd = Inst.getOperand(2);
-        if (!Opnd.isImm())
-          return Error(IDLoc, "expected immediate operand kind");
-        Imm = Opnd.getImm();
-        if (Imm < -1 || Imm > 14)
-          return Error(IDLoc, "immediate operand value out of range");
-        break;
-      case Mips::SB16_MM:
-        Opnd = Inst.getOperand(2);
-        if (!Opnd.isImm())
-          return Error(IDLoc, "expected immediate operand kind");
-        Imm = Opnd.getImm();
-        if (Imm < 0 || Imm > 15)
-          return Error(IDLoc, "immediate operand value out of range");
-        break;
-      case Mips::LHU16_MM:
-      case Mips::SH16_MM:
-        Opnd = Inst.getOperand(2);
-        if (!Opnd.isImm())
-          return Error(IDLoc, "expected immediate operand kind");
-        Imm = Opnd.getImm();
-        if (Imm < 0 || Imm > 30 || (Imm % 2 != 0))
-          return Error(IDLoc, "immediate operand value out of range");
-        break;
-      case Mips::LW16_MM:
-      case Mips::SW16_MM:
-        Opnd = Inst.getOperand(2);
-        if (!Opnd.isImm())
-          return Error(IDLoc, "expected immediate operand kind");
-        Imm = Opnd.getImm();
-        if (Imm < 0 || Imm > 60 || (Imm % 4 != 0))
-          return Error(IDLoc, "immediate operand value out of range");
-        break;
-      case Mips::CACHE:
-      case Mips::PREF:
-        Opnd = Inst.getOperand(2);
-        if (!Opnd.isImm())
-          return Error(IDLoc, "expected immediate operand kind");
-        Imm = Opnd.getImm();
-        if (!isUInt<5>(Imm))
-          return Error(IDLoc, "immediate operand value out of range");
         break;
     }
   }
@@ -1383,12 +1226,6 @@ bool MipsAsmParser::expandInstruction(MCInst &Inst, SMLoc IDLoc,
   default: llvm_unreachable("unimplemented expansion");
   case Mips::LoadImm32Reg:
     return expandLoadImm(Inst, IDLoc, Instructions);
-  case Mips::LoadImm64Reg:
-    if (!isGP64bit()) {
-      Error(IDLoc, "instruction requires a 64-bit architecture");
-      return true;
-    }
-    return expandLoadImm(Inst, IDLoc, Instructions);
   case Mips::LoadAddr32Imm:
     return expandLoadAddressImm(Inst, IDLoc, Instructions);
   case Mips::LoadAddr32Reg:
@@ -1402,7 +1239,7 @@ void createShiftOr(MCOperand Operand, unsigned RegNo, SMLoc IDLoc,
                    SmallVectorImpl<MCInst> &Instructions) {
   MCInst tmpInst;
   if (PerformShift) {
-    tmpInst.setOpcode(Mips::DSLL);
+    tmpInst.setOpcode(Mips::SLL);
     tmpInst.addOperand(MCOperand::CreateReg(RegNo));
     tmpInst.addOperand(MCOperand::CreateReg(RegNo));
     tmpInst.addOperand(MCOperand::CreateImm(16));
@@ -1460,7 +1297,7 @@ bool MipsAsmParser::expandLoadImm(MCInst &Inst, SMLoc IDLoc,
     // a sequence of:
     // li d,j => lui d,hi16(j)
     //           ori d,d,lo16(j)
-    tmpInst.setOpcode(Mips::LUi);
+    //    tmpInst.setOpcode(Mips::LUi);
     tmpInst.addOperand(MCOperand::CreateReg(RegOp.getReg()));
     tmpInst.addOperand(MCOperand::CreateImm((ImmValue & 0xffff0000) >> 16));
     Instructions.push_back(tmpInst);
@@ -1485,7 +1322,7 @@ bool MipsAsmParser::expandLoadImm(MCInst &Inst, SMLoc IDLoc,
     //           ori d,d,hi16(lo32(j))
     //           dsll d,d,16
     //           ori d,d,lo16(lo32(j))
-    tmpInst.setOpcode(Mips::LUi);
+    //    tmpInst.setOpcode(Mips::LUi);
     tmpInst.addOperand(MCOperand::CreateReg(RegOp.getReg()));
     tmpInst.addOperand(
         MCOperand::CreateImm((ImmValue & (0xffffLL << 32)) >> 32));
@@ -1512,7 +1349,7 @@ bool MipsAsmParser::expandLoadImm(MCInst &Inst, SMLoc IDLoc,
     //           ori d,d,hi16(lo32(j))
     //           dsll d,d,16
     //           ori d,d,lo16(lo32(j))
-    tmpInst.setOpcode(Mips::LUi);
+    //    tmpInst.setOpcode(Mips::LUi);
     tmpInst.addOperand(MCOperand::CreateReg(RegOp.getReg()));
     tmpInst.addOperand(
         MCOperand::CreateImm((ImmValue & (0xffffLL << 48)) >> 48));
@@ -1553,7 +1390,7 @@ MipsAsmParser::expandLoadAddressReg(MCInst &Inst, SMLoc IDLoc,
     // la d,j(s) => lui d,hi16(j)
     //              ori d,d,lo16(j)
     //              addu d,d,s
-    tmpInst.setOpcode(Mips::LUi);
+    //    tmpInst.setOpcode(Mips::LUi);
     tmpInst.addOperand(MCOperand::CreateReg(DstRegOp.getReg()));
     tmpInst.addOperand(MCOperand::CreateImm((ImmValue & 0xffff0000) >> 16));
     Instructions.push_back(tmpInst);
@@ -1599,7 +1436,7 @@ MipsAsmParser::expandLoadAddressImm(MCInst &Inst, SMLoc IDLoc,
     // For any other value of j that is representable as a 32-bit integer.
     // la d,j => lui d,hi16(j)
     //           ori d,d,lo16(j)
-    tmpInst.setOpcode(Mips::LUi);
+    //    tmpInst.setOpcode(Mips::LUi);
     tmpInst.addOperand(MCOperand::CreateReg(RegOp.getReg()));
     tmpInst.addOperand(MCOperand::CreateImm((ImmValue & 0xffff0000) >> 16));
     Instructions.push_back(tmpInst);
@@ -1653,7 +1490,7 @@ MipsAsmParser::expandLoadAddressSym(MCInst &Inst, SMLoc IDLoc,
         MCSymbolRefExpr::Create(Symbol->getSymbol().getName(),
                                 MCSymbolRefExpr::VK_Mips_HIGHER, getContext());
 
-    tmpInst.setOpcode(Mips::LUi);
+    //    tmpInst.setOpcode(Mips::LUi);
     tmpInst.addOperand(MCOperand::CreateReg(RegNo));
     tmpInst.addOperand(MCOperand::CreateExpr(HighestExpr));
     Instructions.push_back(tmpInst);
@@ -1668,7 +1505,7 @@ MipsAsmParser::expandLoadAddressSym(MCInst &Inst, SMLoc IDLoc,
     // Otherwise, expand to:
     // la d,sym => lui  d,hi16(sym)
     //             ori  d,d,lo16(sym)
-    tmpInst.setOpcode(Mips::LUi);
+    //    tmpInst.setOpcode(Mips::LUi);
     tmpInst.addOperand(MCOperand::CreateReg(RegNo));
     tmpInst.addOperand(MCOperand::CreateExpr(HiExpr));
     Instructions.push_back(tmpInst);
@@ -1745,7 +1582,7 @@ void MipsAsmParser::expandMemInst(MCInst &Inst, SMLoc IDLoc,
         (isGP64bit()) ? Mips::GPR64RegClassID : Mips::GPR32RegClassID, AT);
   }
 
-  TempInst.setOpcode(Mips::LUi);
+  //  TempInst.setOpcode(Mips::LUi);
   TempInst.addOperand(MCOperand::CreateReg(TmpRegNum));
   if (isImmOpnd)
     TempInst.addOperand(MCOperand::CreateImm(HiOffset));
@@ -1795,13 +1632,6 @@ void MipsAsmParser::expandMemInst(MCInst &Inst, SMLoc IDLoc,
 }
 
 unsigned MipsAsmParser::checkTargetMatchPredicate(MCInst &Inst) {
-  // As described by the Mips32r2 spec, the registers Rd and Rs for
-  // jalr.hb must be different.
-  unsigned Opcode = Inst.getOpcode();
-
-  if (Opcode == Mips::JALR_HB &&
-      (Inst.getOperand(0).getReg() == Inst.getOperand(1).getReg()))
-    return Match_RequiresDifferentSrcAndDst;
 
   return Match_Success;
 }

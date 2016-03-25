@@ -13,15 +13,9 @@
 
 #include "MipsTargetMachine.h"
 #include "Mips.h"
-#include "Mips16FrameLowering.h"
-#include "Mips16HardFloat.h"
-#include "Mips16ISelDAGToDAG.h"
-#include "Mips16ISelLowering.h"
-#include "Mips16InstrInfo.h"
 #include "MipsFrameLowering.h"
 #include "MipsInstrInfo.h"
 #include "MipsModuleISelDAGToDAG.h"
-#include "MipsOs16.h"
 #include "MipsSEFrameLowering.h"
 #include "MipsSEISelDAGToDAG.h"
 #include "MipsSEISelLowering.h"
@@ -184,16 +178,11 @@ TargetPassConfig *MipsTargetMachine::createPassConfig(PassManagerBase &PM) {
 void MipsPassConfig::addIRPasses() {
   TargetPassConfig::addIRPasses();
   addPass(createAtomicExpandPass(&getMipsTargetMachine()));
-  if (getMipsSubtarget().os16())
-    addPass(createMipsOs16(getMipsTargetMachine()));
-  if (getMipsSubtarget().inMips16HardFloat())
-    addPass(createMips16HardFloat(getMipsTargetMachine()));
 }
 // Install an instruction selector pass using
 // the ISelDag to gen Mips code.
 bool MipsPassConfig::addInstSelector() {
   addPass(createMipsModuleISelDag(getMipsTargetMachine()));
-  addPass(createMips16ISelDag(getMipsTargetMachine()));
   addPass(createMipsSEISelDag(getMipsTargetMachine()));
   return false;
 }
@@ -228,5 +217,5 @@ void MipsPassConfig::addPreEmitPass() {
   MipsTargetMachine &TM = getMipsTargetMachine();
   addPass(createMipsDelaySlotFillerPass(TM));
   addPass(createMipsLongBranchPass(TM));
-  addPass(createMipsConstantIslandPass(TM));
+  addPass(createMipsExpandPseudoPass(TM));
 }

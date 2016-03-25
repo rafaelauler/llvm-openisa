@@ -277,7 +277,7 @@ void MipsLongBranch::expandToLongBranch(MBBInfo &I) {
     // pseudo-instruction wrapping BGEZAL).
 
     const MipsSubtarget &Subtarget = TM.getSubtarget<MipsSubtarget>();
-    unsigned BalOp = Subtarget.hasMips32r6() ? Mips::BAL : Mips::BAL_BR;
+    unsigned BalOp = Mips::BAL_BR;
 
     if (!ABI.IsN64()) {
       // $longbr:
@@ -350,68 +350,6 @@ void MipsLongBranch::expandToLongBranch(MBBInfo &I) {
         // Bundle-align the target of indirect branch JR.
         TgtMBB->setAlignment(MIPS_NACL_BUNDLE_ALIGN);
       }
-    } else {
-      // $longbr:
-      //  daddiu $sp, $sp, -16
-      //  sd $ra, 0($sp)
-      //  daddiu $at, $zero, %hi($tgt - $baltgt)
-      //  dsll $at, $at, 16
-      //  bal $baltgt
-      //  daddiu $at, $at, %lo($tgt - $baltgt)
-      // $baltgt:
-      //  daddu $at, $ra, $at
-      //  ld $ra, 0($sp)
-      //  jr64 $at
-      //  daddiu $sp, $sp, 16
-      // $fallthrough:
-      //
-
-      // We assume the branch is within-function, and that offset is within
-      // +/- 2GB.  High 32 bits will therefore always be zero.
-
-      // Note that this will work even if the offset is negative, because
-      // of the +1 modification that's added in that case.  For example, if the
-      // offset is -1MB (0xFFFFFFFFFFF00000), the computation for %higher is
-      //
-      // 0xFFFFFFFFFFF00000 + 0x80008000 = 0x000000007FF08000
-      //
-      // and the bits [47:32] are zero.  For %highest
-      //
-      // 0xFFFFFFFFFFF00000 + 0x800080008000 = 0x000080007FF08000
-      //
-      // and the bits [63:48] are zero.
-
-      Pos = LongBrMBB->begin();
-
-      BuildMI(*LongBrMBB, Pos, DL, TII->get(Mips::DADDiu), Mips::SP_64)
-        .addReg(Mips::SP_64).addImm(-16);
-      BuildMI(*LongBrMBB, Pos, DL, TII->get(Mips::SD)).addReg(Mips::RA_64)
-        .addReg(Mips::SP_64).addImm(0);
-      BuildMI(*LongBrMBB, Pos, DL, TII->get(Mips::LONG_BRANCH_DADDiu),
-              Mips::AT_64).addReg(Mips::ZERO_64)
-                          .addMBB(TgtMBB, MipsII::MO_ABS_HI).addMBB(BalTgtMBB);
-      BuildMI(*LongBrMBB, Pos, DL, TII->get(Mips::DSLL), Mips::AT_64)
-        .addReg(Mips::AT_64).addImm(16);
-
-      MIBundleBuilder(*LongBrMBB, Pos)
-          .append(BuildMI(*MF, DL, TII->get(BalOp)).addMBB(BalTgtMBB))
-          .append(
-              BuildMI(*MF, DL, TII->get(Mips::LONG_BRANCH_DADDiu), Mips::AT_64)
-                  .addReg(Mips::AT_64)
-                  .addMBB(TgtMBB, MipsII::MO_ABS_LO)
-                  .addMBB(BalTgtMBB));
-
-      Pos = BalTgtMBB->begin();
-
-      BuildMI(*BalTgtMBB, Pos, DL, TII->get(Mips::DADDu), Mips::AT_64)
-        .addReg(Mips::RA_64).addReg(Mips::AT_64);
-      BuildMI(*BalTgtMBB, Pos, DL, TII->get(Mips::LD), Mips::RA_64)
-        .addReg(Mips::SP_64).addImm(0);
-
-      MIBundleBuilder(*BalTgtMBB, Pos)
-        .append(BuildMI(*MF, DL, TII->get(Mips::JR64)).addReg(Mips::AT_64))
-        .append(BuildMI(*MF, DL, TII->get(Mips::DADDiu), Mips::SP_64)
-                .addReg(Mips::SP_64).addImm(16));
     }
 
     assert(LongBrMBB->size() + BalTgtMBB->size() == LongBranchSeqSize);
@@ -444,8 +382,8 @@ static void emitGPDisp(MachineFunction &F, const MipsInstrInfo *TII) {
   MachineBasicBlock &MBB = F.front();
   MachineBasicBlock::iterator I = MBB.begin();
   DebugLoc DL = MBB.findDebugLoc(MBB.begin());
-  BuildMI(MBB, I, DL, TII->get(Mips::LUi), Mips::V0)
-    .addExternalSymbol("_gp_disp", MipsII::MO_ABS_HI);
+  //  BuildMI(MBB, I, DL, TII->get(Mips::LUi), Mips::V0)
+  //    .addExternalSymbol("_gp_disp", MipsII::MO_ABS_HI);
   BuildMI(MBB, I, DL, TII->get(Mips::ADDiu), Mips::V0)
     .addReg(Mips::V0).addExternalSymbol("_gp_disp", MipsII::MO_ABS_LO);
   MBB.removeLiveIn(Mips::V0);

@@ -48,71 +48,6 @@ MCCodeEmitter *createMipsMCCodeEmitterEL(const MCInstrInfo &MCII,
 }
 } // End of namespace llvm.
 
-// If the D<shift> instruction has a shift amount that is greater
-// than 31 (checked in calling routine), lower it to a D<shift>32 instruction
-static void LowerLargeShift(MCInst& Inst) {
-
-  assert(Inst.getNumOperands() == 3 && "Invalid no. of operands for shift!");
-  assert(Inst.getOperand(2).isImm());
-
-  int64_t Shift = Inst.getOperand(2).getImm();
-  if (Shift <= 31)
-    return; // Do nothing
-  Shift -= 32;
-
-  // saminus32
-  Inst.getOperand(2).setImm(Shift);
-
-  switch (Inst.getOpcode()) {
-  default:
-    // Calling function is not synchronized
-    llvm_unreachable("Unexpected shift instruction");
-  case Mips::DSLL:
-    Inst.setOpcode(Mips::DSLL32);
-    return;
-  case Mips::DSRL:
-    Inst.setOpcode(Mips::DSRL32);
-    return;
-  case Mips::DSRA:
-    Inst.setOpcode(Mips::DSRA32);
-    return;
-  case Mips::DROTR:
-    Inst.setOpcode(Mips::DROTR32);
-    return;
-  }
-}
-
-// Pick a DEXT or DINS instruction variant based on the pos and size operands
-static void LowerDextDins(MCInst& InstIn) {
-  int Opcode = InstIn.getOpcode();
-
-  if (Opcode == Mips::DEXT)
-    assert(InstIn.getNumOperands() == 4 &&
-           "Invalid no. of machine operands for DEXT!");
-  else // Only DEXT and DINS are possible
-    assert(InstIn.getNumOperands() == 5 &&
-           "Invalid no. of machine operands for DINS!");
-
-  assert(InstIn.getOperand(2).isImm());
-  int64_t pos = InstIn.getOperand(2).getImm();
-  assert(InstIn.getOperand(3).isImm());
-  int64_t size = InstIn.getOperand(3).getImm();
-
-  if (size <= 32) {
-    if (pos < 32)  // DEXT/DINS, do nothing
-      return;
-    // DEXTU/DINSU
-    InstIn.getOperand(2).setImm(pos - 32);
-    InstIn.setOpcode((Opcode == Mips::DEXT) ? Mips::DEXTU : Mips::DINSU);
-    return;
-  }
-  // DEXTM/DINSM
-  assert(pos < 32 && "DEXT/DINS cannot have both size and pos > 32");
-  InstIn.getOperand(3).setImm(size - 32);
-  InstIn.setOpcode((Opcode == Mips::DEXT) ? Mips::DEXTM : Mips::DINSM);
-  return;
-}
-
 bool MipsMCCodeEmitter::isMicroMips(const MCSubtargetInfo &STI) const {
   return STI.getFeatureBits() & Mips::FeatureMicroMips;
 }
@@ -152,19 +87,6 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
   // If this list of instructions get much longer we will move
   // the check to a function call. Until then, this is more efficient.
   MCInst TmpInst = MI;
-  switch (MI.getOpcode()) {
-  // If shift amount is >= 32 it the inst needs to be lowered further
-  case Mips::DSLL:
-  case Mips::DSRL:
-  case Mips::DSRA:
-  case Mips::DROTR:
-    LowerLargeShift(TmpInst);
-    break;
-    // Double extract instruction is chosen by pos and size operands
-  case Mips::DEXT:
-  case Mips::DINS:
-    LowerDextDins(TmpInst);
-  }
 
   unsigned long N = Fixups.size();
   uint64_t Binary = getBinaryCodeForInstr(TmpInst, Fixups, STI);
@@ -174,8 +96,10 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
   // so we have to special check for them.
   unsigned Opcode = TmpInst.getOpcode();
   if ((Opcode != Mips::NOP) && (Opcode != Mips::SLL) &&
-      (Opcode != Mips::SLL_MM) && !Binary)
+      (Opcode != Mips::J) && !Binary) {
+  //    printf("Opcode: %d\n", Opcode);
     llvm_unreachable("unimplemented opcode in EncodeInstruction()");
+  }
 
   if (STI.getFeatureBits() & Mips::FeatureMicroMips) {
     int NewOpcode = Mips::Std2MicroMips (Opcode, Mips::Arch_micromips);
@@ -339,6 +263,7 @@ getJumpTargetOpValue(const MCInst &MI, unsigned OpNo,
   const MCOperand &MO = MI.getOperand(OpNo);
   // If the destination is an immediate, divide by 4.
   if (MO.isImm()) return MO.getImm()>>2;
+  //  MI.dump();
 
   assert(MO.isExpr() &&
          "getJumpTargetOpValue expects only expressions or an immediate");
@@ -622,22 +547,6 @@ MipsMCCodeEmitter::getMSAMemEncoding(const MCInst &MI, unsigned OpNo,
   default:
     assert (0 && "Unexpected instruction");
     break;
-  case Mips::LD_B:
-  case Mips::ST_B:
-    // We don't need to scale the offset in this case
-    break;
-  case Mips::LD_H:
-  case Mips::ST_H:
-    OffBits >>= 1;
-    break;
-  case Mips::LD_W:
-  case Mips::ST_W:
-    OffBits >>= 2;
-    break;
-  case Mips::LD_D:
-  case Mips::ST_D:
-    OffBits >>= 3;
-    break;
   }
 
   return (OffBits & 0xFFFF) | RegBits;
@@ -722,10 +631,6 @@ getMemEncodingMMImm12(const MCInst &MI, unsigned OpNo,
   switch (MI.getOpcode()) {
   default:
     break;
-  case Mips::SWM32_MM:
-  case Mips::LWM32_MM:
-    OpNo = MI.getNumOperands() - 2;
-    break;
   }
 
   // Base register is encoded in bits 20-16, offset is encoded in bits 11-0.
@@ -744,10 +649,6 @@ getMemEncodingMMImm4sp(const MCInst &MI, unsigned OpNo,
   // MemOperand is always last operand of instruction (base + offset)
   switch (MI.getOpcode()) {
   default:
-    break;
-  case Mips::SWM16_MM:
-  case Mips::LWM16_MM:
-    OpNo = MI.getNumOperands() - 2;
     break;
   }
 

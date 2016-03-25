@@ -620,7 +620,7 @@ void MipsTargetELFStreamer::emitDirectiveCpLoad(unsigned RegNo) {
   MCA.getOrCreateSymbolData(*GP_Disp);
 
   MCInst TmpInst;
-  TmpInst.setOpcode(Mips::LUi);
+  //  TmpInst.setOpcode(Mips::LUi);
   TmpInst.addOperand(MCOperand::CreateReg(Mips::GP));
   const MCSymbolRefExpr *HiSym = MCSymbolRefExpr::Create(
       "_gp_disp", MCSymbolRefExpr::VK_Mips_ABS_HI, MCA.getContext());
@@ -662,13 +662,13 @@ void MipsTargetELFStreamer::emitDirectiveCpsetup(unsigned RegNo,
   // Either store the old $gp in a register or on the stack
   if (IsReg) {
     // move $save, $gpreg
-    Inst.setOpcode(Mips::DADDu);
+    Inst.setOpcode(Mips::ADDu);
     Inst.addOperand(MCOperand::CreateReg(RegOrOffset));
     Inst.addOperand(MCOperand::CreateReg(Mips::GP));
     Inst.addOperand(MCOperand::CreateReg(Mips::ZERO));
   } else {
     // sd $gpreg, offset($sp)
-    Inst.setOpcode(Mips::SD);
+    //    Inst.setOpcode(Mips::SD);
     Inst.addOperand(MCOperand::CreateReg(Mips::GP));
     Inst.addOperand(MCOperand::CreateReg(Mips::SP));
     Inst.addOperand(MCOperand::CreateImm(RegOrOffset));
@@ -681,7 +681,7 @@ void MipsTargetELFStreamer::emitDirectiveCpsetup(unsigned RegNo,
   const MCSymbolRefExpr *LoExpr = MCSymbolRefExpr::Create(
       Sym.getName(), MCSymbolRefExpr::VK_Mips_GPOFF_LO, MCA.getContext());
   // lui $gp, %hi(%neg(%gp_rel(funcSym)))
-  Inst.setOpcode(Mips::LUi);
+  //  Inst.setOpcode(Mips::LUi);
   Inst.addOperand(MCOperand::CreateReg(Mips::GP));
   Inst.addOperand(MCOperand::CreateExpr(HiExpr));
   getStreamer().EmitInstruction(Inst, STI);
@@ -696,7 +696,7 @@ void MipsTargetELFStreamer::emitDirectiveCpsetup(unsigned RegNo,
   Inst.clear();
 
   // daddu  $gp, $gp, $funcreg
-  Inst.setOpcode(Mips::DADDu);
+  Inst.setOpcode(Mips::ADDu);
   Inst.addOperand(MCOperand::CreateReg(Mips::GP));
   Inst.addOperand(MCOperand::CreateReg(Mips::GP));
   Inst.addOperand(MCOperand::CreateReg(RegNo));

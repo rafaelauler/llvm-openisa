@@ -14,10 +14,9 @@
 #include "MipsISelDAGToDAG.h"
 #include "MCTargetDesc/MipsBaseInfo.h"
 #include "Mips.h"
-#include "Mips16ISelDAGToDAG.h"
 #include "MipsMachineFunction.h"
-#include "MipsRegisterInfo.h"
 #include "MipsSEISelDAGToDAG.h"
+#include "MipsRegisterInfo.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -234,8 +233,5 @@ SelectInlineAsmMemoryOperand(const SDValue &Op, char ConstraintCode,
 /// createMipsISelDag - This pass converts a legalized DAG into a
 /// MIPS-specific DAG, ready for instruction scheduling.
 FunctionPass *llvm::createMipsISelDag(MipsTargetMachine &TM) {
-  if (TM.getSubtargetImpl()->inMips16Mode())
-    return llvm::createMips16ISelDag(TM);
-
   return llvm::createMipsSEISelDag(TM);
 }

@@ -14,7 +14,6 @@
 #ifndef LLVM_LIB_TARGET_MIPS_MIPSASMPRINTER_H
 #define LLVM_LIB_TARGET_MIPS_MIPSASMPRINTER_H
 
-#include "Mips16HardFloatInfo.h"
 #include "MipsMCInstLower.h"
 #include "MipsMachineFunction.h"
 #include "MipsSubtarget.h"
@@ -57,9 +56,6 @@ private:
   /// pool entries so we can properly mark them as data regions.
   bool InConstantPool;
 
-  std::map<const char *, const llvm::Mips16HardFloatInfo::FuncSignature *>
-  StubsNeeded;
-
   void emitInlineAsmStart(const MCSubtargetInfo &StartInfo) const override;
 
   void emitInlineAsmEnd(const MCSubtargetInfo &StartInfo,
@@ -76,13 +72,6 @@ private:
 
   void EmitMovFPIntPair(unsigned MovOpc, unsigned Reg1, unsigned Reg2,
                         unsigned FPReg1, unsigned FPReg2, bool LE);
-
-  void EmitSwapFPIntParams(Mips16HardFloatInfo::FPParamVariant, bool LE,
-                           bool ToFP);
-
-  void EmitSwapFPIntRetval(Mips16HardFloatInfo::FPReturnVariant, bool LE);
-
-  void EmitFPCallStub(const char *, const Mips16HardFloatInfo::FuncSignature *);
 
   void NaClAlignIndirectJumpTargets(MachineFunction &MF);
 

@@ -68,18 +68,6 @@ MipsSERegisterInfo::intRegClass(unsigned Size) const {
 /// instruction immediate.
 static inline unsigned getLoadStoreOffsetSizeInBits(const unsigned Opcode) {
   switch (Opcode) {
-  case Mips::LD_B:
-  case Mips::ST_B:
-    return 10;
-  case Mips::LD_H:
-  case Mips::ST_H:
-    return 10 + 1 /* scale factor */;
-  case Mips::LD_W:
-  case Mips::ST_W:
-    return 10 + 2 /* scale factor */;
-  case Mips::LD_D:
-  case Mips::ST_D:
-    return 10 + 3 /* scale factor */;
   default:
     return 16;
   }
@@ -88,15 +76,6 @@ static inline unsigned getLoadStoreOffsetSizeInBits(const unsigned Opcode) {
 /// Get the scale factor applied to the immediate in the given load/store.
 static inline unsigned getLoadStoreOffsetAlign(const unsigned Opcode) {
   switch (Opcode) {
-  case Mips::LD_H:
-  case Mips::ST_H:
-    return 2;
-  case Mips::LD_W:
-  case Mips::ST_W:
-    return 4;
-  case Mips::LD_D:
-  case Mips::ST_D:
-    return 8;
   default:
     return 1;
   }
@@ -156,14 +135,14 @@ void MipsSERegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
     // For MSA instructions, this is a 10-bit signed immediate (scaled by
     // element size), otherwise it is a 16-bit signed immediate.
     unsigned OffsetBitSize = getLoadStoreOffsetSizeInBits(MI.getOpcode());
-    unsigned OffsetAlign = getLoadStoreOffsetAlign(MI.getOpcode());
-
+    //    unsigned OffsetAlign = getLoadStoreOffsetAlign(MI.getOpcode());
+    // LUi
     if (!isInt<32>(Offset)) {
       // Otherwise split the offset into 16-bit pieces and add it in multiple
       // instructions.
       MachineBasicBlock &MBB = *MI.getParent();
       DebugLoc DL = II->getDebugLoc();
-      unsigned ADDu = Subtarget.isABI_N64() ? Mips::DADDu : Mips::ADDu;
+      unsigned ADDu = Mips::ADDu;
       unsigned NewImm = 0;
       const MipsSEInstrInfo &TII =
           *static_cast<const MipsSEInstrInfo *>(

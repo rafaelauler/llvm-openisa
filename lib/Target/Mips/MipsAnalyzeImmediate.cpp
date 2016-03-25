@@ -131,12 +131,12 @@ const MipsAnalyzeImmediate::InstSeq
     ADDiu = Mips::ADDiu;
     ORi = Mips::ORi;
     SLL = Mips::SLL;
-    LUi = Mips::LUi;
+    //    LUi = Mips::LUi;
   } else {
-    ADDiu = Mips::DADDiu;
-    ORi = Mips::ORi64;
-    SLL = Mips::DSLL;
-    LUi = Mips::LUi64;
+//    ADDiu = Mips::DADDiu;
+//    ORi = Mips::ORi64;
+//    SLL = Mips::DSLL;
+//    LUi = Mips::LUi64;
   }
 
   InstSeqLs SeqLs;

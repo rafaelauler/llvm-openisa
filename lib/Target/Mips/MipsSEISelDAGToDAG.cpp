@@ -93,11 +93,6 @@ bool MipsSEDAGToDAGISel::replaceUsesWithZeroReg(MachineRegisterInfo *MRI,
       (MI.getOperand(2).getImm() == 0)) {
     DstReg = MI.getOperand(0).getReg();
     ZeroReg = Mips::ZERO;
-  } else if ((MI.getOpcode() == Mips::DADDiu) &&
-             (MI.getOperand(1).getReg() == Mips::ZERO_64) &&
-             (MI.getOperand(2).getImm() == 0)) {
-    DstReg = MI.getOperand(0).getReg();
-    ZeroReg = Mips::ZERO_64;
   }
 
   if (!DstReg)
@@ -140,30 +135,13 @@ void MipsSEDAGToDAGISel::initGlobalBaseReg(MachineFunction &MF) {
   V0 = RegInfo.createVirtualRegister(RC);
   V1 = RegInfo.createVirtualRegister(RC);
 
-  if (Subtarget->isABI_N64()) {
-    MF.getRegInfo().addLiveIn(Mips::T9_64);
-    MBB.addLiveIn(Mips::T9_64);
-
-    // lui $v0, %hi(%neg(%gp_rel(fname)))
-    // daddu $v1, $v0, $t9
-    // daddiu $globalbasereg, $v1, %lo(%neg(%gp_rel(fname)))
-    const GlobalValue *FName = MF.getFunction();
-    BuildMI(MBB, I, DL, TII.get(Mips::LUi64), V0)
-      .addGlobalAddress(FName, 0, MipsII::MO_GPOFF_HI);
-    BuildMI(MBB, I, DL, TII.get(Mips::DADDu), V1).addReg(V0)
-      .addReg(Mips::T9_64);
-    BuildMI(MBB, I, DL, TII.get(Mips::DADDiu), GlobalBaseReg).addReg(V1)
-      .addGlobalAddress(FName, 0, MipsII::MO_GPOFF_LO);
-    return;
-  }
-
   if (MF.getTarget().getRelocationModel() == Reloc::Static) {
     // Set global register to __gnu_local_gp.
     //
     // lui   $v0, %hi(__gnu_local_gp)
     // addiu $globalbasereg, $v0, %lo(__gnu_local_gp)
-    BuildMI(MBB, I, DL, TII.get(Mips::LUi), V0)
-      .addExternalSymbol("__gnu_local_gp", MipsII::MO_ABS_HI);
+//    BuildMI(MBB, I, DL, TII.get(Mips::LUi), V0)
+//      .addExternalSymbol("__gnu_local_gp", MipsII::MO_ABS_HI);
     BuildMI(MBB, I, DL, TII.get(Mips::ADDiu), GlobalBaseReg).addReg(V0)
       .addExternalSymbol("__gnu_local_gp", MipsII::MO_ABS_LO);
     return;
@@ -177,8 +155,8 @@ void MipsSEDAGToDAGISel::initGlobalBaseReg(MachineFunction &MF) {
     // addu $v1, $v0, $t9
     // addiu $globalbasereg, $v1, %lo(%neg(%gp_rel(fname)))
     const GlobalValue *FName = MF.getFunction();
-    BuildMI(MBB, I, DL, TII.get(Mips::LUi), V0)
-      .addGlobalAddress(FName, 0, MipsII::MO_GPOFF_HI);
+//    BuildMI(MBB, I, DL, TII.get(Mips::LUi), V0)
+//      .addGlobalAddress(FName, 0, MipsII::MO_GPOFF_HI);
     BuildMI(MBB, I, DL, TII.get(Mips::ADDu), V1).addReg(V0).addReg(Mips::T9);
     BuildMI(MBB, I, DL, TII.get(Mips::ADDiu), GlobalBaseReg).addReg(V1)
       .addGlobalAddress(FName, 0, MipsII::MO_GPOFF_LO);
@@ -218,12 +196,7 @@ void MipsSEDAGToDAGISel::processFunctionAfterISel(MachineFunction &MF) {
   for (MachineFunction::iterator MFI = MF.begin(), MFE = MF.end(); MFI != MFE;
        ++MFI)
     for (MachineBasicBlock::iterator I = MFI->begin(); I != MFI->end(); ++I) {
-      if (I->getOpcode() == Mips::RDDSP)
-        addDSPCtrlRegOperands(false, *I, MF);
-      else if (I->getOpcode() == Mips::WRDSP)
-        addDSPCtrlRegOperands(true, *I, MF);
-      else
-        replaceUsesWithZeroReg(MRI, *I);
+      replaceUsesWithZeroReg(MRI, *I);
     }
 }
 
@@ -318,7 +291,7 @@ bool MipsSEDAGToDAGISel::selectAddrRegImm(SDValue Addr, SDValue &Base,
     // Generate:
     //  lui $2, %hi($CPI1_0)
     //  lwc1 $f0, %lo($CPI1_0)($2)
-    if (Addr.getOperand(1).getOpcode() == MipsISD::Lo ||
+    if (//Addr.getOperand(1).getOpcode() == MipsISD::Lo ||
         Addr.getOperand(1).getOpcode() == MipsISD::GPRel) {
       SDValue Opnd0 = Addr.getOperand(1).getOperand(0);
       if (isa<ConstantPoolSDNode>(Opnd0) || isa<GlobalAddressSDNode>(Opnd0) ||
@@ -656,21 +629,11 @@ std::pair<bool, SDNode*> MipsSEDAGToDAGISel::selectNode(SDNode *Node) {
   case ISD::ConstantFP: {
     ConstantFPSDNode *CN = dyn_cast<ConstantFPSDNode>(Node);
     if (Node->getValueType(0) == MVT::f64 && CN->isExactlyValue(+0.0)) {
-      if (Subtarget->isGP64bit()) {
-        SDValue Zero = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), DL,
-                                              Mips::ZERO_64, MVT::i64);
-        Result = CurDAG->getMachineNode(Mips::DMTC1, DL, MVT::f64, Zero);
-      } else if (Subtarget->isFP64bit()) {
-        SDValue Zero = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), DL,
-                                              Mips::ZERO, MVT::i32);
-        Result = CurDAG->getMachineNode(Mips::BuildPairF64_64, DL, MVT::f64,
-                                        Zero, Zero);
-      } else {
-        SDValue Zero = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), DL,
-                                              Mips::ZERO, MVT::i32);
-        Result = CurDAG->getMachineNode(Mips::BuildPairF64, DL, MVT::f64, Zero,
-                                        Zero);
-      }
+
+      SDValue Zero = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), DL,
+                                            Mips::ZERO, MVT::i32);
+      Result =
+          CurDAG->getMachineNode(Mips::BuildPairF64, DL, MVT::f64, Zero, Zero);
 
       return std::make_pair(true, Result);
     }
@@ -699,13 +662,9 @@ std::pair<bool, SDNode*> MipsSEDAGToDAGISel::selectNode(SDNode *Node) {
     // The first instruction can be a LUi which is different from other
     // instructions (ADDiu, ORI and SLL) in that it does not have a register
     // operand.
-    if (Inst->Opc == Mips::LUi64)
-      RegOpnd = CurDAG->getMachineNode(Inst->Opc, DL, MVT::i64, ImmOpnd);
-    else
-      RegOpnd =
-        CurDAG->getMachineNode(Inst->Opc, DL, MVT::i64,
-                               CurDAG->getRegister(Mips::ZERO_64, MVT::i64),
-                               ImmOpnd);
+    RegOpnd = CurDAG->getMachineNode(
+        Inst->Opc, DL, MVT::i64, CurDAG->getRegister(Mips::ZERO_64, MVT::i64),
+        ImmOpnd);
 
     // The remaining instructions in the sequence are handled here.
     for (++Inst; Inst != Seq.end(); ++Inst) {
@@ -739,13 +698,6 @@ std::pair<bool, SDNode*> MipsSEDAGToDAGISel::selectNode(SDNode *Node) {
     default:
       break;
 
-    case Intrinsic::mips_move_v:
-      // Like an assignment but will always produce a move.v even if
-      // unnecessary.
-      return std::make_pair(true,
-                            CurDAG->getMachineNode(Mips::MOVE_V, DL,
-                                                   Node->getValueType(0),
-                                                   Node->getOperand(1)));
     }
     break;
   }
@@ -768,101 +720,27 @@ std::pair<bool, SDNode*> MipsSEDAGToDAGISel::selectNode(SDNode *Node) {
   }
 
   case MipsISD::ThreadPointer: {
-    EVT PtrVT = getTargetLowering()->getPointerTy();
-    unsigned RdhwrOpc, DestReg;
-
-    if (PtrVT == MVT::i32) {
-      RdhwrOpc = Mips::RDHWR;
-      DestReg = Mips::V1;
-    } else {
-      RdhwrOpc = Mips::RDHWR64;
-      DestReg = Mips::V1_64;
-    }
-
-    SDNode *Rdhwr =
-      CurDAG->getMachineNode(RdhwrOpc, SDLoc(Node),
-                             Node->getValueType(0),
-                             CurDAG->getRegister(Mips::HWR29, MVT::i32));
-    SDValue Chain = CurDAG->getCopyToReg(CurDAG->getEntryNode(), DL, DestReg,
-                                         SDValue(Rdhwr, 0));
-    SDValue ResNode = CurDAG->getCopyFromReg(Chain, DL, DestReg, PtrVT);
-    ReplaceUses(SDValue(Node, 0), ResNode);
-    return std::make_pair(true, ResNode.getNode());
+//    EVT PtrVT = getTargetLowering()->getPointerTy();
+//    unsigned RdhwrOpc, DestReg;
+//
+//    if (PtrVT == MVT::i32) {
+//      RdhwrOpc = Mips::RDHWR;
+//      DestReg = Mips::V1;
+//    }
+//    SDNode *Rdhwr =
+//      CurDAG->getMachineNode(RdhwrOpc, SDLoc(Node),
+//                             Node->getValueType(0),
+//                             CurDAG->getRegister(Mips::HWR29, MVT::i32));
+//    SDValue Chain = CurDAG->getCopyToReg(CurDAG->getEntryNode(), DL, DestReg,
+//                                         SDValue(Rdhwr, 0));
+//    SDValue ResNode = CurDAG->getCopyFromReg(Chain, DL, DestReg, PtrVT);
+//    ReplaceUses(SDValue(Node, 0), ResNode);
+//    return std::make_pair(true, ResNode.getNode());
   }
 
   case ISD::BUILD_VECTOR: {
-    // Select appropriate ldi.[bhwd] instructions for constant splats of
-    // 128-bit when MSA is enabled. Fixup any register class mismatches that
-    // occur as a result.
-    //
-    // This allows the compiler to use a wider range of immediates than would
-    // otherwise be allowed. If, for example, v4i32 could only use ldi.h then
-    // it would not be possible to load { 0x01010101, 0x01010101, 0x01010101,
-    // 0x01010101 } without using a constant pool. This would be sub-optimal
-    // when // 'ldi.b wd, 1' is capable of producing that bit-pattern in the
-    // same set/ of registers. Similarly, ldi.h isn't capable of producing {
-    // 0x00000000, 0x00000001, 0x00000000, 0x00000001 } but 'ldi.d wd, 1' can.
+    return std::make_pair(false, nullptr);
 
-    BuildVectorSDNode *BVN = cast<BuildVectorSDNode>(Node);
-    APInt SplatValue, SplatUndef;
-    unsigned SplatBitSize;
-    bool HasAnyUndefs;
-    unsigned LdiOp;
-    EVT ResVecTy = BVN->getValueType(0);
-    EVT ViaVecTy;
-
-    if (!Subtarget->hasMSA() || !BVN->getValueType(0).is128BitVector())
-      return std::make_pair(false, nullptr);
-
-    if (!BVN->isConstantSplat(SplatValue, SplatUndef, SplatBitSize,
-                              HasAnyUndefs, 8,
-                              !Subtarget->isLittle()))
-      return std::make_pair(false, nullptr);
-
-    switch (SplatBitSize) {
-    default:
-      return std::make_pair(false, nullptr);
-    case 8:
-      LdiOp = Mips::LDI_B;
-      ViaVecTy = MVT::v16i8;
-      break;
-    case 16:
-      LdiOp = Mips::LDI_H;
-      ViaVecTy = MVT::v8i16;
-      break;
-    case 32:
-      LdiOp = Mips::LDI_W;
-      ViaVecTy = MVT::v4i32;
-      break;
-    case 64:
-      LdiOp = Mips::LDI_D;
-      ViaVecTy = MVT::v2i64;
-      break;
-    }
-
-    if (!SplatValue.isSignedIntN(10))
-      return std::make_pair(false, nullptr);
-
-    SDValue Imm = CurDAG->getTargetConstant(SplatValue,
-                                            ViaVecTy.getVectorElementType());
-
-    SDNode *Res = CurDAG->getMachineNode(LdiOp, SDLoc(Node), ViaVecTy, Imm);
-
-    if (ResVecTy != ViaVecTy) {
-      // If LdiOp is writing to a different register class to ResVecTy, then
-      // fix it up here. This COPY_TO_REGCLASS should never cause a move.v
-      // since the source and destination register sets contain the same
-      // registers.
-      const TargetLowering *TLI = getTargetLowering();
-      MVT ResVecTySimple = ResVecTy.getSimpleVT();
-      const TargetRegisterClass *RC = TLI->getRegClassFor(ResVecTySimple);
-      Res = CurDAG->getMachineNode(Mips::COPY_TO_REGCLASS, SDLoc(Node),
-                                   ResVecTy, SDValue(Res, 0),
-                                   CurDAG->getTargetConstant(RC->getID(),
-                                                             MVT::i32));
-    }
-
-    return std::make_pair(true, Res);
   }
 
   }

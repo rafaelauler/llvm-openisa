@@ -1232,9 +1232,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
 
   switch (MI->getOpcode()) {
   case Mips::ADDiu:
-  case Mips::ADDi:
-  case Mips::ADDu:
-  case Mips::ADD: {
+  case Mips::ADDu: {
     DebugOut << "Handling ADDiu, ADDi, ADDu, ADD\n";
     Value *o0, *o1, *o2, *first = 0;
     if (HandleGetSpilledAddress(MI->getOperand(1), MI->getOperand(2),
@@ -1254,8 +1252,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Mips::SUBu:
-  case Mips::SUB: {
+  case Mips::SUBu: {
     DebugOut << "Handling SUBu, SUB\n";
     Value *o0, *o1, *o2, *first = 0;
     if (HandleAluSrcOperand(MI->getOperand(1), o1, &first) &&
@@ -1275,134 +1272,134 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(v);
     break;
   }
-  case Mips::MUL: {
-    DebugOut << "Handling MUL\n";
-    Value *o0, *o1, *o2, *first = 0;
-    if (HandleAluSrcOperand(MI->getOperand(1), o1, &first) &&
-        HandleAluSrcOperand(MI->getOperand(2), o2, &first) &&
-        HandleAluDstOperand(MI->getOperand(0), o0)) {
-      Value *v = Builder.CreateMul(o1, o2);
-      Value *v2 = Builder.CreateStore(v, o0);
-      first = GetFirstInstruction(first, o1, o2, v, v2);
-      assert(isa<Instruction>(first) && "Need to rework map logic");
-      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
-    }
-    break;
-  }
-  case Mips::MULTu:
-  case Mips::MULT: {
-    DebugOut << "Handling MULT, MULTu\n";
-    Value *o0, *o1, *first = 0;
-    if (HandleAluSrcOperand(MI->getOperand(0), o0, &first) &&
-        HandleAluSrcOperand(MI->getOperand(1), o1, &first)) {
-      Value *o0e, *o1e;
-      if (MI->getOpcode() == Mips::MULT) {
-        o0e = Builder.CreateSExt(o0, Type::getInt64Ty(getGlobalContext()));
-        o1e = Builder.CreateSExt(o1, Type::getInt64Ty(getGlobalContext()));
-      } else { // MULTu
-        o0e = Builder.CreateZExt(o0, Type::getInt64Ty(getGlobalContext()));
-        o1e = Builder.CreateZExt(o1, Type::getInt64Ty(getGlobalContext()));
-      }
-      Value *v = Builder.CreateMul(o0e, o1e);
-      Value *V1 = Builder.CreateLShr(
-          v, ConstantInt::get(Type::getInt64Ty(getGlobalContext()), 32));
-      Value *V2 =
-          Builder.CreateSExtOrTrunc(V1, Type::getInt32Ty(getGlobalContext()));
-      Value *V3 =
-          Builder.CreateSExtOrTrunc(v, Type::getInt32Ty(getGlobalContext()));
-      Builder.CreateStore(V2, IREmitter.Regs[257]);
-      Builder.CreateStore(V3, IREmitter.Regs[256]);
-      WriteMap[257] = true;
-      WriteMap[256] = true;
-      first = GetFirstInstruction(first, o0, o1, o0e, o1e);
-      assert(isa<Instruction>(first) && "Need to rework map logic");
-      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
-    }
-    break;
-  }
-  case Mips::SDIV:
-  case Mips::UDIV: {
-    DebugOut << "Handling DIV\n";
-    Value *o0, *o1, *first = 0;
-    if (HandleAluSrcOperand(MI->getOperand(0), o0, &first) &&
-        HandleAluSrcOperand(MI->getOperand(1), o1, &first)) {
-      Value *vdiv;
-      Value *vmod;
-      if (MI->getOpcode() == Mips::SDIV) {
-        vdiv = Builder.CreateSDiv(o0, o1);
-        vmod = Builder.CreateSRem(o0, o1);
-      } else {
-        vdiv = Builder.CreateUDiv(o0, o1);
-        vmod = Builder.CreateURem(o0, o1);
-      }
-      Builder.CreateStore(vmod, IREmitter.Regs[257]);
-      Builder.CreateStore(vdiv, IREmitter.Regs[256]);
-      WriteMap[257] = true;
-      WriteMap[256] = true;
-      first = GetFirstInstruction(first, o0, o1, vdiv, vmod);
-      assert(isa<Instruction>(first) && "Need to rework map logic");
-      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
-    }
-    break;
-  }
+//  case Mips::MUL: {
+//    DebugOut << "Handling MUL\n";
+//    Value *o0, *o1, *o2, *first = 0;
+//    if (HandleAluSrcOperand(MI->getOperand(1), o1, &first) &&
+//        HandleAluSrcOperand(MI->getOperand(2), o2, &first) &&
+//        HandleAluDstOperand(MI->getOperand(0), o0)) {
+//      Value *v = Builder.CreateMul(o1, o2);
+//      Value *v2 = Builder.CreateStore(v, o0);
+//      first = GetFirstInstruction(first, o1, o2, v, v2);
+//      assert(isa<Instruction>(first) && "Need to rework map logic");
+//      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+//    }
+//    break;
+//  }
+//  case Mips::MULTu:
+//  case Mips::MULT: {
+//    DebugOut << "Handling MULT, MULTu\n";
+//    Value *o0, *o1, *first = 0;
+//    if (HandleAluSrcOperand(MI->getOperand(0), o0, &first) &&
+//        HandleAluSrcOperand(MI->getOperand(1), o1, &first)) {
+//      Value *o0e, *o1e;
+//      if (MI->getOpcode() == Mips::MULT) {
+//        o0e = Builder.CreateSExt(o0, Type::getInt64Ty(getGlobalContext()));
+//        o1e = Builder.CreateSExt(o1, Type::getInt64Ty(getGlobalContext()));
+//      } else { // MULTu
+//        o0e = Builder.CreateZExt(o0, Type::getInt64Ty(getGlobalContext()));
+//        o1e = Builder.CreateZExt(o1, Type::getInt64Ty(getGlobalContext()));
+//      }
+//      Value *v = Builder.CreateMul(o0e, o1e);
+//      Value *V1 = Builder.CreateLShr(
+//          v, ConstantInt::get(Type::getInt64Ty(getGlobalContext()), 32));
+//      Value *V2 =
+//          Builder.CreateSExtOrTrunc(V1, Type::getInt32Ty(getGlobalContext()));
+//      Value *V3 =
+//          Builder.CreateSExtOrTrunc(v, Type::getInt32Ty(getGlobalContext()));
+//      Builder.CreateStore(V2, IREmitter.Regs[257]);
+//      Builder.CreateStore(V3, IREmitter.Regs[256]);
+//      WriteMap[257] = true;
+//      WriteMap[256] = true;
+//      first = GetFirstInstruction(first, o0, o1, o0e, o1e);
+//      assert(isa<Instruction>(first) && "Need to rework map logic");
+//      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+//    }
+//    break;
+//  }
+//  case Mips::SDIV:
+//  case Mips::UDIV: {
+//    DebugOut << "Handling DIV\n";
+//    Value *o0, *o1, *first = 0;
+//    if (HandleAluSrcOperand(MI->getOperand(0), o0, &first) &&
+//        HandleAluSrcOperand(MI->getOperand(1), o1, &first)) {
+//      Value *vdiv;
+//      Value *vmod;
+//      if (MI->getOpcode() == Mips::SDIV) {
+//        vdiv = Builder.CreateSDiv(o0, o1);
+//        vmod = Builder.CreateSRem(o0, o1);
+//      } else {
+//        vdiv = Builder.CreateUDiv(o0, o1);
+//        vmod = Builder.CreateURem(o0, o1);
+//      }
+//      Builder.CreateStore(vmod, IREmitter.Regs[257]);
+//      Builder.CreateStore(vdiv, IREmitter.Regs[256]);
+//      WriteMap[257] = true;
+//      WriteMap[256] = true;
+//      first = GetFirstInstruction(first, o0, o1, vdiv, vmod);
+//      assert(isa<Instruction>(first) && "Need to rework map logic");
+//      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+//    }
+//    break;
+//  }
   case Mips::TEQ: {
     // Mips backend uses TEQ (trap if equal) to implement the divide by zero
     // trap behavior.
     DebugOut << "Handling TEQ - Warning: Trap is not implemented!\n";
     break;
   }
-  case Mips::MFHI: {
-    DebugOut << "Handling MFHI\n";
-    Value *o0;
-    if (HandleAluDstOperand(MI->getOperand(0), o0)) {
-      Value *v = Builder.CreateLoad(IREmitter.Regs[257]);
-      ReadMap[257] = true;
-      Value *v2 = Builder.CreateStore(v, o0);
-      Value *first = GetFirstInstruction(o0, v, v2);
-      assert(isa<Instruction>(first) && "Need to rework map logic");
-      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
-    }
-    break;
-  }
-  case Mips::MFLO: {
-    DebugOut << "Handling MFLO\n";
-    Value *o0;
-    if (HandleAluDstOperand(MI->getOperand(0), o0)) {
-      Value *v = Builder.CreateLoad(IREmitter.Regs[256]);
-      ReadMap[256] = true;
-      Value *v2 = Builder.CreateStore(v, o0);
-      Value *first = GetFirstInstruction(o0, v, v2);
-      assert(isa<Instruction>(first) && "Need to rework map logic");
-      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
-    }
-    break;
-  }
-  case Mips::MTHI: {
-    DebugOut << "Handling MTHI\n";
-    Value *o0, *first = 0;
-    if (HandleAluSrcOperand(MI->getOperand(0), o0, &first)) {
-      Value *v = IREmitter.Regs[257];
-      WriteMap[257] = true;
-      Value *v2 = Builder.CreateStore(o0, v);
-      Value *first = GetFirstInstruction(o0, v, v2);
-      assert(isa<Instruction>(first) && "Need to rework map logic");
-      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
-    }
-    break;
-  }
-  case Mips::MTLO: {
-    DebugOut << "Handling MTLO\n";
-    Value *o0, *first = 0;
-    if (HandleAluSrcOperand(MI->getOperand(0), o0, &first)) {
-      Value *v = IREmitter.Regs[256];
-      WriteMap[256] = true;
-      Value *v2 = Builder.CreateStore(o0, v);
-      Value *first = GetFirstInstruction(o0, v, v2);
-      assert(isa<Instruction>(first) && "Need to rework map logic");
-      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
-    }
-    break;
-  }
+//  case Mips::MFHI: {
+//    DebugOut << "Handling MFHI\n";
+//    Value *o0;
+//    if (HandleAluDstOperand(MI->getOperand(0), o0)) {
+//      Value *v = Builder.CreateLoad(IREmitter.Regs[257]);
+//      ReadMap[257] = true;
+//      Value *v2 = Builder.CreateStore(v, o0);
+//      Value *first = GetFirstInstruction(o0, v, v2);
+//      assert(isa<Instruction>(first) && "Need to rework map logic");
+//      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+//    }
+//    break;
+//  }
+//  case Mips::MFLO: {
+//    DebugOut << "Handling MFLO\n";
+//    Value *o0;
+//    if (HandleAluDstOperand(MI->getOperand(0), o0)) {
+//      Value *v = Builder.CreateLoad(IREmitter.Regs[256]);
+//      ReadMap[256] = true;
+//      Value *v2 = Builder.CreateStore(v, o0);
+//      Value *first = GetFirstInstruction(o0, v, v2);
+//      assert(isa<Instruction>(first) && "Need to rework map logic");
+//      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+//    }
+//    break;
+//  }
+//  case Mips::MTHI: {
+//    DebugOut << "Handling MTHI\n";
+//    Value *o0, *first = 0;
+//    if (HandleAluSrcOperand(MI->getOperand(0), o0, &first)) {
+//      Value *v = IREmitter.Regs[257];
+//      WriteMap[257] = true;
+//      Value *v2 = Builder.CreateStore(o0, v);
+//      Value *first = GetFirstInstruction(o0, v, v2);
+//      assert(isa<Instruction>(first) && "Need to rework map logic");
+//      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+//    }
+//    break;
+//  }
+//  case Mips::MTLO: {
+//    DebugOut << "Handling MTLO\n";
+//    Value *o0, *first = 0;
+//    if (HandleAluSrcOperand(MI->getOperand(0), o0, &first)) {
+//      Value *v = IREmitter.Regs[256];
+//      WriteMap[256] = true;
+//      Value *v2 = Builder.CreateStore(o0, v);
+//      Value *first = GetFirstInstruction(o0, v, v2);
+//      assert(isa<Instruction>(first) && "Need to rework map logic");
+//      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+//    }
+//    break;
+//  }
   case Mips::LDC1: {
     DebugOut << "Handling LDC1\n";
     Value *dst, *src, *first = 0;
@@ -2297,22 +2294,20 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Mips::LUi:
-  case Mips::LUi64: {
-    DebugOut << "Handling LUi\n";
-    Value *dst, *src, *first = 0;
-    if (HandleAluDstOperand(MI->getOperand(0), dst) &&
-        HandleLUiOperand(MI->getOperand(1), src, &first, true)) {
-      Value *v = Builder.CreateStore(src, dst);
-      if (!isa<Instruction>(first))
-        first = v;
-      assert(isa<Instruction>(first) && "Need to rework map logic");
-      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
-    }
-    break;
-  }
-  case Mips::LW:
-  case Mips::LW64: {
+//  case Mips::LUi: {
+//    DebugOut << "Handling LUi\n";
+//    Value *dst, *src, *first = 0;
+//    if (HandleAluDstOperand(MI->getOperand(0), dst) &&
+//        HandleLUiOperand(MI->getOperand(1), src, &first, true)) {
+//      Value *v = Builder.CreateStore(src, dst);
+//      if (!isa<Instruction>(first))
+//        first = v;
+//      assert(isa<Instruction>(first) && "Need to rework map logic");
+//      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+//    }
+//    break;
+//  }
+  case Mips::LW: {
     DebugOut << "Handling LW\n";
     Value *dst, *src, *first = 0;
     if (HandleAluDstOperand(MI->getOperand(0), dst) &&
@@ -2417,8 +2412,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Mips::SW:
-  case Mips::SW64: {
+  case Mips::SW: {
     DebugOut << "Handling SW\n";
     Value *dst, *src, *first1 = 0, *first2 = 0, *first = 0;
     if (HandleAluSrcOperand(MI->getOperand(0), src, &first1) &&
@@ -2491,7 +2485,6 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Mips::JALR64:
   case Mips::JALR: {
     Value *src, *first = 0;
     if (!HandleAluSrcOperand(MI->getOperand(1), src, &first)) {
@@ -2528,7 +2521,6 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Mips::JR64:
   case Mips::JR: {
     DebugOut << "Handling JR\n";
     Value *first = 0;
@@ -2587,27 +2579,12 @@ void OiInstTranslate::printRegName(raw_ostream &OS, unsigned RegNo) const {
 
 void OiInstTranslate::printInst(const MCInst *MI, raw_ostream &O,
                                 StringRef Annot) {
-  switch (MI->getOpcode()) {
-  default:
-    break;
-  case Mips::RDHWR:
-  case Mips::RDHWR64:
-    O << "\t.set\tpush\n";
-    O << "\t.set\toi32r2\n";
-  }
 
   // Try to print any aliases first.
   if (!printAliasInstr(MI, O))
     printInstruction(MI, O);
   printAnnotation(O, Annot);
 
-  switch (MI->getOpcode()) {
-  default:
-    break;
-  case Mips::RDHWR:
-  case Mips::RDHWR64:
-    O << "\n\t.set\tpop";
-  }
 }
 
 static void printExpr(const MCExpr *Expr, raw_ostream &OS) {

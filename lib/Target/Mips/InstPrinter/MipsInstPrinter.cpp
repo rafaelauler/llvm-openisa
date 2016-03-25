@@ -81,31 +81,6 @@ void MipsInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
   switch (MI->getOpcode()) {
   default:
     break;
-  case Mips::RDHWR:
-  case Mips::RDHWR64:
-    O << "\t.set\tpush\n";
-    O << "\t.set\tmips32r2\n";
-    break;
-  case Mips::Save16:
-    O << "\tsave\t";
-    printSaveRestore(MI, O);
-    O << " # 16 bit inst\n";
-    return;
-  case Mips::SaveX16:
-    O << "\tsave\t";
-    printSaveRestore(MI, O);
-    O << "\n";
-    return;
-  case Mips::Restore16:
-    O << "\trestore\t";
-    printSaveRestore(MI, O);
-    O << " # 16 bit inst\n";
-    return;
-  case Mips::RestoreX16:
-    O << "\trestore\t";
-    printSaveRestore(MI, O);
-    O << "\n";
-    return;
   }
 
   // Try to print any aliases first.
@@ -116,9 +91,6 @@ void MipsInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
   switch (MI->getOpcode()) {
   default:
     break;
-  case Mips::RDHWR:
-  case Mips::RDHWR64:
-    O << "\n\t.set\tpop";
   }
 }
 
@@ -228,17 +200,6 @@ printMemOperand(const MCInst *MI, int opNum, raw_ostream &O) {
 
   // opNum can be invalid if instruction had reglist as operand.
   // MemOperand is always last operand of instruction (base + offset).
-  switch (MI->getOpcode()) {
-  default:
-    break;
-  case Mips::SWM32_MM:
-  case Mips::LWM32_MM:
-  case Mips::SWM16_MM:
-  case Mips::LWM16_MM:
-    opNum = MI->getNumOperands() - 2;
-    break;
-  }
-
   printOperand(MI, opNum+1, O);
   O << "(";
   printOperand(MI, opNum, O);
@@ -295,18 +256,9 @@ bool MipsInstPrinter::printAlias(const MCInst &MI, raw_ostream &OS) {
     return (isReg<Mips::ZERO>(MI, 0) && isReg<Mips::ZERO>(MI, 1) &&
             printAlias("b", MI, 2, OS)) ||
            (isReg<Mips::ZERO>(MI, 1) && printAlias("beqz", MI, 0, 2, OS));
-  case Mips::BEQ64:
-    // beq $r0, $zero, $L2 => beqz $r0, $L2
-    return isReg<Mips::ZERO_64>(MI, 1) && printAlias("beqz", MI, 0, 2, OS);
   case Mips::BNE:
     // bne $r0, $zero, $L2 => bnez $r0, $L2
     return isReg<Mips::ZERO>(MI, 1) && printAlias("bnez", MI, 0, 2, OS);
-  case Mips::BNE64:
-    // bne $r0, $zero, $L2 => bnez $r0, $L2
-    return isReg<Mips::ZERO_64>(MI, 1) && printAlias("bnez", MI, 0, 2, OS);
-  case Mips::BGEZAL:
-    // bgezal $zero, $L1 => bal $L1
-    return isReg<Mips::ZERO>(MI, 0) && printAlias("bal", MI, 1, OS);
   case Mips::BC1T:
     // bc1t $fcc0, $L1 => bc1t $L1
     return isReg<Mips::FCC0>(MI, 0) && printAlias("bc1t", MI, 1, OS);
@@ -316,16 +268,9 @@ bool MipsInstPrinter::printAlias(const MCInst &MI, raw_ostream &OS) {
   case Mips::JALR:
     // jalr $ra, $r1 => jalr $r1
     return isReg<Mips::RA>(MI, 0) && printAlias("jalr", MI, 1, OS);
-  case Mips::JALR64:
-    // jalr $ra, $r1 => jalr $r1
-    return isReg<Mips::RA_64>(MI, 0) && printAlias("jalr", MI, 1, OS);
   case Mips::NOR:
-  case Mips::NOR_MM:
     // nor $r0, $r1, $zero => not $r0, $r1
     return isReg<Mips::ZERO>(MI, 2) && printAlias("not", MI, 0, 1, OS);
-  case Mips::NOR64:
-    // nor $r0, $r1, $zero => not $r0, $r1
-    return isReg<Mips::ZERO_64>(MI, 2) && printAlias("not", MI, 0, 1, OS);
   case Mips::OR:
     // or $r0, $r1, $zero => move $r0, $r1
     return isReg<Mips::ZERO>(MI, 2) && printAlias("move", MI, 0, 1, OS);
