@@ -119,6 +119,16 @@ static DecodeStatus DecodeBranchTarget(MCInst &Inst,
                                        uint64_t Address,
                                        const void *Decoder);
 
+static DecodeStatus DecodeBranch16Target(MCInst &Inst,
+                                         unsigned Offset,
+                                         uint64_t Address,
+                                         const void *Decoder);
+
+static DecodeStatus DecodeCallTarget(MCInst &Inst,
+                                     unsigned Offset,
+                                     uint64_t Address,
+                                     const void *Decoder);
+
 static DecodeStatus DecodeJumpTarget(MCInst &Inst,
                                      uint64_t Insn,
                                      uint64_t Address,
@@ -137,6 +147,11 @@ static DecodeStatus DecodeExtSize(MCInst &Inst,
                                   uint64_t Insn,
                                   uint64_t Address,
                                   const void *Decoder);
+
+static DecodeStatus DecodeSimm14PL26i(MCInst &Inst,
+                                      uint64_t Insn,
+                                      uint64_t Address,
+                                      const void *Decoder);
 
 template <typename InsnType>
 static DecodeStatus
@@ -498,7 +513,25 @@ static DecodeStatus DecodeBranchTarget(MCInst &Inst,
                                        unsigned Offset,
                                        uint64_t Address,
                                        const void *Decoder) {
+  int32_t BranchOffset = (SignExtend32<14>(Offset) * 4) + 4;
+  Inst.addOperand(MCOperand::CreateImm(BranchOffset));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeBranch16Target(MCInst &Inst,
+                                         unsigned Offset,
+                                         uint64_t Address,
+                                         const void *Decoder) {
   int32_t BranchOffset = (SignExtend32<16>(Offset) * 4) + 4;
+  Inst.addOperand(MCOperand::CreateImm(BranchOffset));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeCallTarget(MCInst &Inst,
+                                     unsigned Offset,
+                                     uint64_t Address,
+                                     const void *Decoder) {
+  int32_t BranchOffset = (SignExtend32<20>(Offset) * 4) + 4;
   Inst.addOperand(MCOperand::CreateImm(BranchOffset));
   return MCDisassembler::Success;
 }
@@ -508,7 +541,7 @@ static DecodeStatus DecodeJumpTarget(MCInst &Inst,
                                      uint64_t Address,
                                      const void *Decoder) {
 
-  unsigned JumpOffset = fieldFromInstruction(Insn, 0, 32) << 2;
+  unsigned JumpOffset = fieldFromInstruction(Insn, 0, 26) << 2;
   Inst.addOperand(MCOperand::CreateImm(JumpOffset));
   return MCDisassembler::Success;
 }
@@ -519,6 +552,15 @@ static DecodeStatus DecodeExtSize(MCInst &Inst,
                                   const void *Decoder) {
   int Size = (int) Insn  + 1;
   Inst.addOperand(MCOperand::CreateImm(SignExtend32<16>(Size)));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeSimm14PL26i(MCInst &Inst,
+                                      uint64_t Insn,
+                                      uint64_t Address,
+                                      const void *Decoder) {
+  int Imm = SignExtend32<14>(Insn);
+  Inst.addOperand(MCOperand::CreateImm(Imm));
   return MCDisassembler::Success;
 }
 

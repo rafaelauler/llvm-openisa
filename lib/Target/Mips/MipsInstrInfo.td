@@ -350,9 +350,16 @@ def brtarget    : Operand<OtherVT> {
   let DecoderMethod = "DecodeBranchTarget";
   let ParserMatchClass = MipsJumpTargetAsmOperand;
 }
+def br16target    : Operand<OtherVT> {
+  let EncoderMethod = "getBranch16TargetOpValue";
+  let OperandType = "OPERAND_PCREL";
+  let DecoderMethod = "DecodeBranch16Target";
+  let ParserMatchClass = MipsJumpTargetAsmOperand;
+}
 def calltarget  : Operand<iPTR> {
   let EncoderMethod = "getJumpTargetOpValue";
   let ParserMatchClass = MipsJumpTargetAsmOperand;
+  let DecoderMethod = "DecodeCallTarget";
 }
 
 def simm9 : Operand<i32>;
@@ -379,6 +386,11 @@ def simm32      : Operand<i32> {
 }
 
 def simm14      : Operand<i32> {
+  let DecoderMethod = "DecodeSimm14PL26i";
+}
+
+def simm14pl20  : Operand<i32> {
+  let DecoderMethod = "DecodeSimm14PL20";
 }
 
 def simm20      : Operand<i32> {
@@ -810,7 +822,7 @@ class UncondBranch<Instruction BEQInst> :
 let isTerminator=1, isBarrier=1, hasDelaySlot = 0 in
 class JumpFR<string opstr, RegisterOperand RO,
              SDPatternOperator operator = null_frag>:
-  InstSE<(outs), (ins RO:$rt), "jr\t$rt", [(operator RO:$rt)], IIBranch,
+  InstSE<(outs), (ins RO:$rt), "jumpr\t$rt", [(operator RO:$rt)], IIBranch,
          FrmPL6, opstr>;
 
 // Indirect branch
@@ -824,7 +836,6 @@ let isCall=1, hasDelaySlot=0, Defs = [RA] in {
   class JumpLink<string opstr, DAGOperand opnd> :
     InstSE<(outs), (ins opnd:$target, uimm6:$num), !strconcat(opstr, "\t$target, $num"),
            [(MipsJmpLink imm:$target, imm:$num)], IIBranch, FrmPL26c, opstr> {
-    let DecoderMethod = "DecodeJumpTarget";
   }
 
   class JumpLinkRegPseudo<RegisterOperand RO, Instruction JALRInst,
@@ -1568,9 +1579,9 @@ def : MipsInstAlias<"nop", (SLL ZERO, ZERO, 0), 1>;
 //def : MipsInstAlias<"mfc2 $rt, $rd", (MFC2 GPR32Opnd:$rt, GPR32Opnd:$rd, 0), 0>;
 //def : MipsInstAlias<"mtc2 $rt, $rd", (MTC2 GPR32Opnd:$rt, GPR32Opnd:$rd, 0), 0>;
 def : MipsInstAlias<"b $offset", (BEQ ZERO, ZERO, brtarget:$offset), 0>;
-def : MipsInstAlias<"bnez $rs,$offset",
+def : MipsInstAlias<"jnez $rs,$offset",
                     (BNE GPR32Opnd:$rs, ZERO, brtarget:$offset), 0>;
-def : MipsInstAlias<"beqz $rs,$offset",
+def : MipsInstAlias<"jeqz $rs,$offset",
                     (BEQ GPR32Opnd:$rs, ZERO, brtarget:$offset), 0>;
 def : MipsInstAlias<"syscall", (SYSCALL), 1>;
 

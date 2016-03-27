@@ -144,6 +144,25 @@ getBranchTargetOpValue(const MCInst &MI, unsigned OpNo,
   return 0;
 }
 
+unsigned MipsMCCodeEmitter::
+getBranch16TargetOpValue(const MCInst &MI, unsigned OpNo,
+                         SmallVectorImpl<MCFixup> &Fixups,
+                         const MCSubtargetInfo &STI) const {
+
+  const MCOperand &MO = MI.getOperand(OpNo);
+
+  // If the destination is an immediate, divide by 4.
+  if (MO.isImm()) return MO.getImm() >> 2;
+
+  assert(MO.isExpr() &&
+         "getBranchTargetOpValue expects only expressions or immediates");
+
+  const MCExpr *Expr = MO.getExpr();
+  Fixups.push_back(MCFixup::Create(0, Expr,
+                                   MCFixupKind(Mips::fixup_MICROMIPS_PC16_S1)));
+  return 0;
+}
+
 /// getBranchTarget7OpValueMM - Return binary encoding of the microMIPS branch
 /// target operand. If the machine operand requires relocation,
 /// record the relocation and return zero.
@@ -560,10 +579,10 @@ MipsMCCodeEmitter::getMemEncoding(const MCInst &MI, unsigned OpNo,
                                   const MCSubtargetInfo &STI) const {
   // Base register is encoded in bits 38-32, offset is encoded in bits 31-0.
   assert(MI.getOperand(OpNo).isReg());
-  uint64_t RegBits = getMachineOpValue(MI, MI.getOperand(OpNo),Fixups, STI) << 32;
-  uint64_t OffBits = getMachineOpValue(MI, MI.getOperand(OpNo+1), Fixups, STI);
+  uint64_t RegBits = getMachineOpValue(MI, MI.getOperand(OpNo),Fixups, STI);
+  uint64_t OffBits = getMachineOpValue(MI, MI.getOperand(OpNo+1), Fixups, STI) << 6;
 
-  return (OffBits & 0xFFFFFFFFULL) | RegBits;
+  return (OffBits & 0x3FFF) | RegBits;
 }
 
 uint64_t MipsMCCodeEmitter::

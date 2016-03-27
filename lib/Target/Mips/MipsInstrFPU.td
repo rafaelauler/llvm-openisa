@@ -516,13 +516,13 @@ def MSUB_D32 : MMRel, MADDS_FT<"msub.d", AFGR64Opnd, II_MSUB_D, fsub>,
 def MIPS_BRANCH_F  : PatLeaf<(i32 0)>;
 def MIPS_BRANCH_T  : PatLeaf<(i32 1)>;
 
-def BC1F : MMRel, BC1F_FT<"bc1f", brtarget, IIBranch, MIPS_BRANCH_F>,
+def BC1F : MMRel, BC1F_FT<"bc1f", br16target, IIBranch, MIPS_BRANCH_F>,
            BC1F_FM<2>, ISA_MIPS1_NOT_32R6_64R6;
-def BC1FL : MMRel, BC1F_FT<"bc1fl", brtarget, IIBranch, MIPS_BRANCH_F, 0>,
+def BC1FL : MMRel, BC1F_FT<"bc1fl", br16target, IIBranch, MIPS_BRANCH_F, 0>,
             BC1F_FM<3>, ISA_MIPS2_NOT_32R6_64R6;
-def BC1T : MMRel, BC1F_FT<"bc1t", brtarget, IIBranch, MIPS_BRANCH_T>,
+def BC1T : MMRel, BC1F_FT<"bc1t", br16target, IIBranch, MIPS_BRANCH_T>,
            BC1F_FM<0>, ISA_MIPS1_NOT_32R6_64R6;
-def BC1TL : MMRel, BC1F_FT<"bc1tl", brtarget, IIBranch, MIPS_BRANCH_T, 0>,
+def BC1TL : MMRel, BC1F_FT<"bc1tl", br16target, IIBranch, MIPS_BRANCH_T, 0>,
             BC1F_FM<1>, ISA_MIPS2_NOT_32R6_64R6;
 
 //===----------------------------------------------------------------------===//
@@ -587,13 +587,13 @@ def ExtractElementF64_64 : ExtractElementF64Base<FGR64Opnd>,
 //===----------------------------------------------------------------------===//
 // InstAliases.
 //===----------------------------------------------------------------------===//
-def : MipsInstAlias<"bc1t $offset", (BC1T FCC0, brtarget:$offset)>,
+def : MipsInstAlias<"bc1t $offset", (BC1T FCC0, br16target:$offset)>,
       ISA_MIPS1_NOT_32R6_64R6;
-def : MipsInstAlias<"bc1tl $offset", (BC1TL FCC0, brtarget:$offset)>,
+def : MipsInstAlias<"bc1tl $offset", (BC1TL FCC0, br16target:$offset)>,
       ISA_MIPS2_NOT_32R6_64R6;
-def : MipsInstAlias<"bc1f $offset", (BC1F FCC0, brtarget:$offset)>,
+def : MipsInstAlias<"bc1f $offset", (BC1F FCC0, br16target:$offset)>,
       ISA_MIPS1_NOT_32R6_64R6;
-def : MipsInstAlias<"bc1fl $offset", (BC1FL FCC0, brtarget:$offset)>,
+def : MipsInstAlias<"bc1fl $offset", (BC1FL FCC0, br16target:$offset)>,
       ISA_MIPS2_NOT_32R6_64R6;
 
 //===----------------------------------------------------------------------===//

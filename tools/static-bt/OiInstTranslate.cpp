@@ -1215,6 +1215,7 @@ bool OiInstTranslate::HandleBranchTarget(const MCOperand &o,
       tgtaddr += rel;
     }
     //    assert(tgtaddr != IREmitter.CurAddr);
+    printf("tgtaddr: %lx\n", tgtaddr);
     if (tgtaddr <= IREmitter.CurAddr)
       return IREmitter.HandleBackEdge(tgtaddr, Target);
     Target = IREmitter.CreateBB(tgtaddr);
@@ -1229,6 +1230,12 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
 #else
   raw_ostream &DebugOut = nulls();
 #endif
+  struct LastLDIData {
+    Value *DstOperand = nullptr;
+    Constant *SrcOperand = nullptr;
+    uint64_t Addr = 0;
+  };
+  static LastLDIData LDIData;
 
   switch (MI->getOpcode()) {
   case Mips::ADDiu:
@@ -2163,6 +2170,38 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
+  case Mips::LDI: {
+    DebugOut << "Handling LDI\n";
+    Value *o0, *o1, *first = 0;
+    if (HandleAluSrcOperand(MI->getOperand(1), o1, &first) &&
+        HandleAluDstOperand(MI->getOperand(0), o0)) {
+      LDIData.DstOperand = o0;
+      assert(isa<Constant>(o1) && "Invalid LDI src operand");
+      LDIData.SrcOperand = dyn_cast<Constant>(o1);
+      LDIData.Addr = IREmitter.CurAddr;
+    }
+    break;
+  }
+  case Mips::LDIHI: {
+    DebugOut << "Handling LDIHI\n";
+    Value *o0 = 0, *first = 0;
+    if (HandleAluSrcOperand(MI->getOperand(0), o0, &first)) {
+      assert(
+          (LDIData.Addr + 4 == IREmitter.CurAddr) &&
+          "Invalid LDIHI instruction - LDI and LDIHI must be fused together!");
+      assert(isa<Constant>(o0) && "Invalid LDIHI operand");
+      Value *v = Builder.CreateStore(
+          ConstantExpr::getOr(LDIData.SrcOperand,
+                              ConstantExpr::getShl(dyn_cast<Constant>(o0),
+                                                   Builder.getInt32(14))),
+          LDIData.DstOperand);
+      first = GetFirstInstruction(first, v);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[LDIData.Addr] = dyn_cast<Instruction>(first);
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
   case Mips::NOR: {
     DebugOut << "Handling NORi, NOR\n";
     Value *o0, *o1, *o2, *first = 0;
@@ -2513,7 +2552,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     break;
   }
   case Mips::JAL: {
-    DebugOut << "Handling JAL\n";
+    DebugOut << "Handling CALL\n";
     Value *call, *first = 0;
     if (HandleCallTarget(MI->getOperand(0), call, &first)) {
       assert(isa<Instruction>(first) && "Need to rework map logic");

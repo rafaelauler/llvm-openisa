@@ -67,7 +67,7 @@ static unsigned adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
     // address range. Forcing a signed division because Value can be negative.
     Value = (int64_t)Value / 4;
     // We now check if Value can be encoded as a 16-bit signed immediate.
-    if (!isIntN(16, Value) && Ctx)
+    if (!isIntN(14, Value) && Ctx)
       Ctx->FatalError(Fixup.getLoc(), "out of range PC16 fixup");
     break;
   case Mips::fixup_MIPS_PC19_S2:
@@ -156,17 +156,6 @@ MCObjectWriter *MipsAsmBackend::createObjectWriter(raw_ostream &OS) const {
 //   mips32r2:   a | b | x | x
 //   microMIPS:  x | x | a | b
 
-static bool needsMMLEByteOrder(unsigned Kind) {
-  return Kind >= Mips::fixup_MICROMIPS_26_S1 &&
-         Kind < Mips::LastTargetFixupKind;
-}
-
-// Calculate index for microMIPS specific little endian byte order
-static unsigned calculateMMLEIndex(unsigned i) {
-  assert(i <= 3 && "Index out of range!");
-
-  return (1 - i / 2) * 2 + i % 2;
-}
 
 /// ApplyFixup - Apply the \p Value for given \p Fixup into the provided
 /// data fragment, at the offset specified by the fixup and following the
@@ -182,8 +171,10 @@ void MipsAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
 
   // Where do we start in the object
   unsigned Offset = Fixup.getOffset();
+  unsigned TargetOffset = getFixupKindInfo(Kind).TargetOffset;
   // Number of bytes we need to fixup
-  unsigned NumBytes = (getFixupKindInfo(Kind).TargetSize + 7) / 8;
+  unsigned NumBytes =
+      (TargetOffset + getFixupKindInfo(Kind).TargetSize + 7) / 8;
   // Used to point to big endian bytes
   unsigned FullSize;
 
@@ -205,23 +196,19 @@ void MipsAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
   // Grab current value, if any, from bits.
   uint64_t CurVal = 0;
 
-  bool microMipsLEByteOrder = needsMMLEByteOrder((unsigned) Kind);
-
   for (unsigned i = 0; i != NumBytes; ++i) {
-    unsigned Idx = IsLittle ? (microMipsLEByteOrder ? calculateMMLEIndex(i)
-                                                    : i)
+    unsigned Idx = IsLittle ? i
                             : (FullSize - 1 - i);
     CurVal |= (uint64_t)((uint8_t)Data[Offset + Idx]) << (i*8);
   }
 
   uint64_t Mask = ((uint64_t)(-1) >>
-                    (64 - getFixupKindInfo(Kind).TargetSize));
-  CurVal |= Value & Mask;
+                   (64 - getFixupKindInfo(Kind).TargetSize));
+  CurVal |= (Value & Mask) << TargetOffset;
 
   // Write out the fixed up bytes back to the code/data bits.
   for (unsigned i = 0; i != NumBytes; ++i) {
-    unsigned Idx = IsLittle ? (microMipsLEByteOrder ? calculateMMLEIndex(i)
-                                                    : i)
+    unsigned Idx = IsLittle ? i
                             : (FullSize - 1 - i);
     Data[Offset + Idx] = (uint8_t)((CurVal >> (i*8)) & 0xff);
   }
@@ -244,7 +231,7 @@ getFixupKindInfo(MCFixupKind Kind) const {
     { "fixup_Mips_LITERAL",      0,     16,   0 },
     { "fixup_Mips_GOT_Global",   0,     16,   0 },
     { "fixup_Mips_GOT_Local",    0,     16,   0 },
-    { "fixup_Mips_PC16",         0,     16,  MCFixupKindInfo::FKF_IsPCRel },
+    { "fixup_Mips_PC16",         12,    14,  MCFixupKindInfo::FKF_IsPCRel },
     { "fixup_Mips_CALL16",       0,     16,   0 },
     { "fixup_Mips_GPREL32",      0,     32,   0 },
     { "fixup_Mips_SHIFT5",       6,      5,   0 },
@@ -257,7 +244,7 @@ getFixupKindInfo(MCFixupKind Kind) const {
     { "fixup_Mips_TLSLDM",       0,     16,   0 },
     { "fixup_Mips_DTPREL_HI",    0,     16,   0 },
     { "fixup_Mips_DTPREL_LO",    0,     16,   0 },
-    { "fixup_Mips_Branch_PCRel", 0,     16,  MCFixupKindInfo::FKF_IsPCRel },
+    { "fixup_Mips_Branch_PCRel", 12,    14,  MCFixupKindInfo::FKF_IsPCRel },
     { "fixup_Mips_GPOFF_HI",     0,     16,   0 },
     { "fixup_Mips_GPOFF_LO",     0,     16,   0 },
     { "fixup_Mips_GOT_PAGE",     0,     16,   0 },
@@ -308,7 +295,7 @@ getFixupKindInfo(MCFixupKind Kind) const {
     { "fixup_Mips_LITERAL",     16,     16,   0 },
     { "fixup_Mips_GOT_Global",  16,     16,   0 },
     { "fixup_Mips_GOT_Local",   16,     16,   0 },
-    { "fixup_Mips_PC16",        16,     16,  MCFixupKindInfo::FKF_IsPCRel },
+    { "fixup_Mips_PC16",        6,      14,  MCFixupKindInfo::FKF_IsPCRel },
     { "fixup_Mips_CALL16",      16,     16,   0 },
     { "fixup_Mips_GPREL32",      0,     32,   0 },
     { "fixup_Mips_SHIFT5",      21,      5,   0 },
