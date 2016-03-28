@@ -255,10 +255,10 @@ bool MipsInstPrinter::printAlias(const MCInst &MI, raw_ostream &OS) {
     // beq $r0, $zero, $L2 => beqz $r0, $L2
     return (isReg<Mips::ZERO>(MI, 0) && isReg<Mips::ZERO>(MI, 1) &&
             printAlias("b", MI, 2, OS)) ||
-           (isReg<Mips::ZERO>(MI, 1) && printAlias("beqz", MI, 0, 2, OS));
+           (isReg<Mips::ZERO>(MI, 1) && printAlias("jeqz", MI, 0, 2, OS));
   case Mips::BNE:
     // bne $r0, $zero, $L2 => bnez $r0, $L2
-    return isReg<Mips::ZERO>(MI, 1) && printAlias("bnez", MI, 0, 2, OS);
+    return isReg<Mips::ZERO>(MI, 1) && printAlias("jnez", MI, 0, 2, OS);
   case Mips::BC1T:
     // bc1t $fcc0, $L1 => bc1t $L1
     return isReg<Mips::FCC0>(MI, 0) && printAlias("bc1t", MI, 1, OS);

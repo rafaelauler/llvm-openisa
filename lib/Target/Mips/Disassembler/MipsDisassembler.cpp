@@ -531,7 +531,7 @@ static DecodeStatus DecodeCallTarget(MCInst &Inst,
                                      unsigned Offset,
                                      uint64_t Address,
                                      const void *Decoder) {
-  int32_t BranchOffset = (SignExtend32<20>(Offset) * 4) + 4;
+  int32_t BranchOffset = SignExtend32<20>(Offset) * 4;
   Inst.addOperand(MCOperand::CreateImm(BranchOffset));
   return MCDisassembler::Success;
 }
