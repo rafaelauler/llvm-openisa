@@ -126,13 +126,12 @@ void MipsSEDAGToDAGISel::initGlobalBaseReg(MachineFunction &MF) {
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc DL = I != MBB.end() ? I->getDebugLoc() : DebugLoc();
-  unsigned V0, V1, GlobalBaseReg = MipsFI->getGlobalBaseReg();
+  unsigned V0, GlobalBaseReg = MipsFI->getGlobalBaseReg();
   const TargetRegisterClass *RC;
 
   RC = (Subtarget->isABI_N64()) ? &Mips::GPR64RegClass : &Mips::GPR32RegClass;
 
   V0 = RegInfo.createVirtualRegister(RC);
-  V1 = RegInfo.createVirtualRegister(RC);
 
   if (MF.getTarget().getRelocationModel() == Reloc::Static) {
     // Set global register to __gnu_local_gp.
@@ -141,7 +140,7 @@ void MipsSEDAGToDAGISel::initGlobalBaseReg(MachineFunction &MF) {
     // addiu $globalbasereg, $v0, %lo(__gnu_local_gp)
 //    BuildMI(MBB, I, DL, TII.get(Mips::LUi), V0)
 //      .addExternalSymbol("__gnu_local_gp", MipsII::MO_ABS_HI);
-    BuildMI(MBB, I, DL, TII.get(Mips::ADDiu), GlobalBaseReg).addReg(V0)
+    BuildMI(MBB, I, DL, TII.get(Mips::LOAD_IMM_PSEUDO), GlobalBaseReg)
       .addExternalSymbol("__gnu_local_gp", MipsII::MO_ABS_LO);
     return;
   }
@@ -156,9 +155,9 @@ void MipsSEDAGToDAGISel::initGlobalBaseReg(MachineFunction &MF) {
     const GlobalValue *FName = MF.getFunction();
 //    BuildMI(MBB, I, DL, TII.get(Mips::LUi), V0)
 //      .addGlobalAddress(FName, 0, MipsII::MO_GPOFF_HI);
-    BuildMI(MBB, I, DL, TII.get(Mips::ADDu), V1).addReg(V0).addReg(Mips::T9);
-    BuildMI(MBB, I, DL, TII.get(Mips::ADDiu), GlobalBaseReg).addReg(V1)
+    BuildMI(MBB, I, DL, TII.get(Mips::LOAD_IMM_PSEUDO), V0)
       .addGlobalAddress(FName, 0, MipsII::MO_GPOFF_LO);
+    BuildMI(MBB, I, DL, TII.get(Mips::ADDu), GlobalBaseReg).addReg(V0).addReg(Mips::T9);
     return;
   }
 
