@@ -466,7 +466,8 @@ class MULT_FM<bits<6> op, bits<2> extop1> : StdArch {
   let Inst{5-0}   = rt;
 }
 
-class MULLO_FM<bits<6> op, bits<2> extop1> : StdArch {
+class MULOI_FM<bits<6> op, bits<2> extop1> : StdArch {
+  bits<6>  rv;
   bits<6>  rd;
   bits<6>  rs;
   bits<6>  rt;
@@ -475,7 +476,7 @@ class MULLO_FM<bits<6> op, bits<2> extop1> : StdArch {
 
   let Inst{31-26} = op;
   let Inst{25-24} = extop1;
-  let Inst{23-18} = 0;
+  let Inst{23-18} = rv;
   let Inst{17-12} = rd;
   let Inst{11-6}  = rs;
   let Inst{5-0}   = rt;

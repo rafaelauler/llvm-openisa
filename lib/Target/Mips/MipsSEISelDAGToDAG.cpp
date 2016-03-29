@@ -14,7 +14,6 @@
 #include "MipsSEISelDAGToDAG.h"
 #include "MCTargetDesc/MipsBaseInfo.h"
 #include "Mips.h"
-#include "MipsAnalyzeImmediate.h"
 #include "MipsMachineFunction.h"
 #include "MipsRegisterInfo.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
@@ -278,7 +277,7 @@ bool MipsSEDAGToDAGISel::selectAddrRegImm(SDValue Addr, SDValue &Base,
   }
 
   // Addresses of the form FI+const or FI|const
-  if (selectAddrFrameIndexOffset(Addr, Base, Offset, 32))
+  if (selectAddrFrameIndexOffset(Addr, Base, Offset, 16))
     return true;
 
   // Operand is a result from an ADD.
@@ -643,38 +642,11 @@ std::pair<bool, SDNode*> MipsSEDAGToDAGISel::selectNode(SDNode *Node) {
   case ISD::Constant: {
     const ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Node);
     unsigned Size = CN->getValueSizeInBits(0);
+    assert(Size == 32 && "Can't handle 64-bit constants");
 
     if (Size == 32)
       break;
 
-    MipsAnalyzeImmediate AnalyzeImm;
-    int64_t Imm = CN->getSExtValue();
-
-    const MipsAnalyzeImmediate::InstSeq &Seq =
-      AnalyzeImm.Analyze(Imm, Size, false);
-
-    MipsAnalyzeImmediate::InstSeq::const_iterator Inst = Seq.begin();
-    SDLoc DL(CN);
-    SDNode *RegOpnd;
-    SDValue ImmOpnd = CurDAG->getTargetConstant(SignExtend64<16>(Inst->ImmOpnd),
-                                                MVT::i64);
-
-    // The first instruction can be a LUi which is different from other
-    // instructions (ADDiu, ORI and SLL) in that it does not have a register
-    // operand.
-    RegOpnd = CurDAG->getMachineNode(
-        Inst->Opc, DL, MVT::i64, CurDAG->getRegister(Mips::ZERO_64, MVT::i64),
-        ImmOpnd);
-
-    // The remaining instructions in the sequence are handled here.
-    for (++Inst; Inst != Seq.end(); ++Inst) {
-      ImmOpnd = CurDAG->getTargetConstant(SignExtend64<16>(Inst->ImmOpnd),
-                                          MVT::i64);
-      RegOpnd = CurDAG->getMachineNode(Inst->Opc, DL, MVT::i64,
-                                       SDValue(RegOpnd, 0), ImmOpnd);
-    }
-
-    return std::make_pair(true, RegOpnd);
   }
 
   case ISD::INTRINSIC_W_CHAIN: {

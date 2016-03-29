@@ -1198,6 +1198,43 @@ bool MipsAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     return false;
   }
 
+// XXX: Disable automatic expansion of large immediates
+//
+//  if (MCID.mayLoad() || MCID.mayStore()) {
+//    // Check the offset of memory operand, if it is a symbol
+//    // reference or immediate we may have to expand instructions.
+//    for (unsigned i = 0; i < MCID.getNumOperands(); i++) {
+//      const MCOperandInfo &OpInfo = MCID.OpInfo[i];
+//      if ((OpInfo.OperandType == MCMIPS::OPERAND_MEMORY) ||
+//          (OpInfo.OperandType == MCMIPS::OPERAND_UNKNOWN)) {
+//        MCOperand &Op = Inst.getOperand(i);
+//        if (Op.isImm()) {
+//          int MemOffset = Op.getImm();
+//          if (MemOffset
+//          if (MemOffset < -8192 || MemOffset > 8191) {
+//            // Offset can't exceed 14bit value.
+//            expandMemInst(Inst, IDLoc, Instructions, MCID.mayLoad(), true);
+//            return false;
+//          }
+//        } else if (Op.isExpr()) {
+//          const MCExpr *Expr = Op.getExpr();
+//          if (Expr->getKind() == MCExpr::SymbolRef) {
+//            const MCSymbolRefExpr *SR =
+//                static_cast<const MCSymbolRefExpr *>(Expr);
+//            if (SR->getKind() == MCSymbolRefExpr::VK_None) {
+//              // Expand symbol.
+//              expandMemInst(Inst, IDLoc, Instructions, MCID.mayLoad(), false);
+//              return false;
+//            }
+//          } else if (!isEvaluated(Expr)) {
+//            expandMemInst(Inst, IDLoc, Instructions, MCID.mayLoad(), false);
+//            return false;
+//          }
+//        }
+//      }
+//    } // for
+//  }   // if load/store
+
   // TODO: Handle this with the AsmOperandClass.PredicateMethod.
   if (inMicroMipsMode()) {
     MCOperand Opnd;

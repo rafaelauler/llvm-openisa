@@ -620,21 +620,19 @@ void MipsTargetELFStreamer::emitDirectiveCpLoad(unsigned RegNo) {
   MCA.getOrCreateSymbolData(*GP_Disp);
 
   MCInst TmpInst;
-  //  TmpInst.setOpcode(Mips::LUi);
-  TmpInst.addOperand(MCOperand::CreateReg(Mips::GP));
-  const MCSymbolRefExpr *HiSym = MCSymbolRefExpr::Create(
-      "_gp_disp", MCSymbolRefExpr::VK_Mips_ABS_HI, MCA.getContext());
-  TmpInst.addOperand(MCOperand::CreateExpr(HiSym));
-  getStreamer().EmitInstruction(TmpInst, STI);
-
-  TmpInst.clear();
-
-  TmpInst.setOpcode(Mips::ADDiu);
-  TmpInst.addOperand(MCOperand::CreateReg(Mips::GP));
+  TmpInst.setOpcode(Mips::LDI);
   TmpInst.addOperand(MCOperand::CreateReg(Mips::GP));
   const MCSymbolRefExpr *LoSym = MCSymbolRefExpr::Create(
       "_gp_disp", MCSymbolRefExpr::VK_Mips_ABS_LO, MCA.getContext());
   TmpInst.addOperand(MCOperand::CreateExpr(LoSym));
+  getStreamer().EmitInstruction(TmpInst, STI);
+
+  TmpInst.clear();
+
+  TmpInst.setOpcode(Mips::LDIHI);
+  const MCSymbolRefExpr *HiSym = MCSymbolRefExpr::Create(
+      "_gp_disp", MCSymbolRefExpr::VK_Mips_ABS_HI, MCA.getContext());
+  TmpInst.addOperand(MCOperand::CreateExpr(HiSym));
   getStreamer().EmitInstruction(TmpInst, STI);
 
   TmpInst.clear();
@@ -681,17 +679,15 @@ void MipsTargetELFStreamer::emitDirectiveCpsetup(unsigned RegNo,
   const MCSymbolRefExpr *LoExpr = MCSymbolRefExpr::Create(
       Sym.getName(), MCSymbolRefExpr::VK_Mips_GPOFF_LO, MCA.getContext());
   // lui $gp, %hi(%neg(%gp_rel(funcSym)))
-  //  Inst.setOpcode(Mips::LUi);
+  Inst.setOpcode(Mips::LDI);
   Inst.addOperand(MCOperand::CreateReg(Mips::GP));
-  Inst.addOperand(MCOperand::CreateExpr(HiExpr));
+  Inst.addOperand(MCOperand::CreateExpr(LoExpr));
   getStreamer().EmitInstruction(Inst, STI);
   Inst.clear();
 
   // addiu  $gp, $gp, %lo(%neg(%gp_rel(funcSym)))
-  Inst.setOpcode(Mips::ADDiu);
-  Inst.addOperand(MCOperand::CreateReg(Mips::GP));
-  Inst.addOperand(MCOperand::CreateReg(Mips::GP));
-  Inst.addOperand(MCOperand::CreateExpr(LoExpr));
+  Inst.setOpcode(Mips::LDIHI);
+  Inst.addOperand(MCOperand::CreateExpr(HiExpr));
   getStreamer().EmitInstruction(Inst, STI);
   Inst.clear();
 

@@ -14,7 +14,6 @@ tablegen(LLVM MipsGenMCPseudoLowering.inc -gen-pseudo-lowering)
 add_public_tablegen_target(MipsCommonTableGen)
 
 add_llvm_target(MipsCodeGen
-  MipsAnalyzeImmediate.cpp
   MipsAsmPrinter.cpp
   MipsCCState.cpp
   MipsDelaySlotFiller.cpp

@@ -103,6 +103,9 @@ public:
   unsigned getBranch16TargetOpValue(const MCInst &MI, unsigned OpNo,
                                     SmallVectorImpl<MCFixup> &Fixups,
                                     const MCSubtargetInfo &STI) const;
+  unsigned getBranch14TargetOpValue(const MCInst &MI, unsigned OpNo,
+                                    SmallVectorImpl<MCFixup> &Fixups,
+                                    const MCSubtargetInfo &STI) const;
 
   // getBranchTarget7OpValue - Return binary encoding of the microMIPS branch
   // target operand. If the machine operand requires relocation,

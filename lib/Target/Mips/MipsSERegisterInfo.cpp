@@ -14,7 +14,6 @@
 
 #include "MipsSERegisterInfo.h"
 #include "Mips.h"
-#include "MipsAnalyzeImmediate.h"
 #include "MipsMachineFunction.h"
 #include "MipsSEInstrInfo.h"
 #include "MipsSubtarget.h"
@@ -131,29 +130,19 @@ void MipsSERegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
   DEBUG(errs() << "Offset     : " << Offset << "\n" << "<--------->\n");
 
   if (!MI.isDebugValue()) {
-    // Make sure Offset fits within the field available.
-    // For MSA instructions, this is a 10-bit signed immediate (scaled by
-    // element size), otherwise it is a 16-bit signed immediate.
-    unsigned OffsetBitSize = getLoadStoreOffsetSizeInBits(MI.getOpcode());
-    //    unsigned OffsetAlign = getLoadStoreOffsetAlign(MI.getOpcode());
-    // LUi
-    if (!isInt<32>(Offset)) {
-      // Otherwise split the offset into 16-bit pieces and add it in multiple
-      // instructions.
+    if (!isInt<14>(Offset)) {
       MachineBasicBlock &MBB = *MI.getParent();
       DebugLoc DL = II->getDebugLoc();
-      unsigned ADDu = Mips::ADDu;
-      unsigned NewImm = 0;
+      const TargetRegisterClass *RC = &Mips::GPR32RegClass;
       const MipsSEInstrInfo &TII =
           *static_cast<const MipsSEInstrInfo *>(
               MBB.getParent()->getSubtarget().getInstrInfo());
-      unsigned Reg = TII.loadImmediate(Offset, MBB, II, DL,
-                                       OffsetBitSize == 16 ? &NewImm : nullptr);
-      BuildMI(MBB, II, DL, TII.get(ADDu), Reg).addReg(FrameReg)
+      unsigned Reg = MBB.getParent()->getRegInfo().createVirtualRegister(RC);
+      BuildMI(MBB, II, DL, TII.get(Mips::LOAD_IMM_PSEUDO), Reg).addImm(Offset);
+      BuildMI(MBB, II, DL, TII.get(Mips::ADDu), Reg).addReg(FrameReg)
         .addReg(Reg, RegState::Kill);
-
       FrameReg = Reg;
-      Offset = SignExtend64<16>(NewImm);
+      Offset = 0;
       IsKill = true;
     }
   }
