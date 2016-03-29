@@ -130,7 +130,24 @@ void MipsSERegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
   DEBUG(errs() << "Offset     : " << Offset << "\n" << "<--------->\n");
 
   if (!MI.isDebugValue()) {
-    if (!isInt<14>(Offset)) {
+    if (!isInt<14>(Offset) && (Offset == (Offset & 0x3FFF))) {
+      MachineBasicBlock &MBB = *MI.getParent();
+      DebugLoc DL = II->getDebugLoc();
+      const TargetRegisterClass *RC = &Mips::GPR32RegClass;
+      const MipsSEInstrInfo &TII =
+          *static_cast<const MipsSEInstrInfo *>(
+              MBB.getParent()->getSubtarget().getInstrInfo());
+      unsigned Reg = MBB.getParent()->getRegInfo().createVirtualRegister(RC);
+      BuildMI(MBB, II, DL, TII.get(Mips::ORi), Reg)
+          .addReg(Mips::ZERO)
+          .addImm(Offset);
+      BuildMI(MBB, II, DL, TII.get(Mips::ADDu), Reg)
+          .addReg(FrameReg)
+          .addReg(Reg, RegState::Kill);
+      FrameReg = Reg;
+      Offset = 0;
+      IsKill = true;
+    } else if (!isInt<14>(Offset)) {
       MachineBasicBlock &MBB = *MI.getParent();
       DebugLoc DL = II->getDebugLoc();
       const TargetRegisterClass *RC = &Mips::GPR32RegClass;
