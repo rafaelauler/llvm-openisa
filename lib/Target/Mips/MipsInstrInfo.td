@@ -547,6 +547,9 @@ def size_ins : Operand<i32> {
 def LO16 : SDNodeXForm<imm, [{
   return getImm(N, N->getZExtValue() & 0xFFFF);
 }]>;
+def LO14 : SDNodeXForm<imm, [{
+  return getImm(N, N->getZExtValue() & 0x3FFF);
+}]>;
 
 // Transformation Function - get the higher 16 bits.
 def HI16 : SDNodeXForm<imm, [{
@@ -593,11 +596,19 @@ def immLow16Zero : PatLeaf<(imm), [{
 // shamt field must fit in 5 bits.
 def immZExt5 : ImmLeaf<i32, [{return Imm == (Imm & 0x1f);}]>;
 
-def immZExt14 : ImmLeaf<i32, [{return Imm == (Imm & 0x3fff);}]>;
+def immZExt14 : PatLeaf<(imm), [{
+  if (N->getValueType(0) == MVT::i32)
+    return (uint32_t)N->getZExtValue() == (N->getZExtValue() & 0x3fff);
+  else
+    return (uint64_t)N->getZExtValue() == (N->getZExtValue() & 0x3fff);
+}], LO14>;
 
 // True if (N + 1) fits in 16-bit field.
 def immSExt16Plus1 : PatLeaf<(imm), [{
   return isInt<17>(N->getSExtValue()) && isInt<16>(N->getSExtValue() + 1);
+}]>;
+def immSExt14Plus1 : PatLeaf<(imm), [{
+  return isInt<15>(N->getSExtValue()) && isInt<14>(N->getSExtValue() + 1);
 }]>;
 
 // Mips Address Mode! SDNode frameindex could possibily be a match
@@ -1153,7 +1164,7 @@ def ADDiu : MMRel, ArithLogicI<"addi", simm14, GPR32Opnd, II_ADDIU, immSExt14,
 //            ISA_MIPS1_NOT_32R6_64R6;
 def SLTi  : MMRel, SetCC_I<"slti", setlt, simm14, immSExt14, GPR32Opnd>,
             ADDI_FM<0x10>;
-def SLTiu : MMRel, SetCC_I<"sltiu", setult, simm14, immSExt14, GPR32Opnd>,
+def SLTiu : MMRel, SetCC_I<"sltiu", setult, uimm14, immZExt14, GPR32Opnd>,
             ADDI_FM<0x11>;
 let AdditionalPredicates = [NotInMicroMips] in {
 def ANDi  : MMRel, ArithLogicI<"andi", uimm14, GPR32Opnd, II_ANDI, immZExt14,
@@ -1584,7 +1595,7 @@ def : MipsInstAlias<"negu $rt, $rs",
 def : MipsInstAlias<"slt $rs, $rt, $imm",
                     (SLTi GPR32Opnd:$rs, GPR32Opnd:$rt, simm14:$imm), 0>;
 def : MipsInstAlias<"sltu $rt, $rs, $imm",
-                    (SLTiu GPR32Opnd:$rt, GPR32Opnd:$rs, simm14:$imm), 0>;
+                    (SLTiu GPR32Opnd:$rt, GPR32Opnd:$rs, uimm14:$imm), 0>;
 def : MipsInstAlias<"xor $rs, $rt, $imm",
                     (XORi GPR32Opnd:$rs, GPR32Opnd:$rt, uimm14:$imm), 0>;
 def : MipsInstAlias<"or $rs, $rt, $imm",
@@ -1710,7 +1721,7 @@ def : MipsPat<(subc GPR32:$lhs, GPR32:$rhs),
 let AdditionalPredicates = [NotDSP] in {
   def : MipsPat<(addc GPR32:$lhs, GPR32:$rhs),
                 (ADDu GPR32:$lhs, GPR32:$rhs)>;
-  def : MipsPat<(addc  GPR32:$src, immSExt16:$imm),
+  def : MipsPat<(addc  GPR32:$src, immSExt14:$imm),
                 (ADDiu GPR32:$src, imm:$imm)>;
 }
 
@@ -1809,13 +1820,13 @@ def : MipsPat<(brcond (i32 (setge RC:$lhs, RC:$rhs)), bb:$dst),
               (BEQ (SLTOp RC:$lhs, RC:$rhs), ZERO, bb:$dst)>;
 def : MipsPat<(brcond (i32 (setuge RC:$lhs, RC:$rhs)), bb:$dst),
               (BEQ (SLTuOp RC:$lhs, RC:$rhs), ZERO, bb:$dst)>;
-def : MipsPat<(brcond (i32 (setge RC:$lhs, immSExt16:$rhs)), bb:$dst),
-              (BEQ (SLTiOp RC:$lhs, immSExt16:$rhs), ZERO, bb:$dst)>;
-def : MipsPat<(brcond (i32 (setuge RC:$lhs, immSExt16:$rhs)), bb:$dst),
-              (BEQ (SLTiuOp RC:$lhs, immSExt16:$rhs), ZERO, bb:$dst)>;
-def : MipsPat<(brcond (i32 (setgt RC:$lhs, immSExt16Plus1:$rhs)), bb:$dst),
+def : MipsPat<(brcond (i32 (setge RC:$lhs, immSExt14:$rhs)), bb:$dst),
+              (BEQ (SLTiOp RC:$lhs, immSExt14:$rhs), ZERO, bb:$dst)>;
+def : MipsPat<(brcond (i32 (setuge RC:$lhs, immSExt14:$rhs)), bb:$dst),
+              (BEQ (SLTiuOp RC:$lhs, immSExt14:$rhs), ZERO, bb:$dst)>;
+def : MipsPat<(brcond (i32 (setgt RC:$lhs, immSExt14Plus1:$rhs)), bb:$dst),
               (BEQ (SLTiOp RC:$lhs, (Plus1 imm:$rhs)), ZERO, bb:$dst)>;
-def : MipsPat<(brcond (i32 (setugt RC:$lhs, immSExt16Plus1:$rhs)), bb:$dst),
+def : MipsPat<(brcond (i32 (setugt RC:$lhs, immSExt14Plus1:$rhs)), bb:$dst),
               (BEQ (SLTiuOp RC:$lhs, (Plus1 imm:$rhs)), ZERO, bb:$dst)>;
 
 def : MipsPat<(brcond (i32 (setle RC:$lhs, RC:$rhs)), bb:$dst),
@@ -1872,8 +1883,8 @@ multiclass SetgeImmPats<RegisterClass RC, Instruction SLTiOp,
                         Instruction SLTiuOp> {
   def : MipsPat<(setge RC:$lhs, immSExt14:$rhs),
                 (XORi (SLTiOp RC:$lhs, immSExt14:$rhs), 1)>;
-  def : MipsPat<(setuge RC:$lhs, immSExt14:$rhs),
-                (XORi (SLTiuOp RC:$lhs, immSExt14:$rhs), 1)>;
+  def : MipsPat<(setuge RC:$lhs, immZExt14:$rhs),
+                (XORi (SLTiuOp RC:$lhs, immZExt14:$rhs), 1)>;
 }
 
 defm : SeteqPats<GPR32, SLTiu, XOR, SLTu, ZERO>;
