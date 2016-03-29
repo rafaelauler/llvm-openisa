@@ -257,6 +257,8 @@ MipsInstrInfo::BranchType MipsInstrInfo::AnalyzeBranch(
 /// Return the number of bytes of code the specified instruction may be.
 unsigned MipsInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
   switch (MI->getOpcode()) {
+  case Mips::LOAD_IMM_PSEUDO:
+    return 8;
   default:
     return MI->getDesc().getSize();
   case  TargetOpcode::INLINEASM: {       // Inline Asm: Variable size.

@@ -63,11 +63,10 @@ namespace {
   public:
     static char ID;
     MipsLongBranch(TargetMachine &tm)
-      : MachineFunctionPass(ID), TM(tm),
-        IsPIC(TM.getRelocationModel() == Reloc::PIC_),
-        ABI(TM.getSubtarget<MipsSubtarget>().getABI()),
-        LongBranchSeqSize(!IsPIC ? 2 : (ABI.IsN64() ? 10 :
-            (!TM.getSubtarget<MipsSubtarget>().isTargetNaCl() ? 9 : 10))) {}
+        : MachineFunctionPass(ID), TM(tm),
+          IsPIC(TM.getRelocationModel() == Reloc::PIC_),
+          ABI(TM.getSubtarget<MipsSubtarget>().getABI()),
+          LongBranchSeqSize(!IsPIC ? 1 : (ABI.IsN64() ? 10 : 9)) {}
 
     const char *getPassName() const override {
       return "Mips Long Branch";
@@ -317,14 +316,16 @@ void MipsLongBranch::expandToLongBranch(MBBInfo &I) {
       // %hi($tgt-$baltgt) and %lo($tgt-$baltgt) expressions and add them as
       // operands to lowered instructions.
 
-      BuildMI(*LongBrMBB, Pos, DL, TII->get(Mips::LONG_BRANCH_LUi), Mips::AT)
-        .addMBB(TgtMBB).addMBB(BalTgtMBB);
       MIBundleBuilder(*LongBrMBB, Pos)
-          .append(BuildMI(*MF, DL, TII->get(BalOp)).addMBB(BalTgtMBB))
           .append(BuildMI(*MF, DL, TII->get(Mips::LONG_BRANCH_ADDiu), Mips::AT)
                       .addReg(Mips::AT)
                       .addMBB(TgtMBB)
-                      .addMBB(BalTgtMBB));
+                      .addMBB(BalTgtMBB))
+          .append(BuildMI(*MF, DL, TII->get(Mips::LONG_BRANCH_LUi),
+                          Mips::AT)
+                      .addMBB(TgtMBB)
+                      .addMBB(BalTgtMBB))
+          .append(BuildMI(*MF, DL, TII->get(BalOp)).addMBB(BalTgtMBB));
 
       Pos = BalTgtMBB->begin();
 
@@ -335,18 +336,14 @@ void MipsLongBranch::expandToLongBranch(MBBInfo &I) {
 
       if (!TM.getSubtarget<MipsSubtarget>().isTargetNaCl()) {
         MIBundleBuilder(*BalTgtMBB, Pos)
-          .append(BuildMI(*MF, DL, TII->get(Mips::JR)).addReg(Mips::AT))
           .append(BuildMI(*MF, DL, TII->get(Mips::ADDiu), Mips::SP)
-                  .addReg(Mips::SP).addImm(8));
+                  .addReg(Mips::SP).addImm(8))
+          .append(BuildMI(*MF, DL, TII->get(Mips::JR)).addReg(Mips::AT));
       } else {
         // In NaCl, modifying the sp is not allowed in branch delay slot.
         BuildMI(*BalTgtMBB, Pos, DL, TII->get(Mips::ADDiu), Mips::SP)
           .addReg(Mips::SP).addImm(8);
-
-        MIBundleBuilder(*BalTgtMBB, Pos)
-          .append(BuildMI(*MF, DL, TII->get(Mips::JR)).addReg(Mips::AT))
-          .append(BuildMI(*MF, DL, TII->get(Mips::NOP)));
-
+        BuildMI(*MF, DL, TII->get(Mips::JR)).addReg(Mips::AT);
         // Bundle-align the target of indirect branch JR.
         TgtMBB->setAlignment(MIPS_NACL_BUNDLE_ALIGN);
       }
@@ -361,9 +358,7 @@ void MipsLongBranch::expandToLongBranch(MBBInfo &I) {
     //
     Pos = LongBrMBB->begin();
     LongBrMBB->addSuccessor(TgtMBB);
-    MIBundleBuilder(*LongBrMBB, Pos)
-      .append(BuildMI(*MF, DL, TII->get(Mips::J)).addMBB(TgtMBB))
-      .append(BuildMI(*MF, DL, TII->get(Mips::NOP)));
+    BuildMI(*MF, DL, TII->get(Mips::J)).addMBB(TgtMBB);
 
     assert(LongBrMBB->size() == LongBranchSeqSize);
   }
@@ -382,10 +377,12 @@ static void emitGPDisp(MachineFunction &F, const MipsInstrInfo *TII) {
   MachineBasicBlock &MBB = F.front();
   MachineBasicBlock::iterator I = MBB.begin();
   DebugLoc DL = MBB.findDebugLoc(MBB.begin());
-  //  BuildMI(MBB, I, DL, TII->get(Mips::LUi), Mips::V0)
-  //    .addExternalSymbol("_gp_disp", MipsII::MO_ABS_HI);
-  BuildMI(MBB, I, DL, TII->get(Mips::ADDiu), Mips::V0)
-    .addReg(Mips::V0).addExternalSymbol("_gp_disp", MipsII::MO_ABS_LO);
+  MIBundleBuilder(MBB, I)
+      .append(BuildMI(F, DL, TII->get(Mips::LDI), Mips::V0)
+                  .addReg(Mips::V0)
+                  .addExternalSymbol("_gp_disp", MipsII::MO_ABS_LO))
+      .append(BuildMI(F, DL, TII->get(Mips::LDIHI))
+                  .addExternalSymbol("_gp_disp", MipsII::MO_ABS_HI));
   MBB.removeLiveIn(Mips::V0);
 }
 
@@ -430,8 +427,8 @@ bool MipsLongBranch::runOnMachineFunction(MachineFunction &F) {
         Offset *= 2;
       }
 
-      // Check if offset fits into 16-bit immediate field of branches.
-      if (!ForceLongBranch && isInt<16>(Offset))
+      // Check if offset fits into 14-bit immediate field of branches.
+      if (!ForceLongBranch && isInt<14>(Offset))
         continue;
 
       I->HasLongBranch = true;

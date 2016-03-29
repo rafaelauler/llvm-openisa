@@ -163,10 +163,7 @@ MCOperand MipsMCInstLower::createSub(MachineBasicBlock *BB1,
 
 void MipsMCInstLower::
 lowerLongBranchLUi(const MachineInstr *MI, MCInst &OutMI) const {
-  //  OutMI.setOpcode(Mips::LUi);
-
-  // Lower register operand.
-  OutMI.addOperand(LowerOperand(MI->getOperand(0)));
+  OutMI.setOpcode(Mips::LDIHI);
 
   // Create %hi($tgt-$baltgt).
   OutMI.addOperand(createSub(MI->getOperand(1).getMBB(),
@@ -177,13 +174,11 @@ lowerLongBranchLUi(const MachineInstr *MI, MCInst &OutMI) const {
 void MipsMCInstLower::
 lowerLongBranchADDiu(const MachineInstr *MI, MCInst &OutMI, int Opcode,
                      MCSymbolRefExpr::VariantKind Kind) const {
-  OutMI.setOpcode(Opcode);
+  OutMI.setOpcode(Mips::LDI);
 
   // Lower two register operands.
-  for (unsigned I = 0, E = 2; I != E; ++I) {
-    const MachineOperand &MO = MI->getOperand(I);
-    OutMI.addOperand(LowerOperand(MO));
-  }
+  const MachineOperand &MO = MI->getOperand(0);
+  OutMI.addOperand(LowerOperand(MO));
 
   // Create %lo($tgt-$baltgt) or %hi($tgt-$baltgt).
   OutMI.addOperand(createSub(MI->getOperand(2).getMBB(),
