@@ -482,9 +482,9 @@ static DecodeStatus DecodeFMem(MCInst &Inst,
                                uint64_t Insn,
                                uint64_t Address,
                                const void *Decoder) {
-  int Offset = SignExtend32<32>(Insn & 0xffffffff);
-  unsigned Reg = fieldFromInstruction(Insn, 44, 7);
-  unsigned Base = fieldFromInstruction(Insn, 51, 7);
+  int Offset = SignExtend32<14>((Insn & 0x3fff000) >> 12);
+  unsigned Reg = fieldFromInstruction(Insn, 0, 6);
+  unsigned Base = fieldFromInstruction(Insn, 6, 6);
 
   Reg = getReg(Decoder, Mips::FGR64RegClassID, Reg);
   Base = getReg(Decoder, Mips::GPR32RegClassID, Base);
