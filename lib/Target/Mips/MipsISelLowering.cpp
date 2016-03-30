@@ -267,10 +267,10 @@ MipsTargetLowering::MipsTargetLowering(const MipsTargetMachine &TM,
   if (Subtarget.isGP64bit())
     setOperationAction(ISD::ADD,                MVT::i64,   Custom);
 
-  setOperationAction(ISD::SDIV, MVT::i32, Expand);
-  setOperationAction(ISD::SREM, MVT::i32, Expand);
-  setOperationAction(ISD::UDIV, MVT::i32, Expand);
-  setOperationAction(ISD::UREM, MVT::i32, Expand);
+//  setOperationAction(ISD::SDIV, MVT::i32, Expand);
+//  setOperationAction(ISD::SREM, MVT::i32, Expand);
+//  setOperationAction(ISD::UDIV, MVT::i32, Expand);
+//  setOperationAction(ISD::UREM, MVT::i32, Expand);
   setOperationAction(ISD::SDIV, MVT::i64, Expand);
   setOperationAction(ISD::SREM, MVT::i64, Expand);
   setOperationAction(ISD::UDIV, MVT::i64, Expand);
@@ -373,8 +373,8 @@ MipsTargetLowering::MipsTargetLowering(const MipsTargetMachine &TM,
 
   setOperationAction(ISD::TRAP, MVT::Other, Legal);
 
-  setTargetDAGCombine(ISD::SDIVREM);
-  setTargetDAGCombine(ISD::UDIVREM);
+  //  setTargetDAGCombine(ISD::SDIVREM);
+  //  setTargetDAGCombine(ISD::UDIVREM);
   setTargetDAGCombine(ISD::SELECT);
   setTargetDAGCombine(ISD::AND);
   setTargetDAGCombine(ISD::OR);
