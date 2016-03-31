@@ -112,11 +112,13 @@ bool OiInstTranslate::HandleAluSrcOperand(const MCOperand &o, Value *&V,
           V1 = cast<Constant>(V0);
         }
         if (reltype == ELF::R_MIPS_LO16)
-          V = ConstantExpr::getAnd(V1, Builder.getInt32(0x3FFF));
+          V = V1;
+          //          V = ConstantExpr::getAnd(V1, Builder.getInt32(0x3FFF));
         else
-          V = ConstantExpr::getLShr(
-              ConstantExpr::getAnd(V1, Builder.getInt32(0xFFFFC000)),
-              Builder.getInt32(14));
+          V = Builder.getInt32(0);
+          //          V = ConstantExpr::getLShr(
+          //              ConstantExpr::getAnd(V1, Builder.getInt32(0xFFFFC000)),
+          //              Builder.getInt32(14));
         return true;
       }
     }
