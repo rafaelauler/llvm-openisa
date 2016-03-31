@@ -1430,7 +1430,7 @@ let isCommutable = 1 in {
     (ins GPR32Opnd:$rs, GPR32Opnd:$rt),
     [(set GPR32Opnd:$rd, (mulhu GPR32Opnd:$rs, GPR32Opnd:$rt))],
     II_MULT>,
-    PseudoInstExpansion<(MULU_OI ZERO, GPR32Opnd:$rd, GPR32Opnd:$rs, GPR32Opnd:$rt)>;
+    PseudoInstExpansion<(MULU_OI GPR32Opnd:$rd, ZERO, GPR32Opnd:$rs, GPR32Opnd:$rt)>;
 }
 
 def DIV_OI  : InstSE<(outs GPR32Opnd:$rv, GPR32Opnd:$rd),
