@@ -92,25 +92,31 @@ bool OiInstTranslate::HandleAluSrcOperand(const MCOperand &o, Value *&V,
     Value *V0 = nullptr;
     bool UndefinedSymbol = false;
     if (RelocReader.ResolveRelocation(V0, &reltype, &UndefinedSymbol)) {
-      if (reltype == ELF::R_MIPS_LO16) {
+      if (reltype == ELF::R_MIPS_LO16 || reltype == ELF::R_MIPS_HI16) {
         V0 = ConstantExpr::getAdd(cast<Constant>(V0),
                                      Builder.getInt32(o.getImm()));
-        Value *V1 = 0, *fixedV0 = 0;
+        Constant *V1 = 0;
         if (NoShadow) {
-          Value *shadow = Builder.CreatePtrToInt(
-              IREmitter.ShadowImageValue, Type::getInt32Ty(getGlobalContext()));
-          fixedV0 = Builder.CreateAdd(V0, shadow);
-          V1 = fixedV0;
+          V1 = ConstantExpr::getAdd(
+              cast<Constant>(V0),
+              ConstantExpr::getPtrToInt(
+                  cast<Constant>(IREmitter.ShadowImageValue),
+                  Builder.getInt32Ty()));
         } else if (UndefinedSymbol) {
-          V1 = Builder.CreateSub(
-              V0, Builder.CreatePtrToInt(IREmitter.ShadowImageValue,
-                                         Type::getInt32Ty(getGlobalContext())));
+          V1 = ConstantExpr::getSub(
+              cast<Constant>(V0),
+              ConstantExpr::getPtrToInt(
+                  cast<Constant>(IREmitter.ShadowImageValue),
+                  Builder.getInt32Ty()));
         } else {
-          V1 = V0;
+          V1 = cast<Constant>(V0);
         }
-        if (First != 0)
-          *First = GetFirstInstruction(*First, fixedV0, V1);
-        V = V1;
+        if (reltype == ELF::R_MIPS_LO16)
+          V = ConstantExpr::getAnd(V1, Builder.getInt32(0x3FFF));
+        else
+          V = ConstantExpr::getLShr(
+              ConstantExpr::getAnd(V1, Builder.getInt32(0xFFFFC000)),
+              Builder.getInt32(14));
         return true;
       }
     }

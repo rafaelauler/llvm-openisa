@@ -601,10 +601,12 @@ MipsMCCodeEmitter::getMemEncoding(const MCInst &MI, unsigned OpNo,
                                   const MCSubtargetInfo &STI) const {
   // Base register is encoded in bits 38-32, offset is encoded in bits 31-0.
   assert(MI.getOperand(OpNo).isReg());
-  uint64_t RegBits = getMachineOpValue(MI, MI.getOperand(OpNo),Fixups, STI);
-  uint64_t OffBits = getMachineOpValue(MI, MI.getOperand(OpNo+1), Fixups, STI) << 6;
+  uint64_t RegBits = getMachineOpValue(MI, MI.getOperand(OpNo), Fixups, STI);
+  uint64_t OffBits =
+      (getMachineOpValue(MI, MI.getOperand(OpNo + 1), Fixups, STI) & 0x3FFF)
+      << 6;
 
-  return (OffBits & 0x3FFF) | RegBits;
+  return OffBits | RegBits;
 }
 
 uint64_t MipsMCCodeEmitter::
