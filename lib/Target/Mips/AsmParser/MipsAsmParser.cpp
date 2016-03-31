@@ -1170,6 +1170,16 @@ bool MipsAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     case Mips::BGTZ:
     case Mips::BLEZ:
     case Mips::BLTZ:
+      assert(MCID.getNumOperands() == 2 && "unexpected number of operands");
+      Offset = Inst.getOperand(1);
+      if (!Offset.isImm())
+        break; // We'll deal with this situation later on when applying fixups.
+      if (!isIntN(inMicroMipsMode() ? 17 : 18, Offset.getImm()))
+        return Error(IDLoc, "branch target out of range");
+      if (OffsetToAlignment(Offset.getImm(),
+                            1LL << (inMicroMipsMode() ? 1 : 2)))
+        return Error(IDLoc, "branch to misaligned address");
+      break;
     case Mips::BC1F:
     case Mips::BC1T:
       assert(MCID.getNumOperands() == 1 && "unexpected number of operands");
