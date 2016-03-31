@@ -1579,10 +1579,10 @@ def : MipsInstAlias<"and $rs, $imm",
                     (ANDi GPR32Opnd:$rs, GPR32Opnd:$rs, simm14:$imm), 0>;
 def : MipsInstAlias<"j $rs", (JR GPR32Opnd:$rs), 0>;
 let Predicates = [NotInMicroMips] in {
-def : MipsInstAlias<"jalr $rs,$num", (JALR RA, GPR32Opnd:$rs, uimm6:$num), 0>;
+def : MipsInstAlias<"callr $rs,$num", (JALR RA, GPR32Opnd:$rs, uimm6:$num), 0>;
 }
-def : MipsInstAlias<"jal $rs,$num", (JALR RA, GPR32Opnd:$rs, uimm6:$num), 0>;
-def : MipsInstAlias<"jal $rd,$rs,$num", (JALR GPR32Opnd:$rd, GPR32Opnd:$rs, uimm6:$num), 0>;
+def : MipsInstAlias<"call $rs,$num", (JALR RA, GPR32Opnd:$rs, uimm6:$num), 0>;
+def : MipsInstAlias<"call $rd,$rs,$num", (JALR GPR32Opnd:$rd, GPR32Opnd:$rs, uimm6:$num), 0>;
 //def : MipsInstAlias<"jalr.hb $rs", (JALR_HB RA, GPR32Opnd:$rs), 1>, ISA_MIPS32;
 def : MipsInstAlias<"not $rt, $rs",
                     (NOR GPR32Opnd:$rt, GPR32Opnd:$rs, ZERO), 0>;

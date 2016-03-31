@@ -260,8 +260,8 @@ bool MipsInstPrinter::printAlias(const MCInst &MI, raw_ostream &OS) {
     // bne $r0, $zero, $L2 => bnez $r0, $L2
     return isReg<Mips::ZERO>(MI, 1) && printAlias("jnez", MI, 0, 2, OS);
   case Mips::JALR:
-    // jalr $ra, $r1 => jalr $r1
-    return isReg<Mips::RA>(MI, 0) && printAlias("jalr", MI, 1, OS);
+    // callr $ra, $r1, $num => callr $r1, $num
+    return isReg<Mips::RA>(MI, 0) && printAlias("callr", MI, 1, 2, OS);
   case Mips::NOR:
     // nor $r0, $r1, $zero => not $r0, $r1
     return isReg<Mips::ZERO>(MI, 2) && printAlias("not", MI, 0, 1, OS);

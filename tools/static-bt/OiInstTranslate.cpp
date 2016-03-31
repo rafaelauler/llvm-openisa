@@ -2543,8 +2543,9 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   }
   case Mips::JALR: {
     Value *src, *first = 0;
-    if (!HandleAluSrcOperand(MI->getOperand(1), src, &first)) {
-      llvm_unreachable("Failed to handle JALR.");
+    DebugOut << "Handling CALLR\n";
+    if (!HandleAluSrcOperand(MI->getOperand(0), src, &first)) {
+      llvm_unreachable("Failed to handle CALLR.");
       break;
     }
     if (!OneRegion) {

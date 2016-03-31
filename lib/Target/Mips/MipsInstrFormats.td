@@ -422,8 +422,8 @@ class JUMPR_FM {
 }
 
 class JALR_FM {
-  bits<6>  args;
-  bits<6>  rt;
+  bits<6>  num;
+  bits<6>  rs;
 
   bits<32> Inst;
 
@@ -433,8 +433,8 @@ class JALR_FM {
   let Inst{19-18} = 0;
   let Inst{17-16} = 0;
   let Inst{15-12} = 0;
-  let Inst{11-6}  = args;
-  let Inst{5-0}   = rt;
+  let Inst{11-6}  = num;
+  let Inst{5-0}   = rs;
 }
 
 class SYNC_FM {
