@@ -385,31 +385,31 @@ uint64_t OiMachineModel::executeInstruction(const MCInst *MI, uint64_t CurPC) {
       llvm_unreachable("LWC1 unimplemented!");
       break;
     }
-  // XXX: Note for FCMP and MOVT: MIPS IV defines several FCC, floating-point
-  // codes. We always use the 0th bit (MIPS I mode).
-  // TODO: Implement all 8 CC bits.
-  case Mips::FCMP_D32:
-    {
-      if (Verbosity > 0)
-        DebugOut << " \tHandling FCMP_D32\n";
-      double o0 = HandleDoubleSrcOperand(MI->getOperand(0));
-      double o1 = HandleDoubleSrcOperand(MI->getOperand(1));
-//      if (MI->getOperand(2).getImm() != 2) {
-//        llvm_unreachable("Unimplemented FCC");
-//      }
-      if (HandleFCmpOperand(MI->getOperand(2), o0, o1))
-        FCC = 1;
-      else
-        FCC = 0;
-      return CurPC + 8;
-    }
-  case Mips::FCMP_S32:
-    {
-      if (Verbosity > 0)
-        DebugOut << " \tHandling FCMP_S32\n";
-      llvm_unreachable("FCMP_S32 unimplemented!");
-      break;
-    }
+//  // XXX: Note for FCMP and MOVT: MIPS IV defines several FCC, floating-point
+//  // codes. We always use the 0th bit (MIPS I mode).
+//  // TODO: Implement all 8 CC bits.
+//  case Mips::FCMP_D32:
+//    {
+//      if (Verbosity > 0)
+//        DebugOut << " \tHandling FCMP_D32\n";
+//      double o0 = HandleDoubleSrcOperand(MI->getOperand(0));
+//      double o1 = HandleDoubleSrcOperand(MI->getOperand(1));
+////      if (MI->getOperand(2).getImm() != 2) {
+////        llvm_unreachable("Unimplemented FCC");
+////      }
+//      if (HandleFCmpOperand(MI->getOperand(2), o0, o1))
+//        FCC = 1;
+//      else
+//        FCC = 0;
+//      return CurPC + 8;
+//    }
+//  case Mips::FCMP_S32:
+//    {
+//      if (Verbosity > 0)
+//        DebugOut << " \tHandling FCMP_S32\n";
+//      llvm_unreachable("FCMP_S32 unimplemented!");
+//      break;
+//    }
     // TODO: implement all fcc bits (get in MI->getOperand(2))
   case Mips::MOVT_I:
     {

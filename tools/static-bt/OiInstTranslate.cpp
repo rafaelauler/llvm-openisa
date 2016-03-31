@@ -1471,7 +1471,6 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   // XXX: Note for FCMP and MOVT: MIPS IV defines several FCC, floating-point
   // codes. We always use the 0th bit (MIPS I mode).
   // TODO: Implement all 8 CC bits.
-  case Mips::FCMP_D32:
   case Mips::C_UN_D32:
   case Mips::C_EQ_D32:
   case Mips::C_UEQ_D32:
@@ -1523,7 +1522,6 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
-  case Mips::FCMP_S32:
   case Mips::C_UN_S:
   case Mips::C_EQ_S:
   case Mips::C_UEQ_S:

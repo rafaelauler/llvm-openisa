@@ -24,9 +24,8 @@
 //===----------------------------------------------------------------------===//
 
 // Floating Point Compare and Branch
-def SDT_MipsFPBrcond : SDTypeProfile<0, 3, [SDTCisInt<0>,
-                                            SDTCisVT<1, i32>,
-                                            SDTCisVT<2, OtherVT>]>;
+def SDT_MipsFPBrcond : SDTypeProfile<0, 2, [SDTCisInt<0>,
+                                            SDTCisVT<1, OtherVT>]>;
 def SDT_MipsFPCmp : SDTypeProfile<0, 3, [SDTCisSameAs<0, 1>, SDTCisFP<1>,
                                          SDTCisVT<2, i32>]>;
 def SDT_MipsCMovFP : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>, SDTCisVT<2, i32>,
@@ -83,6 +82,57 @@ def fpimm0 : PatLeaf<(fpimm), [{
 
 def fpimm0neg : PatLeaf<(fpimm), [{
   return N->isExactlyValue(-0.0);
+}]>;
+
+// Mips condition codes. They must correspond to condcode in MipsInstrInfo.h.
+// They must be kept in synch.
+def MIPS_FCOND_F    : PatLeaf<(imm), [{
+  return N->getZExtValue() == 0 || N->getZExtValue() == 16;
+}]>;
+def MIPS_FCOND_UN   : PatLeaf<(imm), [{
+  return N->getZExtValue() == 1 || N->getZExtValue() == 17;
+}]>;
+def MIPS_FCOND_OEQ  : PatLeaf<(imm), [{
+  return N->getZExtValue() == 2 || N->getZExtValue() == 18;
+}]>;
+def MIPS_FCOND_UEQ  : PatLeaf<(imm), [{
+  return N->getZExtValue() == 3 || N->getZExtValue() == 19;
+}]>;
+def MIPS_FCOND_OLT  : PatLeaf<(imm), [{
+  return N->getZExtValue() == 4 || N->getZExtValue() == 20;
+}]>;
+def MIPS_FCOND_ULT  : PatLeaf<(imm), [{
+  return N->getZExtValue() == 5 || N->getZExtValue() == 21;
+}]>;
+def MIPS_FCOND_OLE  : PatLeaf<(imm), [{
+  return N->getZExtValue() == 6 || N->getZExtValue() == 22;
+}]>;
+def MIPS_FCOND_ULE  : PatLeaf<(imm), [{
+  return N->getZExtValue() == 7 || N->getZExtValue() == 23;
+}]>;
+def MIPS_FCOND_SF   : PatLeaf<(imm), [{
+  return N->getZExtValue() == 8 || N->getZExtValue() == 24;
+}]>;
+def MIPS_FCOND_NGLE : PatLeaf<(imm), [{
+  return N->getZExtValue() == 9 || N->getZExtValue() == 25;
+}]>;
+def MIPS_FCOND_SEQ  : PatLeaf<(imm), [{
+  return N->getZExtValue() == 10 || N->getZExtValue() == 26;
+}]>;
+def MIPS_FCOND_NGL  : PatLeaf<(imm), [{
+  return N->getZExtValue() == 11 || N->getZExtValue() == 27;
+}]>;
+def MIPS_FCOND_LT   : PatLeaf<(imm), [{
+  return N->getZExtValue() == 12 || N->getZExtValue() == 28;
+}]>;
+def MIPS_FCOND_NGE  : PatLeaf<(imm), [{
+  return N->getZExtValue() == 13 || N->getZExtValue() == 29;
+}]>;
+def MIPS_FCOND_LE   : PatLeaf<(imm), [{
+  return N->getZExtValue() == 14 || N->getZExtValue() == 30;
+}]>;
+def MIPS_FCOND_NGT  : PatLeaf<(imm), [{
+  return N->getZExtValue() == 15 || N->getZExtValue() == 31;
 }]>;
 
 //===----------------------------------------------------------------------===//
@@ -212,47 +262,51 @@ class SWXC1_FT<string opstr, RegisterOperand DRC,
 
 class BC1F_FT<string opstr, DAGOperand opnd, InstrItinClass Itin,
               SDPatternOperator Op = null_frag, bit DelaySlot = 1> :
-  InstSE<(outs), (ins FCCRegsOpnd:$fcc, opnd:$offset),
-         !strconcat(opstr, "\t$fcc, $offset"),
-         [(MipsFPBrcond Op, FCCRegsOpnd:$fcc, bb:$offset)], Itin,
+  InstSE<(outs), (ins opnd:$offset),
+         !strconcat(opstr, "\t$offset"),
+         [(MipsFPBrcond Op, bb:$offset)], Itin,
          FrmPL16, opstr> {
   let isBranch = 1;
   let isTerminator = 1;
   let hasDelaySlot = 0;
+  let Uses = [FCC0];
   let Defs = [AT];
 }
 
 class CEQS_FT<string typestr, RegisterClass RC, InstrItinClass Itin,
               SDPatternOperator OpNode = null_frag>  :
   InstSE<(outs), (ins RC:$fs, RC:$ft, condcode:$cond),
-         !strconcat("c.$cond.", typestr, "\t$fs, $ft"),
-         [(OpNode RC:$fs, RC:$ft, imm:$cond)], Itin, FrmPL12,
+         !strconcat("c.$cond.", typestr, "\t$fs, $ft"), //[(OpNode RC:$fs, RC:$ft, imm:$cond)],
+         [], Itin, FrmPL12,
          !strconcat("c.$cond.", typestr)> {
   let Defs = [FCC0];
   let isCodeGenOnly = 1;
 }
 
 class C_COND_FT<string CondStr, string Typestr, RegisterOperand RC,
-                InstrItinClass itin>  :
+                PatLeaf cond_type, InstrItinClass itin>  :
    InstSE<(outs), (ins RC:$fs, RC:$ft),
-          !strconcat("c.", CondStr, ".", Typestr, "\t$fs, $ft"), [], itin,
-          FrmPL12>;
+          !strconcat("c.", CondStr, ".", Typestr, "\t$fs, $ft"),
+          [(MipsFPCmp RC:$fs, RC:$ft, cond_type)], itin,
+          FrmPL12> {
+  let Defs = [FCC0];
+}
 
 //#def C_F_S : C_COND_FT<"f", TypeStr, RC, itin>, C_COND_FM<fmt, 0>;
-def C_UN_S : C_COND_FT<"un", "s", FGR32Opnd, II_C_CC_S>, CEQS_FM<1, 4>;
-def C_UN_D32 : C_COND_FT<"un", "d", AFGR64Opnd, II_C_CC_D>, CEQS_FM<1, 3>;
-def C_EQ_S : C_COND_FT<"eq", "s", FGR32Opnd, II_C_CC_S>, CEQS_FM<0, 8>;
-def C_EQ_D32 : C_COND_FT<"eq", "d", AFGR64Opnd, II_C_CC_D>, CEQS_FM<0, 7>;
-def C_UEQ_S : C_COND_FT<"ueq", "s", FGR32Opnd, II_C_CC_S>, CEQS_FM<0, 0xe>;
-def C_UEQ_D32 : C_COND_FT<"ueq", "d", AFGR64Opnd, II_C_CC_D>, CEQS_FM<0, 0xd>;
-def C_OLT_S : C_COND_FT<"olt", "s", FGR32Opnd, II_C_CC_S>, CEQS_FM<0, 0xc>;
-def C_OLT_D32 : C_COND_FT<"olt", "d", AFGR64Opnd, II_C_CC_D>, CEQS_FM<0, 0xb>;
-def C_ULT_S : C_COND_FT<"ult", "s", FGR32Opnd, II_C_CC_S>, CEQS_FM<1, 2>;
-def C_ULT_D32 : C_COND_FT<"ult", "d", AFGR64Opnd, II_C_CC_D>, CEQS_FM<1, 1>;
-def C_OLE_S : C_COND_FT<"ole", "s", FGR32Opnd, II_C_CC_S>, CEQS_FM<0, 0xa>;
-def C_OLE_D32 : C_COND_FT<"ole", "d", AFGR64Opnd, II_C_CC_D>, CEQS_FM<0, 0x9>;
-def C_ULE_S : C_COND_FT<"ule", "s", FGR32Opnd, II_C_CC_S>, CEQS_FM<1, 0>;
-def C_ULE_D32 : C_COND_FT<"ule", "d", AFGR64Opnd, II_C_CC_D>, CEQS_FM<0, 0xf>;
+def C_UN_S : C_COND_FT<"un", "s", FGR32Opnd, MIPS_FCOND_UN, II_C_CC_S>, CEQS_FM<1, 4>;
+def C_UN_D32 : C_COND_FT<"un", "d", AFGR64Opnd, MIPS_FCOND_UN, II_C_CC_D>, CEQS_FM<1, 3>;
+def C_EQ_S : C_COND_FT<"eq", "s", FGR32Opnd, MIPS_FCOND_OEQ, II_C_CC_S>, CEQS_FM<0, 8>;
+def C_EQ_D32 : C_COND_FT<"eq", "d", AFGR64Opnd, MIPS_FCOND_OEQ, II_C_CC_D>, CEQS_FM<0, 7>;
+def C_UEQ_S : C_COND_FT<"ueq", "s", FGR32Opnd, MIPS_FCOND_UEQ, II_C_CC_S>, CEQS_FM<0, 0xe>;
+def C_UEQ_D32 : C_COND_FT<"ueq", "d", AFGR64Opnd, MIPS_FCOND_UEQ, II_C_CC_D>, CEQS_FM<0, 0xd>;
+def C_OLT_S : C_COND_FT<"olt", "s", FGR32Opnd, MIPS_FCOND_OLT, II_C_CC_S>, CEQS_FM<0, 0xc>;
+def C_OLT_D32 : C_COND_FT<"olt", "d", AFGR64Opnd, MIPS_FCOND_OLT, II_C_CC_D>, CEQS_FM<0, 0xb>;
+def C_ULT_S : C_COND_FT<"ult", "s", FGR32Opnd, MIPS_FCOND_ULT, II_C_CC_S>, CEQS_FM<1, 2>;
+def C_ULT_D32 : C_COND_FT<"ult", "d", AFGR64Opnd, MIPS_FCOND_ULT, II_C_CC_D>, CEQS_FM<1, 1>;
+def C_OLE_S : C_COND_FT<"ole", "s", FGR32Opnd, MIPS_FCOND_OLE, II_C_CC_S>, CEQS_FM<0, 0xa>;
+def C_OLE_D32 : C_COND_FT<"ole", "d", AFGR64Opnd, MIPS_FCOND_OLE, II_C_CC_D>, CEQS_FM<0, 0x9>;
+def C_ULE_S : C_COND_FT<"ule", "s", FGR32Opnd, MIPS_FCOND_ULE, II_C_CC_S>, CEQS_FM<1, 0>;
+def C_ULE_D32 : C_COND_FT<"ule", "d", AFGR64Opnd, MIPS_FCOND_ULE, II_C_CC_D>, CEQS_FM<0, 0xf>;
 //def C_SF_#NAME : C_COND_FT<"sf", TypeStr, RC, itin>, C_COND_FM<fmt, 8>;
 //  def C_NGLE_#NAME : C_COND_FT<"ngle", TypeStr, RC, itin>, C_COND_FM<fmt, 9>;
 //  def C_SEQ_#NAME : C_COND_FT<"seq", TypeStr, RC, itin>, C_COND_FM<fmt, 10>;
@@ -528,30 +582,11 @@ def BC1TL : MMRel, BC1F_FT<"bc1tl", br16target, IIBranch, MIPS_BRANCH_T, 0>,
 //===----------------------------------------------------------------------===//
 // Floating Point Flag Conditions
 //===----------------------------------------------------------------------===//
-// Mips condition codes. They must correspond to condcode in MipsInstrInfo.h.
-// They must be kept in synch.
-def MIPS_FCOND_F    : PatLeaf<(i32 0)>;
-def MIPS_FCOND_UN   : PatLeaf<(i32 1)>;
-def MIPS_FCOND_OEQ  : PatLeaf<(i32 2)>;
-def MIPS_FCOND_UEQ  : PatLeaf<(i32 3)>;
-def MIPS_FCOND_OLT  : PatLeaf<(i32 4)>;
-def MIPS_FCOND_ULT  : PatLeaf<(i32 5)>;
-def MIPS_FCOND_OLE  : PatLeaf<(i32 6)>;
-def MIPS_FCOND_ULE  : PatLeaf<(i32 7)>;
-def MIPS_FCOND_SF   : PatLeaf<(i32 8)>;
-def MIPS_FCOND_NGLE : PatLeaf<(i32 9)>;
-def MIPS_FCOND_SEQ  : PatLeaf<(i32 10)>;
-def MIPS_FCOND_NGL  : PatLeaf<(i32 11)>;
-def MIPS_FCOND_LT   : PatLeaf<(i32 12)>;
-def MIPS_FCOND_NGE  : PatLeaf<(i32 13)>;
-def MIPS_FCOND_LE   : PatLeaf<(i32 14)>;
-def MIPS_FCOND_NGT  : PatLeaf<(i32 15)>;
-
 /// Floating Point Compare
-def FCMP_S32 : MMRel, CEQS_FT<"s", FGR32, II_C_CC_S, MipsFPCmp>, CEQS_FM<1, 4>,
-               ISA_MIPS1_NOT_32R6_64R6;
-def FCMP_D32 : MMRel, CEQS_FT<"d", AFGR64, II_C_CC_D, MipsFPCmp>, CEQS_FM<1, 4>,
-               ISA_MIPS1_NOT_32R6_64R6, AdditionalRequires<[NotFP64bit]>;
+//def FCMP_S32 : MMRel, CEQS_FT<"s", FGR32, II_C_CC_S, MipsFPCmp>, CEQS_FM<1, 4>,
+//               ISA_MIPS1_NOT_32R6_64R6;
+//def FCMP_D32 : MMRel, CEQS_FT<"d", AFGR64, II_C_CC_D, MipsFPCmp>, CEQS_FM<1, 4>,
+//               ISA_MIPS1_NOT_32R6_64R6, AdditionalRequires<[NotFP64bit]>;
 //let DecoderNamespace = "Mips64" in
 //def FCMP_D64 : CEQS_FT<"d", FGR64, II_C_CC_D, MipsFPCmp>, CEQS_FM<17>,
 //               ISA_MIPS1_NOT_32R6_64R6, AdditionalRequires<[IsFP64bit]>;
@@ -587,14 +622,6 @@ def ExtractElementF64_64 : ExtractElementF64Base<FGR64Opnd>,
 //===----------------------------------------------------------------------===//
 // InstAliases.
 //===----------------------------------------------------------------------===//
-def : MipsInstAlias<"bc1t $offset", (BC1T FCC0, br16target:$offset)>,
-      ISA_MIPS1_NOT_32R6_64R6;
-def : MipsInstAlias<"bc1tl $offset", (BC1TL FCC0, br16target:$offset)>,
-      ISA_MIPS2_NOT_32R6_64R6;
-def : MipsInstAlias<"bc1f $offset", (BC1F FCC0, br16target:$offset)>,
-      ISA_MIPS1_NOT_32R6_64R6;
-def : MipsInstAlias<"bc1fl $offset", (BC1FL FCC0, br16target:$offset)>,
-      ISA_MIPS2_NOT_32R6_64R6;
 
 //===----------------------------------------------------------------------===//
 // Floating Point Patterns

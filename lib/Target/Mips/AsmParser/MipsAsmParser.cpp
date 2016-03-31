@@ -1172,8 +1172,8 @@ bool MipsAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
     case Mips::BLTZ:
     case Mips::BC1F:
     case Mips::BC1T:
-      assert(MCID.getNumOperands() == 2 && "unexpected number of operands");
-      Offset = Inst.getOperand(1);
+      assert(MCID.getNumOperands() == 1 && "unexpected number of operands");
+      Offset = Inst.getOperand(0);
       if (!Offset.isImm())
         break; // We'll deal with this situation later on when applying fixups.
       if (!isIntN(inMicroMipsMode() ? 17 : 18, Offset.getImm()))

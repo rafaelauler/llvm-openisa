@@ -107,7 +107,7 @@ static unsigned adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
   case Mips::fixup_MICROMIPS_PC16_S1:
     Value -= 4;
     // Forcing a signed division because Value can be negative.
-    Value = (int64_t)Value / 2;
+    Value = (int64_t)Value / 4;
     // We now check if Value can be encoded as a 16-bit signed immediate.
     if (!isIntN(16, Value) && Ctx)
       Ctx->FatalError(Fixup.getLoc(), "out of range PC16 fixup");

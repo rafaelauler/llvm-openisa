@@ -657,8 +657,8 @@ class CMov_I_F_FM<bits<4> extop2, bits<2> extop3> {
 }
 
 class ABSS_FM<bits<2> extop4, bits<4> extop5> {
-  bits<6>  rs;
-  bits<6>  rt;
+  bits<6>  fd;
+  bits<6>  fs;
 
   bits<32> Inst;
 
@@ -668,8 +668,8 @@ class ABSS_FM<bits<2> extop4, bits<4> extop5> {
   let Inst{19-18} = 0;
   let Inst{17-16} = extop4;
   let Inst{15-12} = extop5;
-  let Inst{11-6}  = rs;
-  let Inst{5-0}   = rt;
+  let Inst{11-6}  = fd;
+  let Inst{5-0}   = fs;
 }
 
 class CMov_F_I_FM<bits<2> extop4, bits<4> extop5> {
