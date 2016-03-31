@@ -117,7 +117,7 @@ let Namespace = "Mips" in {
   def SP   : MipsGPRReg< 29, "sp">,  DwarfRegNum<[29]>;
   def FP   : MipsGPRReg< 30, "fp">,  DwarfRegNum<[30]>;
   def RA   : MipsGPRReg< 31, "ra">,  DwarfRegNum<[31]>;
-  foreach I = 32-65 in
+  foreach I = 32-63 in
   def R#I : MipsGPRReg<#I, ""#I>, DwarfRegNum<[#I]>;
 
   // General Purpose 64-bit Registers
@@ -290,7 +290,7 @@ class GPR32Class<list<ValueType> regTypes> :
   R32,
   R33, R34, R35, R36, R37, R38, R39, R40, R41, R42, R43, R44, R45, R46, R47,
   R48, R49, R50, R51, R52, R53, R54, R55, R56, R57, R58, R59, R60, R61, R62,
-  R63, R64, R65)>;
+  R63)>;
 
 def GPR32 : GPR32Class<[i32]>;
 def DSPR  : GPR32Class<[v4i8, v2i16]>;

@@ -1822,8 +1822,8 @@ def : MipsPat<(brcond (i32 (setuge RC:$lhs, RC:$rhs)), bb:$dst),
               (BEQ (SLTuOp RC:$lhs, RC:$rhs), ZERO, bb:$dst)>;
 def : MipsPat<(brcond (i32 (setge RC:$lhs, immSExt14:$rhs)), bb:$dst),
               (BEQ (SLTiOp RC:$lhs, immSExt14:$rhs), ZERO, bb:$dst)>;
-def : MipsPat<(brcond (i32 (setuge RC:$lhs, immSExt14:$rhs)), bb:$dst),
-              (BEQ (SLTiuOp RC:$lhs, immSExt14:$rhs), ZERO, bb:$dst)>;
+def : MipsPat<(brcond (i32 (setuge RC:$lhs, immZExt14:$rhs)), bb:$dst),
+              (BEQ (SLTiuOp RC:$lhs, immZExt14:$rhs), ZERO, bb:$dst)>;
 def : MipsPat<(brcond (i32 (setgt RC:$lhs, immSExt14Plus1:$rhs)), bb:$dst),
               (BEQ (SLTiOp RC:$lhs, (Plus1 imm:$rhs)), ZERO, bb:$dst)>;
 def : MipsPat<(brcond (i32 (setugt RC:$lhs, immSExt14Plus1:$rhs)), bb:$dst),

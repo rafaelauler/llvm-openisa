@@ -784,7 +784,7 @@ class CEQS_FM<bits<2> op1, bits<4> op2>  {
 
   bits<32> Inst;
 
-  let Inst{31-26} = 0x11; // op: 6 bits
+  let Inst{31-26} = 0x22; // op: 6 bits
   let Inst{25-24} = 0;    // opext1: 2 bits
   let Inst{23-20} = 0;    // opext2: 4 bits
   let Inst{19-18} = 0;    // opext3: 2 bits

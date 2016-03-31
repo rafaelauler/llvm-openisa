@@ -383,11 +383,6 @@ unsigned ConvToDirective(unsigned regnum) {
     return 62;
   case Mips::R63:
     return 63;
-  case Mips::R64:
-    return 64;
-  case Mips::R65:
-    return 65;
-
 
 
     // Floating point registers
