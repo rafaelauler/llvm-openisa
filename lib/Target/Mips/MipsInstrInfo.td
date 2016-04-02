@@ -843,13 +843,13 @@ let isCall=1, hasDelaySlot=0, Defs = [RA] in {
            [(MipsJmpLink imm:$target, imm:$num)], IIBranch, FrmPL26c, opstr> {
   }
 
-  class JumpLinkRegPseudo<RegisterOperand RO, Instruction JALRInst,
-                          Register RetReg, RegisterOperand ResRO = RO>:
-    PseudoSE<(outs), (ins RO:$rs, uimm6:$num), [(MipsJmpLink RO:$rs, imm:$num)], IIBranch>,
-    PseudoInstExpansion<(JALRInst RetReg, ResRO:$rs, uimm6:$num)>;
+//  class JumpLinkRegPseudo<RegisterOperand RO, Instruction JALRInst,
+//                          Register RetReg, RegisterOperand ResRO = RO>:
+//    PseudoSE<(outs), (ins RO:$rs, uimm6:$num), [(MipsJmpLink RO:$rs, imm:$num)], IIBranch>,
+//    PseudoInstExpansion<(JALRInst RetReg, ResRO:$rs, uimm6:$num)>;
 
   class JumpLinkReg<string opstr, RegisterOperand RO>:
-    InstSE<(outs RO:$rd), (ins RO:$rs, uimm6:$num), !strconcat(opstr, "\t$rd, $rs, $num"),
+    InstSE<(outs), (ins RO:$rs, uimm6:$num), !strconcat(opstr, "\t$rs, $num"),
            [], IIBranch, FrmPL12>;
 
 //  class BGEZAL_FT<string opstr, DAGOperand opnd,
@@ -1323,7 +1323,7 @@ def B       : UncondBranch<BEQ>;
 def JAL  : MMRel, JumpLink<"call", calltarget>, PL26c<1>;
 let AdditionalPredicates = [NotInMicroMips] in {
   def JALR : JumpLinkReg<"callr", GPR32Opnd>, JALR_FM;
-  def JALRPseudo : JumpLinkRegPseudo<GPR32Opnd, JALR, RA>;
+//  def JALRPseudo : JumpLinkRegPseudo<GPR32Opnd, JALR, RA>;
 }
 
 // FIXME: JALX really requires either MIPS16 or microMIPS in addition to MIPS32.
@@ -1578,11 +1578,11 @@ def : MipsInstAlias<"and $rs, $rt, $imm",
 def : MipsInstAlias<"and $rs, $imm",
                     (ANDi GPR32Opnd:$rs, GPR32Opnd:$rs, simm14:$imm), 0>;
 def : MipsInstAlias<"j $rs", (JR GPR32Opnd:$rs), 0>;
-let Predicates = [NotInMicroMips] in {
-def : MipsInstAlias<"callr $rs,$num", (JALR RA, GPR32Opnd:$rs, uimm6:$num), 0>;
-}
-def : MipsInstAlias<"call $rs,$num", (JALR RA, GPR32Opnd:$rs, uimm6:$num), 0>;
-def : MipsInstAlias<"call $rd,$rs,$num", (JALR GPR32Opnd:$rd, GPR32Opnd:$rs, uimm6:$num), 0>;
+//let Predicates = [NotInMicroMips] in {
+//def : MipsInstAlias<"callr $rs,$num", (JALR RA, GPR32Opnd:$rs, uimm6:$num), 0>;
+//}
+//def : MipsInstAlias<"call $rs,$num", (JALR RA, GPR32Opnd:$rs, uimm6:$num), 0>;
+//def : MipsInstAlias<"call $rd,$rs,$num", (JALR GPR32Opnd:$rd, GPR32Opnd:$rs, uimm6:$num), 0>;
 //def : MipsInstAlias<"jalr.hb $rs", (JALR_HB RA, GPR32Opnd:$rs), 1>, ISA_MIPS32;
 def : MipsInstAlias<"not $rt, $rs",
                     (NOR GPR32Opnd:$rt, GPR32Opnd:$rs, ZERO), 0>;
