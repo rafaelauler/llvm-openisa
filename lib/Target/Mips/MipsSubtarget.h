@@ -235,7 +235,7 @@ public:
 
   /// Features related to the presence of specific instructions.
   bool hasExtractInsert() const { return !inMips16Mode() && hasMips32r2(); }
-  bool hasMTHC1() const { return hasMips32r2(); }
+  bool hasMTHC1() const { return true; }
 
   bool allowMixed16_32() const { return inMips16ModeDefault() |
                                         AllowMixed16_32; }
@@ -261,7 +261,7 @@ public:
   /// MIPS32r6/MIPS64r6 require full unaligned access support but does not
   /// specify which component of the system provides it. Hardware, software, and
   /// hybrid implementations are all valid.
-  bool systemSupportsUnalignedAccess() const { return hasMips32r6(); }
+  bool systemSupportsUnalignedAccess() const { return true; }
 
   // Set helper classes
   void setHelperClassesMips16();

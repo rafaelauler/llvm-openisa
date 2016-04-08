@@ -429,13 +429,17 @@ def MFC1 : MMRel, MFC1_FT<"mfc1", GPR32Opnd, FGR32Opnd, II_MFC1,
 def MTC1 : MMRel, MTC1_FT<"mtc1", FGR32Opnd, GPR32Opnd, II_MTC1,
                           bitconvert>, MFC1_FM<1, 0xc>;
 def MFHC1_D32 : MMRel, MFC1_FT<"mfhc1", GPR32Opnd, AFGR64Opnd, II_MFHC1>,
-                MFC1_FM<2, 9>, ISA_MIPS32R2, AdditionalRequires<[NotFP64bit]>;
+                MFC1_FM<2, 9>, AdditionalRequires<[NotFP64bit]>;
+def MFLC1_D32 : MMRel, MFC1_FT<"mflc1", GPR32Opnd, AFGR64Opnd, II_MFHC1>,
+                MFC1_FM<3, 1>, AdditionalRequires<[NotFP64bit]>;
 //def MFHC1_D64 : MFC1_FT<"mfhc1", GPR32Opnd, FGR64Opnd, II_MFHC1>,
 //                MFC1_FM<3>, ISA_MIPS32R2, AdditionalRequires<[IsFP64bit]> {
 //  let DecoderNamespace = "Mips64";
 //}
 def MTHC1_D32 : MMRel, MTC1_64_FT<"mthc1", AFGR64Opnd, GPR32Opnd, II_MTHC1>,
-                MFC1_FM<2, 0xa>, ISA_MIPS32R2, AdditionalRequires<[NotFP64bit]>;
+                MFC1_FM<2, 0xa>, AdditionalRequires<[NotFP64bit]>;
+def MTLC1_D32 : MMRel, MTC1_64_FT<"mtlc1", AFGR64Opnd, GPR32Opnd, II_MTHC1>,
+                MFC1_FM<3, 0x2>, AdditionalRequires<[NotFP64bit]>;
 //def MTHC1_D64 : MTC1_64_FT<"mthc1", FGR64Opnd, GPR32Opnd, II_MTHC1>,
 //                MFC1_FM<7>, ISA_MIPS32R2, AdditionalRequires<[IsFP64bit]> {
 //  let DecoderNamespace = "Mips64";
