@@ -13,3 +13,5 @@ endif()
 add_llvm_library( LLVMPrintfBreak
   PrintfBreak.cpp
   )
+
+add_dependencies(LLVMPrintfBreak intrinsics_gen)
