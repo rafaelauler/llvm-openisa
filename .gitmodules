@@ -4,3 +4,7 @@
 [submodule "projects/compiler-rt"]
 	path = projects/compiler-rt
 	url = http://llvm.org/git/compiler-rt.git
+[submodule "tools/clang"]
+	path = tools/clang
+	url = git@git-marvin:clang-openisa
+	branch = openisa
