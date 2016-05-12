@@ -237,9 +237,9 @@ class LWXC1_FT<string opstr, RegisterOperand DRC,
 
 class SWXC1_FT<string opstr, RegisterOperand DRC,
                InstrItinClass Itin, SDPatternOperator OpNode = null_frag> :
-  InstSE<(outs), (ins DRC:$fs, PtrRC:$base, PtrRC:$index),
-         !strconcat(opstr, "\t$fs, ${index}(${base})"),
-         [(OpNode DRC:$fs, (add iPTR:$base, iPTR:$index))], Itin,
+  InstSE<(outs), (ins DRC:$fd, PtrRC:$base, PtrRC:$index),
+         !strconcat(opstr, "\t$fd, ${index}(${base})"),
+         [(OpNode DRC:$fd, (add iPTR:$base, iPTR:$index))], Itin,
          FrmPL26i, opstr> {
   let AddedComplexity = 20;
 }
