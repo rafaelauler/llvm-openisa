@@ -238,6 +238,27 @@ bool OiInstTranslate::HandleDoubleMemOperand(const MCOperand &o,
     }
     Low = IREmitter.AccessShadowMemory(addr, IsLoad, 64, false, First);
     return true;
+  } else if (o.isReg() && o2.isReg()) {
+    Value *addr, *idx, *base;
+    unsigned reg = ConvToDirective(conv32(o.getReg()));
+    unsigned reg2 = ConvToDirective(conv32(o2.getReg()));
+    if (reg == 0) {
+      base = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
+    } else {
+      base = Builder.CreateLoad(IREmitter.Regs[reg]);
+      ReadMap[reg] = true;
+    }
+    if (reg2 == 0) {
+      idx = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
+    } else {
+      idx = Builder.CreateLoad(IREmitter.Regs[reg2]);
+      ReadMap[reg2] = true;
+    }
+    addr = Builder.CreateAdd(base, idx);
+    if (First != 0)
+      *First = GetFirstInstruction(*First, base, idx, addr);
+    Low = IREmitter.AccessShadowMemory(addr, IsLoad, 64, false, First);
+    return true;
   }
 
   llvm_unreachable("Invalid Src operand");
@@ -1426,6 +1447,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
 //    }
 //    break;
 //  }
+  case Mips::LDXC1:
   case Mips::LDC1: {
     DebugOut << "Handling LDC1\n";
     Value *dst, *src, *first = 0;
@@ -1450,8 +1472,9 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
+  case Mips::SDXC1:
   case Mips::SDC1: {
-    DebugOut << "Handling SDC1\n";
+    DebugOut << "Handling SDXC1, SDC1\n";
     Value *dst, *src, *first = 0;
     if (HandleDoubleSrcOperand(MI->getOperand(0), src, &first) &&
         HandleDoubleMemOperand(MI->getOperand(1), MI->getOperand(2), dst, 0,
@@ -1968,6 +1991,25 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       Value *hi, *lo, *V;
       HandleSaveDouble(o1, lo, hi);
       if (ConvToDirective(conv32(MI->getOperand(1).getReg())) % 2)
+        V = hi;
+      else
+        V = lo;
+      Value *v = Builder.CreateStore(V, o0);
+      Value *first = GetFirstInstruction(o1, v);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::MFLC1_D32:
+  case Mips::MFHC1_D32: {
+    DebugOut << "Handling MFHC1\n";
+    Value *o0, *o1;
+    if (HandleDoubleSrcOperand(MI->getOperand(1), o1) &&
+        HandleAluDstOperand(MI->getOperand(0), o0)) {
+      Value *hi, *lo, *V;
+      HandleSaveDouble(o1, lo, hi);
+      if (MI->getOpcode() == Mips::MFHC1_D32)
         V = hi;
       else
         V = lo;
