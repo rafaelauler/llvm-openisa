@@ -2003,7 +2003,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   }
   case Mips::MFLC1_D32:
   case Mips::MFHC1_D32: {
-    DebugOut << "Handling MFHC1\n";
+    DebugOut << "Handling MFHC1/MFLC1\n";
     Value *o0, *o1;
     if (HandleDoubleSrcOperand(MI->getOperand(1), o1) &&
         HandleAluDstOperand(MI->getOperand(0), o0)) {
@@ -2035,6 +2035,39 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       Value *previousVal = Builder.CreateLoad(o0);
       HandleSaveDouble(previousVal, lo, hi);
       if (ConvToDirective(conv32(MI->getOperand(0).getReg())) % 2) {
+        hi = o1;
+      } else {
+        lo = o1;
+      }
+      Value *v3 =
+          Builder.CreateZExtOrTrunc(hi, Type::getInt64Ty(getGlobalContext()));
+      Value *v4 =
+          Builder.CreateZExtOrTrunc(lo, Type::getInt64Ty(getGlobalContext()));
+      Value *v5 = Builder.CreateShl(
+          v3, ConstantInt::get(Type::getInt64Ty(getGlobalContext()), 32));
+      Value *v6 = Builder.CreateOr(v5, v4);
+      Value *dblSrc =
+          Builder.CreateBitCast(v6, Type::getDoubleTy(getGlobalContext()));
+      Builder.CreateStore(dblSrc, o0);
+      first = GetFirstInstruction(first, o1, o0, previousVal);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::MTHC1_D32:
+  case Mips::MTLC1_D32: {
+    DebugOut << "Handling MTHC1 / MTLC1\n";
+    Value *o0, *o1, *first = 0;
+    // The double register destination for these instructions is duplicated
+    // into operands 0 and 1. Operand 2 is the integer source.
+    if (HandleAluSrcOperand(MI->getOperand(2), o1, &first) &&
+        HandleDoubleDstOperand(MI->getOperand(1), o0)) {
+      Value *hi, *lo;
+      // Now store it in the double bank
+      Value *previousVal = Builder.CreateLoad(o0);
+      HandleSaveDouble(previousVal, lo, hi);
+      if (MI->getOpcode() == Mips::MTHC1_D32) {
         hi = o1;
       } else {
         lo = o1;
