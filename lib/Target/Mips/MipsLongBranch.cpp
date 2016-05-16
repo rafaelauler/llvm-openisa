@@ -358,7 +358,7 @@ void MipsLongBranch::expandToLongBranch(MBBInfo &I) {
     //
     Pos = LongBrMBB->begin();
     LongBrMBB->addSuccessor(TgtMBB);
-    BuildMI(*MF, DL, TII->get(Mips::J)).addMBB(TgtMBB);
+    BuildMI(*LongBrMBB, Pos, DL, TII->get(Mips::J)).addMBB(TgtMBB);
 
     assert(LongBrMBB->size() == LongBranchSeqSize);
   }
