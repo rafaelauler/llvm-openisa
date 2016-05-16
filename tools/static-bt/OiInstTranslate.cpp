@@ -321,6 +321,27 @@ bool OiInstTranslate::HandleFloatMemOperand(const MCOperand &o,
     }
     V = IREmitter.AccessShadowMemory(addr, IsLoad, 32, true, First);
     return true;
+  } else if (o.isReg() && o2.isReg()) {
+    Value *addr, *idx, *base;
+    unsigned reg = ConvToDirective(conv32(o.getReg()));
+    unsigned reg2 = ConvToDirective(conv32(o2.getReg()));
+    if (reg == 0) {
+      base = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
+    } else {
+      base = Builder.CreateLoad(IREmitter.Regs[reg]);
+      ReadMap[reg] = true;
+    }
+    if (reg2 == 0) {
+      idx = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
+    } else {
+      idx = Builder.CreateLoad(IREmitter.Regs[reg2]);
+      ReadMap[reg2] = true;
+    }
+    addr = Builder.CreateAdd(base, idx);
+    if (First != 0)
+      *First = GetFirstInstruction(*First, base, idx, addr);
+    V = IREmitter.AccessShadowMemory(addr, IsLoad, 32, true, First);
+    return true;
   }
 
   llvm_unreachable("Invalid Src operand");
@@ -1449,7 +1470,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
 //  }
   case Mips::LDXC1:
   case Mips::LDC1: {
-    DebugOut << "Handling LDC1\n";
+    DebugOut << "Handling LDXC1, LDC1\n";
     Value *dst, *src, *first = 0;
     if (HandleDoubleDstOperand(MI->getOperand(0), dst) &&
         HandleDoubleMemOperand(MI->getOperand(1), MI->getOperand(2), src,
@@ -1460,8 +1481,9 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
+  case Mips::LWXC1:
   case Mips::LWC1: {
-    DebugOut << "Handling LWC1\n";
+    DebugOut << "Handling LWXC1, LWC1\n";
     Value *dst, *src, *first = 0;
     if (HandleFloatDstOperand(MI->getOperand(0), dst) &&
         HandleFloatMemOperand(MI->getOperand(1), MI->getOperand(2), src, &first,
@@ -1485,6 +1507,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
+  case Mips::SWXC1:
   case Mips::SWC1: {
     DebugOut << "Handling SWC1\n";
     Value *dst, *src, *first = 0;
@@ -1721,6 +1744,27 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
+  case Mips::MSUB_S:
+  case Mips::MADD_S: {
+    DebugOut << "Handling MSUB_S, MADD_S\n";
+    Value *o0, *o1, *o2, *o3, *first = 0;
+    if (HandleFloatSrcOperand(MI->getOperand(1), o1, &first) &&
+        HandleFloatSrcOperand(MI->getOperand(2), o2) &&
+        HandleFloatSrcOperand(MI->getOperand(3), o3) &&
+        HandleFloatDstOperand(MI->getOperand(0), o0)) {
+      Value *V = nullptr;
+      Value *v = nullptr;
+      if (MI->getOpcode() == Mips::MADD_S)
+        V = Builder.CreateFAdd(Builder.CreateFMul(o3, o2), o1);
+      else
+        V = Builder.CreateFSub(Builder.CreateFMul(o3, o2), o1);
+      HandleSaveFloat(V, v);
+      Builder.CreateStore(v, o0);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
   case Mips::FMOV_D32: {
     DebugOut << "Handling FMOV_D32\n";
     Value *o0, *o1, *first = 0;
@@ -1739,6 +1783,25 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     if (HandleFloatSrcOperand(MI->getOperand(1), o1, &first) &&
         HandleFloatDstOperand(MI->getOperand(0), o0)) {
       Value *V = o1;
+      Builder.CreateStore(V, o0);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::MSUB_D32:
+  case Mips::MADD_D32: {
+    DebugOut << "Handling MSUB_D32, MADD_D32\n";
+    Value *o0, *o1, *o2, *o3, *first = 0;
+    if (HandleDoubleSrcOperand(MI->getOperand(1), o1, &first) &&
+        HandleDoubleSrcOperand(MI->getOperand(2), o2) &&
+        HandleDoubleSrcOperand(MI->getOperand(3), o3) &&
+        HandleDoubleDstOperand(MI->getOperand(0), o0)) {
+      Value *V = nullptr;
+      if (MI->getOpcode() == Mips::MADD_D32)
+        V = Builder.CreateFAdd(Builder.CreateFMul(o3, o2), o1);
+      else
+        V = Builder.CreateFSub(Builder.CreateFMul(o3, o2), o1);
       Builder.CreateStore(V, o0);
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
