@@ -538,11 +538,12 @@ void OiIREmitter::HandleFunctionEntryPoint(Value **First) {
   if (NoLocals)
     return;
   for (int I = 1; I < 259; ++I) {
-    Value *st = Builder.CreateStore(Builder.CreateLoad(GlobalRegs[I]), Regs[I]);
+    Value *ld = Builder.CreateLoad(GlobalRegs[I]);
+    Builder.CreateStore(ld, Regs[I]);
     if (!WroteFirst) {
       WroteFirst = true;
       if (First)
-        *First = GetFirstInstruction(*First, st);
+        *First = GetFirstInstruction(*First, ld);
     }
   }
   for (int I = 0; I < 64; ++I) {
@@ -555,11 +556,12 @@ void OiIREmitter::HandleFunctionExitPoint(Value **First) {
   if (NoLocals)
     return;
   for (int I = 1; I < 259; ++I) {
-    Value *st = Builder.CreateStore(Builder.CreateLoad(Regs[I]), GlobalRegs[I]);
+    Value *ld = Builder.CreateLoad(Regs[I]);
+    Builder.CreateStore(ld, GlobalRegs[I]);
     if (!WroteFirst) {
       WroteFirst = true;
       if (First)
-        *First = GetFirstInstruction(*First, st);
+        *First = GetFirstInstruction(*First, ld);
     }
   }
   for (int I = 0; I < 64; ++I) {
@@ -1018,7 +1020,7 @@ OiIREmitter::HashParams OiIREmitter::SelectHashFunctionFor(ArrayRef<T> Addrs) {
   // Now try to pick values for a, b, m that provides a perfect hash
   Res.P = P;
   Res.M = NumFuncs * NumFuncs;
-  assert (Res.M < 10000000 && "Hash is too large for this application");
+  assert (Res.M < 500000000 && "Hash is too large for this application");
   bool *Map = new bool[Res.M];
   bool Conflict = true;
   unsigned Trials = 0;
