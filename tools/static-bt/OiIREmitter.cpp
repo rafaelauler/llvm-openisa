@@ -169,6 +169,13 @@ bool OiIREmitter::ProcessIndirectJumps() {
             Ins->getParent()->getParent()->getName())
           continue;
         v->addDestination(IndirectDestinations[I]);
+        if (&targetBB->getParent()->getEntryBlock() == targetBB) {
+          BasicBlock *NewEntry =
+              BasicBlock::Create(getGlobalContext(), "newentry",
+                                 targetBB->getParent(), targetBB);
+          Builder.SetInsertPoint(NewEntry);
+          Builder.CreateBr(targetBB);
+        }
       }
       Ins->eraseFromParent();
       first = GetFirstInstruction(first, v);
