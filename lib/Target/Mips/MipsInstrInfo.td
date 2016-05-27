@@ -938,6 +938,14 @@ class SCBase<string opstr, RegisterOperand RO> :
   let Constraints = "$rt = $dst";
 }
 
+class TrapBase<Instruction RealInst>
+  : PseudoSE<(outs), (ins), [(trap)], NoItinerary>,
+    PseudoInstExpansion<(RealInst)> {
+  let isBarrier = 1;
+  let isTerminator = 1;
+  let isCodeGenOnly = 1;
+}
+
 //===----------------------------------------------------------------------===//
 // Pseudo instructions
 //===----------------------------------------------------------------------===//
@@ -1099,6 +1107,8 @@ def TEQ : MMRel, TEQ_FT<"teq", GPR32Opnd>, TEQ_FM;
 
 def BREAK : MMRel, BRK_FT<"break">, BRK_FM;
 def SYSCALL : MMRel, SYS_FT<"syscall">, SYS_FM;
+
+def TRAP : TrapBase<BREAK>;
 
 let EncodingPredicates = []<Predicate>, // FIXME: Lack of HasStdEnc is probably a bug
     AdditionalPredicates = [NotInMicroMips] in {
