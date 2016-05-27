@@ -137,9 +137,13 @@ bool SyscallsIface::HandleGenericInt(Value *&V, StringRef Name, int numargs,
         *First = GetFirstInstruction(*First, f);
       switch (ArgTypes[I]) {
       case AT_Ptr: {
-        Value *addrbuf = IREmitter.AccessShadowMemory(f, false);
-        params.push_back(Builder.CreatePtrToInt(
-            addrbuf, Type::getInt32Ty(getGlobalContext())));
+        Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
+        Value *cmp = Builder.CreateICmpEQ(f, zero);
+        Value *ptr = IREmitter.AccessShadowMemory(f, false);
+        Value * final = Builder.CreateSelect(
+            cmp, zero,
+            Builder.CreatePtrToInt(ptr, Type::getInt32Ty(getGlobalContext())));
+        params.push_back(final);
         break;
       }
       case AT_Int32: {
