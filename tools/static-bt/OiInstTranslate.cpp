@@ -2419,7 +2419,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       Value *dblSrc =
           Builder.CreateBitCast(v6, Type::getDoubleTy(getGlobalContext()));
       Builder.CreateStore(dblSrc, o0);
-      first = GetFirstInstruction(first, o1, o0, previousVal);
+      first = GetFirstInstruction(first, o1, previousVal);
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
     }
