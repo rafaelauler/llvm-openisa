@@ -653,12 +653,27 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "sprintf", 4, 1, ArgTypes, First);
         }
+        if (val == "snprintf") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "snprintf", 4, 1, ArgTypes, First);
+        }
         if (val == "vsprintf") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "vsprintf", 3, 1, ArgTypes, First);
+        }
+        if (val == "vfprintf") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "vfprintf", 3, 1, ArgTypes, First);
         }
         if (val == "fputs") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
@@ -671,11 +686,33 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Double};
           return Syscalls.HandleGenericDouble(V, "atan", 1, 1, ArgTypes, First);
         }
+        if (val == "ceil") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "ceil", 1, 1, ArgTypes, First);
+        }
+        if (val == "fmod") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "fmod", 2, 1, ArgTypes, First);
+        }
+        if (val == "modf") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "modf", 2, 1, ArgTypes, First);
+        }
         if (val == "atan2") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
                                                SyscallsIface::AT_Double,
                                                SyscallsIface::AT_Double};
           return Syscalls.HandleGenericDouble(V, "atan2", 2, 1, ArgTypes, First);
+        }
+        if (val == "__isnan") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericDouble(V, "__isnan", 1, 1, ArgTypes, First);
         }
         if (val == "sin") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
@@ -1160,6 +1197,52 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "__assert_fail", 4, 1, ArgTypes, First);
         }
+        if (val == "localtime") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "localtime", 1, 1, ArgTypes, First);
+        }
+        if (val == "strftime") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "strftime", 4, 1, ArgTypes, First);
+        }
+        if (val == "gettimeofday") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "gettimeofday", 2, 1, ArgTypes, First);
+        }
+        if (val == "getrlimit") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "getrlimit", 2, 1, ArgTypes, First);
+        }
+        if (val == "setrlimit") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "setrlimit", 2, 1, ArgTypes, First);
+        }
+        if (val == "tmpfile") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "tmpfile", 0, 1, ArgTypes, First);
+        }
+        if (val == "fdopen") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fdopen", 2, 1, ArgTypes, First);
+        }
+        if (val == "gmtime") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "gmtime", 1, 1, ArgTypes, First);
+        }
         if (val == "__ctype_toupper_loc")
           return Syscalls.HandleCTypeToUpperLoc(V, First);
         if (val == "__ctype_tolower_loc")
@@ -1167,6 +1250,11 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
         if (val == "__ctype_b_loc")
           return Syscalls.HandleCTypeBLoc(V, First);
         // XXX: Untested
+        if (val == "sleep") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "sleep", 1, 1, ArgTypes, First);
+        }
         if (val == "select") {
           // FIXME: Correct number of args is 5
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
@@ -1175,21 +1263,6 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "select", 4, 1, ArgTypes, First);
-        }
-        if (val == "gettimeofday") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
-                                               SyscallsIface::AT_Ptr,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "gettimeofday", 2, 1, ArgTypes, First);
-        }
-        if (val == "sleep") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "sleep", 1, 1, ArgTypes, First);
-        }
-        if (val == "tmpfile") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr};
-          return Syscalls.HandleGenericInt(V, "tmpfile", 0, 1, ArgTypes, First);
         }
         if (val == "fcntl") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
@@ -1225,6 +1298,12 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "execvp", 2, 1, ArgTypes, First);
+        }
+        if (val == "execv") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "execv", 2, 1, ArgTypes, First);
         }
         if (val == "execl") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
@@ -1298,132 +1377,108 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Ptr};
           return Syscalls.HandleGenericInt(V, "strtok", 2, 1, ArgTypes, First);
         }
+        if (val == "__strdup") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "__strdup", 1, 1, ArgTypes, First);
+        }
         if (val == "setbuf") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "setbuf", 2, 1, ArgTypes, First);
         }
-        // XXX: Not even arguments are OK here
-        if (val == "ceil") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+        if (val == "closedir") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "ceil", 1, 1, ArgTypes, First);
+          return Syscalls.HandleGenericInt(V, "closedir", 1, 1, ArgTypes, First);
         }
         if (val == "clearerr") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "clearerr", 1, 1, ArgTypes, First);
         }
-        if (val == "closedir") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "closedir", 1, 1, ArgTypes, First);
-        }
-        if (val == "execv") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "execv", 1, 1, ArgTypes, First);
-        }
         if (val == "_exit") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "_exit", 1, 1, ArgTypes, First);
         }
-        if (val == "fdopen") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "fdopen", 1, 1, ArgTypes, First);
-        }
-        if (val == "fmod") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "fmod", 1, 1, ArgTypes, First);
-        }
         if (val == "fork") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "fork", 0, 1, ArgTypes, First);
+        }
+        if (val == "waitpid") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "fork", 1, 1, ArgTypes, First);
+          return Syscalls.HandleGenericInt(V, "waitpid", 3, 1, ArgTypes, First);
         }
         if (val == "freopen") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "freopen", 1, 1, ArgTypes, First);
+          return Syscalls.HandleGenericInt(V, "freopen", 3, 1, ArgTypes, First);
         }
         if (val == "ftruncate") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "ftruncate", 1, 1, ArgTypes, First);
-        }
-        if (val == "gcvt") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "gcvt", 1, 1, ArgTypes, First);
-        }
-        if (val == "gmtime") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "gmtime", 1, 1, ArgTypes, First);
-        }
-        if (val == "__isnan") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "__isnan", 1, 1, ArgTypes, First);
-        }
-        if (val == "localtime") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "localtime", 1, 1, ArgTypes, First);
+          return Syscalls.HandleGenericInt(V, "ftruncate", 2, 1, ArgTypes, First);
         }
         if (val == "mkdir") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "mkdir", 1, 1, ArgTypes, First);
-        }
-        if (val == "modf") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "modf", 1, 1, ArgTypes, First);
+          return Syscalls.HandleGenericInt(V, "mkdir", 2, 1, ArgTypes, First);
         }
         if (val == "opendir") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr};
           return Syscalls.HandleGenericInt(V, "opendir", 1, 1, ArgTypes, First);
         }
+        if (val == "readdir") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "readdir", 1, 1, ArgTypes, First);
+        }
         if (val == "pipe") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "pipe", 1, 1, ArgTypes, First);
         }
         if (val == "putenv") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "putenv", 1, 1, ArgTypes, First);
         }
         if (val == "qsort") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "qsort", 1, 1, ArgTypes, First);
-        }
-        if (val == "readdir") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "readdir", 1, 1, ArgTypes, First);
+          return Syscalls.HandleGenericInt(V, "qsort", 4, 1, ArgTypes, First);
         }
         if (val == "rmdir") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "rmdir", 1, 1, ArgTypes, First);
         }
         if (val == "setvbuf") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "setvbuf", 1, 1, ArgTypes, First);
+          return Syscalls.HandleGenericInt(V, "setvbuf", 4, 1, ArgTypes, First);
         }
         if (val == "siglongjmp") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "siglongjmp", 1, 1, ArgTypes, First);
+          return Syscalls.HandleGenericInt(V, "siglongjmp", 2, 1, ArgTypes, First);
         }
         if (val == "__sigsetjmp") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
@@ -1431,14 +1486,17 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
           return Syscalls.HandleGenericInt(V, "__sigsetjmp", 1, 1, ArgTypes, First);
         }
         if (val == "truncate") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "truncate", 1, 1, ArgTypes, First);
         }
-        if (val == "waitpid") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "waitpid", 1, 1, ArgTypes, First);
+        if (val == "gcvt") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericDouble(V, "gcvt", 3, 1, ArgTypes, First);
         }
 
         //        printf("%s\n", val.str().c_str());
@@ -1448,9 +1506,9 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
       if (RelocReader.ResolveRelocation(targetaddr, nullptr, Unused))
         return IREmitter.HandleLocalCall(targetaddr, V, First);
       outs() << "Unrecognized function call: " << val << "\n";
-      llvm_unreachable("Unrecognized function call");
+      //      llvm_unreachable("Unrecognized function call");
     }
-    llvm_unreachable("Unrecognized function call");
+    //    llvm_unreachable("Unrecognized function call");
     return false;
   }
   return false;

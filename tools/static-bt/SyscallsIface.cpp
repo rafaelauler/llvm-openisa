@@ -722,6 +722,11 @@ bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
       ft = FunctionType::get(Type::getFloatTy(getGlobalContext()), args,
                              /*isvararg*/ false);
       break;
+    case AT_Ptr:
+    case AT_Int32:
+      ft = FunctionType::get(Type::getInt32Ty(getGlobalContext()), args,
+                             /*isvararg*/ false);
+      break;
     default:
       llvm_unreachable("Unhandled return type.");
     }
@@ -826,6 +831,25 @@ bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
       Builder.CreateStore(V, IREmitter.Regs[ConvToDirective(Mips::F0)]);
       IREmitter.WriteMap[ConvToDirective(Mips::F0)] = true;
       break;
+    case AT_Int32:
+      Builder.CreateStore(V, IREmitter.Regs[ConvToDirective(Mips::V0)]);
+      IREmitter.WriteMap[ConvToDirective(Mips::V0)] = true;
+      break;
+    case AT_Ptr:
+      if (NoShadow) {
+        V = Builder.CreateStore(V, IREmitter.Regs[ConvToDirective(Mips::V0)]);
+      } else {
+        Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
+        Value *cmp = Builder.CreateICmpEQ(V, zero);
+        Value *ptr = Builder.CreatePtrToInt(
+            IREmitter.ShadowImageValue, Type::getInt32Ty(getGlobalContext()));
+        Value *fixed = Builder.CreateSub(V, ptr);
+        Value *final = Builder.CreateSelect(cmp, zero, fixed);
+        V = Builder.CreateStore(final,
+                                IREmitter.Regs[ConvToDirective(Mips::V0)]);
+      }
+      break;
+      IREmitter.WriteMap[ConvToDirective(Mips::V0)] = true;
     default:
       llvm_unreachable("Unhandled return type for HandleGenericDouble");
     }
