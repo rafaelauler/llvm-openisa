@@ -456,9 +456,9 @@ void OiIREmitter::StartMainFunction(uint64_t Addr) {
 
 void OiIREmitter::InsertStartupCode(uint64_t Addr) {
   Function *F = Builder.GetInsertBlock()->getParent();
-  // Initialize the stack
-  Value *size =
-      ConstantInt::get(Type::getInt32Ty(getGlobalContext()), ShadowSize);
+  // Initialize the stack (aligned to 32 bytes)
+  Value *size = ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
+                                 ShadowSize & 0xFFFFFFE0);
   if (NoShadow) {
     Value *shadow = Builder.CreatePtrToInt(
         ShadowImageValue, Type::getInt32Ty(getGlobalContext()));

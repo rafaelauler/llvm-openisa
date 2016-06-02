@@ -68,7 +68,7 @@ MipsSERegisterInfo::intRegClass(unsigned Size) const {
 static inline unsigned getLoadStoreOffsetSizeInBits(const unsigned Opcode) {
   switch (Opcode) {
   default:
-    return 16;
+    return 14;
   }
 }
 
