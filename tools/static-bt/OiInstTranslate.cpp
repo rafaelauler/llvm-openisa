@@ -1665,7 +1665,6 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
         HandleAluDstOperand(MI->getOperand(0), o0)) {
       std::vector<Type *> types;
       types.push_back(Type::getInt32Ty(getGlobalContext()));
-      types.push_back(Type::getInt1Ty(getGlobalContext()));
       Value *CtlzFunc = Intrinsic::getDeclaration(IREmitter.TheModule.get(),
                                                   Intrinsic::ctlz, types);
       std::vector<Value *> args;
