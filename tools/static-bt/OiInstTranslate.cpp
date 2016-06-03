@@ -1663,10 +1663,15 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     Value *o0, *o1, *first = 0;
     if (HandleAluSrcOperand(MI->getOperand(1), o1, &first) &&
         HandleAluDstOperand(MI->getOperand(0), o0)) {
-      std::vector<Type *> types(1, Type::getInt32Ty(getGlobalContext()));
+      std::vector<Type *> types;
+      types.push_back(Type::getInt32Ty(getGlobalContext()));
+      types.push_back(Type::getInt1Ty(getGlobalContext()));
       Value *CtlzFunc = Intrinsic::getDeclaration(IREmitter.TheModule.get(),
                                                   Intrinsic::ctlz, types);
-      Value *V = Builder.CreateCall(CtlzFunc, o1);
+      std::vector<Value *> args;
+      args.push_back(o1);
+      args.push_back(ConstantInt::get(Type::getInt1Ty(getGlobalContext()), 0));
+      Value *V = Builder.CreateCall(CtlzFunc, args);
       Builder.CreateStore(V, o0);
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
