@@ -895,8 +895,8 @@ class EffectiveAddress<string opstr, RegisterOperand RO> :
 
 // Count Leading Ones/Zeros in Word
 class CountLeading0<string opstr, RegisterOperand RO>:
-  InstSE<(outs RO:$rd), (ins RO:$rs), !strconcat(opstr, "\t$rd, $rs"),
-         [(set RO:$rd, (ctlz RO:$rs))], II_CLZ, FrmPL12, opstr>;
+  InstSE<(outs RO:$rd), (ins RO:$rt), !strconcat(opstr, "\t$rd, $rt"),
+         [(set RO:$rd, (ctlz RO:$rt))], II_CLZ, FrmPL12, opstr>;
 
 
 // Sign Extend in Register.
