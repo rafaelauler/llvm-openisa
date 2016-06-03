@@ -1658,6 +1658,21 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     }
     break;
   }
+  case Mips::CLZ: {
+    DebugOut << "Handling CLZ\n";
+    Value *o0, *o1, *first = 0;
+    if (HandleAluSrcOperand(MI->getOperand(1), o1, &first) &&
+        HandleAluDstOperand(MI->getOperand(0), o0)) {
+      std::vector<Type *> types(1, Type::getInt32Ty(getGlobalContext()));
+      Value *CtlzFunc = Intrinsic::getDeclaration(IREmitter.TheModule.get(),
+                                                  Intrinsic::ctlz, types);
+      Value *V = Builder.CreateCall(CtlzFunc, o1);
+      Builder.CreateStore(V, o0);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
   case Mips::BREAK: {
     DebugOut << "Handling BREAK\n";
     Value *v = Builder.CreateUnreachable();
