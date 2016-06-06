@@ -2,7 +2,7 @@
 // main file staticbt.cpp
 //===----------------------------------------------------------------------===//
 
-//#define NDEBUG
+#define NDEBUG
 
 #include "OiInstTranslate.h"
 #include "StringRefMemoryObject.h"
@@ -177,6 +177,7 @@ void OptimizeAndWriteBitcode(OiInstTranslate *oit) {
   FunctionPassManager OurFPM(m);
 
   if (Optimize) {
+    outs() << "Running verification and basic optimization pipeline...\n";
     OurFPM.add(createVerifierPass());
     OurFPM.add(createPromoteMemoryToRegisterPass());
     OurFPM.add(new OiCombinePass());
@@ -280,6 +281,9 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
   }
 
   //  int AsmPrinterVariant = AsmInfo->getAssemblerDialect();
+#ifdef NDEBUG
+  outs() << "Preparing for static binary translation...\n";
+#endif
 
   std::unique_ptr<OiInstTranslate> IP(
       new OiInstTranslate(*AsmInfo, *MII, *MRI, Obj, StackSize, CodeTarget));
@@ -290,6 +294,10 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
     return;
   }
 
+#ifdef NDEBUG
+  uint64_t NumProcessed = 0;
+  outs() << "Binary translation in progress...";
+#endif
   std::error_code ec;
   for (const SectionRef &i : Obj->sections()) {
     if (error(ec))
@@ -382,6 +390,11 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
           DumpBytes(StringRef(BytesStr.data() + Index, Size));
 #endif
           IP->printInst(&Inst, outs(), "");
+#ifdef NDEBUG
+          if (++NumProcessed % 10000 == 0) {
+            outs() << ".";
+          }
+#endif
 #ifndef NDEBUG
           outs() << "\n";
 #endif
@@ -397,6 +410,9 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
     }
   }
   IP->FinishModule();
+#ifdef NDEBUG
+  outs() << "\n";
+#endif
   OptimizeAndWriteBitcode(&*IP);
 }
 

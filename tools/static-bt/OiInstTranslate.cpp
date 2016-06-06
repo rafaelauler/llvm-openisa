@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-//#define NDEBUG
+#define NDEBUG
 
 #define DEBUG_TYPE "staticbt"
 #include "OiInstTranslate.h"
@@ -530,8 +530,7 @@ bool OiInstTranslate::HandleSpilledOperand(const MCOperand &o,
     Idx += 1000000;
   uint64_t reltype = 0;
   StringRef Unused;
-  assert(!RelocReader.ResolveRelocation(Idx, &reltype, Unused) &&
-         "Invalid spilled operand");
+  RelocReader.ResolveRelocation(Idx, &reltype, Unused);
   V = IREmitter.AccessSpillMemory(Idx, IsLoad);
   if (First)
     *First = GetFirstInstruction(*First, V);
@@ -744,6 +743,40 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Float,
                                                SyscallsIface::AT_Float};
           return Syscalls.HandleGenericDouble(V, "sqrtf", 1, 1, ArgTypes, First);
+        }
+        if (val == "logb") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "logb", 1, 1, ArgTypes, First);
+        }
+        if (val == "logbf") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Float,
+                                               SyscallsIface::AT_Float};
+          return Syscalls.HandleGenericDouble(V, "logbf", 1, 1, ArgTypes, First);
+        }
+        if (val == "fmax") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "fmax", 2, 1, ArgTypes, First);
+        }
+        if (val == "fmaxf") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Float,
+                                               SyscallsIface::AT_Float,
+                                               SyscallsIface::AT_Float};
+          return Syscalls.HandleGenericDouble(V, "fmaxf", 2, 1, ArgTypes, First);
+        }
+        if (val == "scalbn") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Double};
+          return Syscalls.HandleGenericDouble(V, "scalbn", 2, 1, ArgTypes, First);
+        }
+        if (val == "scalbnf") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Float,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Float};
+          return Syscalls.HandleGenericDouble(V, "scalbnf", 2, 1, ArgTypes, First);
         }
         if (val == "log10") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
@@ -1264,6 +1297,12 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "select", 4, 1, ArgTypes, First);
         }
+        if (val == "obstack_free") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "obstack_free", 2, 1, ArgTypes, First);
+        }
         if (val == "fcntl") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32,
@@ -1505,10 +1544,12 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
       StringRef Unused;
       if (RelocReader.ResolveRelocation(targetaddr, nullptr, Unused))
         return IREmitter.HandleLocalCall(targetaddr, V, First);
-      outs() << "Unrecognized function call: " << val << "\n";
-      //      llvm_unreachable("Unrecognized function call");
+      outs() << "Error: Unrecognized library function call: " << val << ". ";
+      outs() << "Consider adding it to OiInstTranslate::HandleCallTarget if "
+                "you want to support it.\n";
+      llvm_unreachable("Unrecognized function call");
     }
-    //    llvm_unreachable("Unrecognized function call");
+    llvm_unreachable("Unrecognized function call");
     return false;
   }
   return false;
@@ -1600,7 +1641,6 @@ bool OiInstTranslate::HandleBranchTarget(const MCOperand &o,
       tgtaddr += rel;
     }
     //    assert(tgtaddr != IREmitter.CurAddr);
-    printf("tgtaddr: %lx\n", tgtaddr);
     if (tgtaddr <= IREmitter.CurAddr)
       return IREmitter.HandleBackEdge(tgtaddr, Target);
     Target = IREmitter.CreateBB(tgtaddr);

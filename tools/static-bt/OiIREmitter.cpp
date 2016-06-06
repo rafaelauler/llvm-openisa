@@ -24,6 +24,8 @@
 #include <cstdlib>
 using namespace llvm;
 
+#define NDEBUG
+
 namespace llvm {
 
 cl::opt<bool>
@@ -120,12 +122,16 @@ bool OiIREmitter::ProcessIndirectJumps() {
       if (error(ri.getOffset(offset)))
         break;
       offset += PatchedSecAddr;
+#ifndef NDEBUG
       outs() << "REL at " << format("%8" PRIx64, offset) << " Found ";
       outs() << "Contents:" << format("%8" PRIx64,
                                       (*(int *)(&ShadowImage[offset])));
+#endif
       uint64_t TargetAddr = *(int *)(&ShadowImage[offset]);
       TargetAddr += TextOffset;
+#ifndef NDEBUG
       outs() << " TargetAddr = " << format("%8" PRIx64, TargetAddr) << "\n";
+#endif
       BasicBlock *BB = nullptr;
       if (!HandleBackEdge(TargetAddr, BB))
         llvm_unreachable("Failed to handle backedge");
@@ -148,9 +154,11 @@ bool OiIREmitter::ProcessIndirectJumps() {
         IndirectDestinationsAddrs.end());
     IndirectJumpsHash =
         SelectHashFunctionFor<uint32_t>(IndirectDestinationsAddrs);
+#ifndef NDEBUG
     printf("Selected hash function = (%d * (k - %d) + %d) %% %d %% %d \n",
            IndirectJumpsHash.A, IndirectJumpsHash.C, IndirectJumpsHash.B,
            IndirectJumpsHash.P, IndirectJumpsHash.M);
+#endif
     IndirectJumpTableValue = CreateHashTableFor<uint32_t>(
         IndirectDestinationsAddrs, IndirectJumpsHash);
 
@@ -248,8 +256,10 @@ void OiIREmitter::BuildShadowImage() {
   // Update Comdat symbols addresses
   for (auto &sym : ComdatSymbols) {
     sym.setValue(sym.getValue() + ComdatSectionAddress);
+#ifndef NDEBUG
     outs() << "COMDAT/BSS symbol \"" << sym.getKey() << "\" @"
            << format("%8" PRIx64, sym.getValue()) << "\n ";
+#endif
   }
 
   // Allocate some space for the stack

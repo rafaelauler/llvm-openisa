@@ -13,6 +13,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 //#define COMBINE2
+#define NDEBUG
 
 using namespace llvm;
 using namespace PatternMatch;
@@ -65,8 +66,10 @@ static void OiCombine(Instruction *v, IRBuilder<> &Builder) {
 
 bool OiCombinePass::runOnFunction(Function &F) {
   IRBuilder<> Builder(getGlobalContext());
+#ifndef NDEBUG
   errs() << "Hello: ";
   errs().write_escaped(F.getName()) << '\n';
+#endif
 
   for (Function::iterator FI = F.begin(), FE = F.end(); FI != FE; ++FI) {
     for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); BI != BE;
@@ -75,10 +78,14 @@ bool OiCombinePass::runOnFunction(Function &F) {
     }
   }
 
+#ifndef NDEBUG
   errs() << "Number of load large immediates recombined: " << numMatches1
          << "\n";
+#endif
 #ifdef COMBINE2
+#ifndef NDEBUG
   errs() << "Number of GEP+ShadowMemory recombined: " << numMatches2 << "\n";
+#endif
   return numMatches1 + numMatches2 > 0;
 #else
   return numMatches1 > 0;

@@ -9,6 +9,8 @@
 
 using namespace llvm;
 
+#define NDEBUG
+
 bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type,
                                          StringRef &SymbolNotFound) {
   relocation_iterator Rel = (*CurSection).relocation_end();
@@ -78,7 +80,9 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type,
     return true;
   }
 
+#ifndef NDEBUG
   outs() << "Unresolved relocation: " << Name << "\n";
+#endif
   SymbolNotFound = Name;
   return false;
 }
@@ -163,13 +167,17 @@ void RelocationReader::ResolveAllDataRelocations(
           // Patch it!
           *(int *)(&ShadowImage[PatchAddress]) =
               it->getValue() + *(int *)(&ShadowImage[PatchAddress]);
+#ifndef NDEBUG
           outs() << "Patching " << format("%8" PRIx64, PatchAddress) << " with "
                  << format("%8" PRIx64, *(int *)(&ShadowImage[PatchAddress]))
                  << "\n";
+#endif
           continue;
         }
 
+#ifndef NDEBUG
         bool Patched = false;
+#endif
         // Now we look up for this symbol in the list of all symbols...
         for (const auto &si : Obj->symbols()) {
           StringRef SName;
@@ -200,15 +208,19 @@ void RelocationReader::ResolveAllDataRelocations(
           // Patch it!
           *(int *)(&ShadowImage[PatchAddress]) =
               TargetAddress + *(int *)(&ShadowImage[PatchAddress]);
+#ifndef NDEBUG
           outs() << "Patching " << format("%8" PRIx64, PatchAddress) << " with "
                  << format("%8" PRIx64, *(int *)(&ShadowImage[PatchAddress]))
                  << "\n";
           Patched = true;
+#endif
           break;
         }
 
+#ifndef NDEBUG
         if (!Patched)
           outs() << "Unresolved data relocation: " << Name << "\n";
+#endif
 
       }
     }
