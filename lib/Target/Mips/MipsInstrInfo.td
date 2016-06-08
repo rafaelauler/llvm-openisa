@@ -1022,7 +1022,7 @@ def ADDiu : MMRel, ArithLogicI<"addi", simm14, GPR32Opnd, II_ADDIU, immSExt14,
 }
 def SLTi  : MMRel, SetCC_I<"slti", setlt, simm14, immSExt14, GPR32Opnd>,
             ADDI_FM<0x10>;
-def SLTiu : MMRel, SetCC_I<"sltiu", setult, uimm14, immZExt14, GPR32Opnd>,
+def SLTiu : MMRel, SetCC_I<"sltiu", setult, simm14, immSExt14, GPR32Opnd>,
             ADDI_FM<0x11>;
 let AdditionalPredicates = [NotInMicroMips] in {
 def ANDi  : MMRel, ArithLogicI<"andi", uimm14, GPR32Opnd, II_ANDI, immZExt14,
