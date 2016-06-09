@@ -2,7 +2,7 @@
 // main file staticbt.cpp
 //===----------------------------------------------------------------------===//
 
-#define NDEBUG
+//#define NDEBUG
 
 #include "OiInstTranslate.h"
 #include "StringRefMemoryObject.h"

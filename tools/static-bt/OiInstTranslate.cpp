@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define NDEBUG
+//#define NDEBUG
 
 #define DEBUG_TYPE "staticbt"
 #include "OiInstTranslate.h"
@@ -815,6 +815,11 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Double};
           return Syscalls.HandleGenericDouble(V, "floor", 1, 1, ArgTypes, First);
         }
+        if (val == "floorf") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Float,
+                                               SyscallsIface::AT_Float};
+          return Syscalls.HandleGenericDouble(V, "floorf", 1, 1, ArgTypes, First);
+        }
         if (val == "log") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
                                                SyscallsIface::AT_Double};
@@ -1536,6 +1541,29 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
                                                SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Ptr};
           return Syscalls.HandleGenericDouble(V, "gcvt", 3, 1, ArgTypes, First);
+        }
+        if (val == "strstr") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr};
+          return Syscalls.HandleGenericInt(V, "strstr", 2, 1, ArgTypes, First);
+        }
+        if (val == "strcspn") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "strcspn", 2, 1, ArgTypes, First);
+        }
+        // XXX: Return type is "long", we are assuming 4 bytes int. 64-byte is
+        // is not implemented. Second param is "char **", but is generally NULL.
+        // If called if a non-null param, the function will fail because all ptrs
+        // must be converted to native ptrs.
+        if (val == "strtoul") {
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
+                                               SyscallsIface::AT_Int32};
+          return Syscalls.HandleGenericInt(V, "strtoul", 3, 1, ArgTypes, First);
         }
 
         //        printf("%s\n", val.str().c_str());
