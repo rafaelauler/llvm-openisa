@@ -480,23 +480,6 @@ bool OiIREmitter::ProcessIndirectJumps() {
   if (TableSize == 0) {
     IndirectJumpTableValue = 0;
   } else {
-    auto IndDestAddrs = IndirectDestinationsAddrs;
-    std::sort(IndirectDestinationsAddrs.begin(), IndirectDestinationsAddrs.end());
-    IndirectDestinationsAddrs.erase(
-        std::unique(IndirectDestinationsAddrs.begin(),
-                    IndirectDestinationsAddrs.end()),
-        IndirectDestinationsAddrs.end());
-    IndirectJumpsHash =
-        SelectHashFunctionFor<uint32_t>(IndirectDestinationsAddrs);
-#ifndef NDEBUG
-    printf("Selected hash function = (%d * (k - %d) + %d) %% %d %% %d \n",
-           IndirectJumpsHash.A, IndirectJumpsHash.C, IndirectJumpsHash.B,
-           IndirectJumpsHash.P, IndirectJumpsHash.M);
-#endif
-    IndirectJumpTableValue = CreateHashTableFor<uint32_t>(
-        IndirectDestinationsAddrs, IndirectJumpsHash);
-
-    printf("FunctionAddrs size = %ld\n", FunctionAddrs.size());
     std::vector<uint64_t> Funcs = FunctionAddrs;
     std::sort(Funcs.begin(), Funcs.end());
     for (unsigned I = 0; I < IndirectJumps.size(); ++I) {
@@ -504,17 +487,16 @@ bool OiIREmitter::ProcessIndirectJumps() {
       uint64_t Addr = IndirectJumps[I].second;
       Value *first = IndirectJumpsIndexes[I];
       Builder.SetInsertPoint(Ins);
-      Value *Target = AccessHashTable(first, &first, IndirectJumpsHash,
-                                      IndirectJumpTableValue);
-
       uint64_t JT = 0ULL;
       uint64_t FuncAddr = GetFuncAddr(Funcs, Addr);
       if (MatchIndirectJumpTable(first, JT)) {
         std::set<BasicBlock *> JumpTargets;
         if (ExtractJumpTargets(JT, CodePtrs, Funcs, FuncAddr,
                                JumpTargets)) {
-          IndirectBrInst *v =
-              Builder.CreateIndirectBr(Target, JumpTargets.size());
+          IndirectBrInst *v = Builder.CreateIndirectBr(
+              Builder.CreateIntToPtr(first,
+                                      Type::getInt32PtrTy(getGlobalContext())),
+              JumpTargets.size());
           for (auto Dest : JumpTargets) {
             v->addDestination(Dest);
           }
@@ -531,11 +513,13 @@ bool OiIREmitter::ProcessIndirectJumps() {
                "indirect jump. Assuming all targets in function.\n");
       dyn_cast<Instruction>(first)->getParent()->dump();
 
-      IndirectBrInst *v =
-          Builder.CreateIndirectBr(Target, IndirectDestinations.size());
+      IndirectBrInst *v = Builder.CreateIndirectBr(
+          Builder.CreateIntToPtr(first,
+                                  Type::getInt32PtrTy(getGlobalContext())),
+          IndirectDestinations.size());
       for (int I = 0, E = IndirectDestinations.size(); I != E; ++I) {
         BasicBlock *targetBB = IndirectDestinations[I];
-        uint64_t bbAddr = IndDestAddrs[I];
+        uint64_t bbAddr = IndirectDestinationsAddrs[I];
         if (GetFuncAddr(Funcs, bbAddr) != FuncAddr)
           continue;
         v->addDestination(IndirectDestinations[I]);
@@ -557,18 +541,12 @@ bool OiIREmitter::ProcessIndirectJumps() {
          NumJumpsOK + NumJumpsWarning, NumJumpsWarning);
 
   if (IndirectCalls.size() > 0) {
-    IndirectCallsHash = SelectHashFunctionFor<uint64_t>(FunctionAddrs);
-    printf("Selected hash function = (%d * (k - %d) + %d) %% %d %% %d \n",
-           IndirectCallsHash.A, IndirectCallsHash.C, IndirectCallsHash.B,
-           IndirectCallsHash.P, IndirectCallsHash.M);
     for (auto Addr : FunctionAddrs) {
       std::string Idx = Twine("bb").concat(Twine::utohexstr(Addr)).str();
       assert (BBMap[Idx] != 0 && "Missing basic block for function");
       // Populate FunctionBBs to be used when creating indirect calls later
       FunctionBBs.push_back(BBMap[Idx]);
     }
-    IndirectCallTableValue =
-        CreateHashTableFor<uint64_t>(FunctionAddrs, IndirectCallsHash);
   }
 
   for (unsigned I = 0; I < IndirectCalls.size(); ++I) {
@@ -583,12 +561,12 @@ bool OiIREmitter::ProcessIndirectJumps() {
       InsMap[Addr] = dyn_cast<Instruction>(first);
       continue;
     }
-    Value *Target = AccessHashTable(first, &first, IndirectCallsHash,
-                                    IndirectCallTableValue);
     Type *ft = PointerType::getUnqual(
         FunctionType::get(Type::getVoidTy(getGlobalContext()),
                           /*isvararg*/ false));
-    Builder.CreateCall(Builder.CreatePointerCast(Target, ft));
+    Builder.CreateCall(Builder.CreatePointerCast(
+        Builder.CreateIntToPtr(first, Type::getInt32PtrTy(getGlobalContext())),
+        ft));
     Ins->eraseFromParent();
     InsMap[Addr] = dyn_cast<Instruction>(first);
   }
@@ -1209,16 +1187,15 @@ bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
 bool OiIREmitter::HandleIndirectCallOneRegion(uint64_t Addr, Value *src,
                                               Value **First) {
   Value *f = nullptr;
-  Value *Target =
-      AccessHashTable(src, &f, IndirectCallsHash, IndirectCallTableValue);
   for (auto FnAddr : FunctionAddrs)
     FunctionCallMap[FnAddr].push_back(Addr + GetInstructionSize());
   Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
                                        Addr + GetInstructionSize()),
                       Regs[ConvToDirective(Mips::RA)]);
   WriteMap[ConvToDirective(Mips::RA)] = true;
-  IndirectBrInst *v =
-      Builder.CreateIndirectBr(Target, FunctionBBs.size());
+  IndirectBrInst *v = Builder.CreateIndirectBr(
+      Builder.CreateIntToPtr(src, Type::getInt32PtrTy(getGlobalContext())),
+      FunctionBBs.size());
   for (int I = 0, E = FunctionBBs.size(); I != E; ++I) {
     v->addDestination(FunctionBBs[I]);
   }
