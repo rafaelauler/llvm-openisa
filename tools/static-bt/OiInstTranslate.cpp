@@ -3138,13 +3138,13 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   case Mips::JR: {
     DebugOut << "Handling JR\n";
     Value *first = 0;
-    // Do not create a checkpoint at the end of the main function. Since
-    // the program is terminating, it is not neccessary.
-    if (!NoLocals && !OneRegion &&
-        Builder.GetInsertBlock()->getParent()->getName() != "main")
-      IREmitter.HandleFunctionExitPoint(&first);
     if (MI->getOperand(0).getReg() == Mips::RA ||
         MI->getOperand(0).getReg() == Mips::RA_64) {
+      // Do not create a checkpoint at the end of the main function. Since
+      // the program is terminating, it is not neccessary.
+      if (!NoLocals && !OneRegion &&
+          Builder.GetInsertBlock()->getParent()->getName() != "main")
+        IREmitter.HandleFunctionExitPoint(&first);
       Value *v = Builder.CreateRetVoid();
       if (!first)
         first = v;

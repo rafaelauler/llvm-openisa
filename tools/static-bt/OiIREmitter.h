@@ -20,6 +20,7 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include <set>
+#include <unordered_set>
 #include <vector>
 
 namespace llvm {
@@ -123,6 +124,10 @@ public:
     IndirectCalls.push_back(std::make_pair(Ins, CurAddr));
     IndirectCallsIndexes.push_back(Idx);
   }
+  bool ExtractJumpTargets(uint64_t JT,
+                          const std::unordered_set<uint64_t> &ValidPtrs,
+                          ArrayRef<uint64_t> Funcs, uint64_t FuncAddr,
+                          std::set<BasicBlock *> &JumpTargets);
   bool ProcessIndirectJumps();
   template <typename T>
   Value *CreateHashTableFor(ArrayRef<T> Addrs, const HashParams &Hash);

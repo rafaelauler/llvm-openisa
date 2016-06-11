@@ -11,6 +11,7 @@
 #include "SBTUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/CFG.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -72,11 +73,338 @@ bool OiIREmitter::FindSectionOffset(StringRef Name, uint64_t &SectionAddr) {
   return false;
 }
 
+// Traverses the BB backwards looking for the instruction that writes
+// to "Reg".
+static bool FindDefiningInstr(const BasicBlock *BB,
+                              BasicBlock::const_reverse_iterator &Iter,
+                              const Value *LoadInstr,
+                              const Value *&DefInstr) {
+  auto *Load = dyn_cast<LoadInst>(LoadInstr);
+  if (Load == nullptr)
+    return false;
+  const Value *Reg = Load->getPointerOperand();
+
+  ++Iter;
+  for (auto I = Iter, E = BB->rend(); I != E; ++I) {
+    if (auto Store = dyn_cast<StoreInst>(&*I)) {
+      if (Store->getPointerOperand() == Reg) {
+        DefInstr = Store->getValueOperand();
+        Iter = I;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+static bool CompareFragments(const Value* LHS, const Value *RHS) {
+  if (LHS == RHS)
+    return true;
+
+  //Check for stack access
+  auto L1 = dyn_cast<BitCastInst>(LHS);
+  auto R1 = dyn_cast<BitCastInst>(RHS);
+  if (!L1 || !R1)
+    return false;
+
+  auto L2 = dyn_cast<GetElementPtrInst>(L1->getOperand(0));
+  auto R2 = dyn_cast<GetElementPtrInst>(R1->getOperand(0));
+  if (!L2 || !R2) {
+    printf("CompMismatch1\n");
+    L1->dump();
+    R1->dump();
+    return false;
+  }
+
+  assert(L2->getNumIndices() == 2 && R2->getNumIndices() == 2);
+  auto OpIter1 = L2->idx_begin();
+  auto OpIter2 = R2->idx_begin();
+  auto L3 = (++OpIter1)->get();
+  auto R3 = (++OpIter2)->get();
+
+  Value *L4 = nullptr, *R4 = nullptr;
+  ConstantInt *C1, *C2;
+  if (!PatternMatch::match(L3, PatternMatch::m_Add(PatternMatch::m_Value(L4),
+                                                   PatternMatch::m_ConstantInt(C1)))) {
+    printf("CompMismatch2\n");
+    L2->dump();
+    L3->dump();
+    return false;
+  }
+  if (!PatternMatch::match(R3, PatternMatch::m_Add(PatternMatch::m_Value(R4),
+                                                   PatternMatch::m_ConstantInt(C2)))){
+    printf("CompMismatch3\n");
+    R2->dump();
+    R3->dump();
+    return false;
+  }
+  printf("CompMismatch4?\n");
+  auto *L5 = dyn_cast<LoadInst>(L4);
+  auto *R5 = dyn_cast<LoadInst>(R4);
+  if (L4 && R4 && C1->getLimitedValue() == C2->getLimitedValue() &&
+      L5->getPointerOperand() == R5->getPointerOperand())
+    return true;
+  printf("Yes:\n");
+  if (L4 != R4)
+    printf("L4 != R4\n");
+  printf("C1 = %ld\n", C1->getLimitedValue());
+  printf("C2 = %ld\n", C2->getLimitedValue());
+  if (C1->getLimitedValue() == C2->getLimitedValue()) {
+    L4->dump();
+    R4->dump();
+  }
+    
+  return false;
+}
+
+static bool FindReachingDefAux(const BasicBlock *BB, const Value *Reg,
+                               const Value *&DefInstr, int Depth) {
+  if (Depth > 9)
+    return false;
+
+  for (auto I = BB->rbegin(), E = BB->rend(); I != E; ++I) {
+    if (auto Store = dyn_cast<StoreInst>(&*I)) {
+      if (CompareFragments(Store->getPointerOperand(), Reg)) {
+        if (auto L = dyn_cast<LoadInst>(Store->getValueOperand())) {
+          Reg = L->getPointerOperand();
+          continue;
+        }
+        DefInstr = Store->getValueOperand();
+        Store->dump();
+        return true;
+      }
+    }
+  }
+
+  for (const_pred_iterator PI = pred_begin(BB), E = pred_end(BB); PI != E;
+       ++PI) {
+    if (FindReachingDefAux(*PI, Reg, DefInstr, Depth + 1))
+      return true;
+  }
+
+  return false;
+}
+
+// Check for a reaching definition in the loaded value of LoadInstr and
+// return the first one found via DFS.
+// Only look in 5 BBs of distance.
+static bool FindReachingDef(const BasicBlock *BB,
+                            BasicBlock::const_reverse_iterator Iter,
+                            const Value *LoadInstr,
+                            const Value *&DefInstr) {
+  auto *Load = dyn_cast<LoadInst>(LoadInstr);
+  if (Load == nullptr)
+    return false;
+  const Value *Reg = Load->getPointerOperand();
+  ++Iter;
+  for (auto I = Iter, E = BB->rend(); I != E; ++I) {
+    if (auto Store = dyn_cast<StoreInst>(&*I)) {
+      if (CompareFragments(Store->getPointerOperand(), Reg)) {
+        if (auto L = dyn_cast<LoadInst>(Store->getValueOperand())) {
+          Reg = L->getPointerOperand();
+          continue;
+        }
+        DefInstr = Store->getValueOperand();
+        Store->dump();
+        return true;
+      }
+    }
+  }
+
+  for (const_pred_iterator PI = pred_begin(BB), E = pred_end(BB); PI != E;
+       ++PI) {
+    if (FindReachingDefAux(*PI, Reg, DefInstr, 0))
+      return true;
+  }
+  return false;
+}
+
+// Matches an operand with the idiom used in indirect jumps,
+// extracting the symbol storing the base of the jump table.
+static bool MatchIndirectJumpTable(const Value *Operand, uint64_t &JT) {
+  auto *Instr = dyn_cast<Instruction>(Operand);
+  if (Instr == nullptr) {
+    printf("Mismatch1\n");
+    return false;
+  }
+
+  const BasicBlock *BB = Instr->getParent();
+  BasicBlock::const_reverse_iterator It = BB->rend();
+  for (auto I = BB->rbegin(), E = BB->rend(); I != E; ++I) {
+    if (&*I == Instr)
+      It = I;
+  }
+  assert(It != BB->rend() && "Instruction not found in parent BB!");
+
+  const Value *DefInstr = nullptr;
+  if (!FindDefiningInstr(BB, It, Operand, DefInstr)) {
+    printf("Mismatch2\n");
+    Operand->dump();
+    return false;
+  }
+
+  auto *Load = dyn_cast<LoadInst>(DefInstr);
+  if (Load == nullptr) {
+    printf("Mismatch3\n");
+    DefInstr->dump();
+    return false;
+  }
+
+  Value *Op = nullptr;
+  if (!PatternMatch::match(Load->getPointerOperand(),
+                           PatternMatch::m_BitCast(PatternMatch::m_Value(Op)))) {
+    printf("Mismatch4\n");
+    Load->getPointerOperand()->dump();
+    return false;
+  }
+
+  auto *GEP = dyn_cast<GetElementPtrInst>(Op);
+  if (GEP == nullptr) {
+    printf("Mismatch5\n");
+    Op->dump();
+    return false;
+  }
+
+  assert(GEP->getNumIndices() == 2 &&
+         "GEP instruction with unexpected number of indices");
+  auto OpIter = GEP->idx_begin();
+  Value *AddInstr = (++OpIter)->get();
+  const Value *AddInstr2 = nullptr;
+  Value *LHS = nullptr, *RHS = nullptr;
+
+  if (!PatternMatch::match(
+          AddInstr, PatternMatch::m_Add(PatternMatch::m_Value(LHS),
+                                        PatternMatch::m_ConstantInt<0>())) ||
+      !FindDefiningInstr(BB, It, LHS, AddInstr2) ||
+      !PatternMatch::match(AddInstr2,
+                           PatternMatch::m_Add(PatternMatch::m_Value(LHS),
+                                               PatternMatch::m_Value(RHS)))) {
+    printf("Mismatch6\n");
+    AddInstr->dump();
+    LHS->dump();
+    AddInstr2->dump();
+    return false;
+  }
+
+  const Value *LHSDef, *RHSDef;
+  if (!FindReachingDef(BB, It, LHS, LHSDef)) {
+    printf("Mismatch7\n");
+    LHS->dump();
+    return false;
+  }
+
+  if (!FindReachingDef(BB, It, RHS, RHSDef)) {
+    printf("Mismatch8\n");
+    RHS->dump();
+    return false;
+  }
+
+  auto ConstVal = dyn_cast<ConstantInt>(LHSDef);
+  if (ConstVal == nullptr) {
+    printf("Mismatch9, trying RHSDef...\n");
+    LHSDef->dump();
+    if (!(ConstVal = dyn_cast<ConstantInt>(RHSDef))) {
+      printf("Final mismatch10\n");
+      RHSDef->dump();
+      return false;
+    }
+  }
+  JT = ConstVal->getLimitedValue();
+  printf("INFO: JT = %ld\n", JT);
+  LHSDef->dump();
+  RHSDef->dump();
+  return true;
+}
+
+static uint64_t GetFuncAddr(ArrayRef<uint64_t> Funcs, uint64_t Addr) {
+  printf("Requesting funcaddr for %lx...", Addr);
+  auto upper = std::upper_bound(Funcs.begin(), Funcs.end(), Addr);
+  if (upper == Funcs.begin()) {
+    printf("not found\n");
+    printf("Dumping funcs...\n");
+    for (auto Elem : Funcs) {
+      printf("  %lx\n", Elem);
+    }
+    llvm_unreachable("GetFuncAddr failed");
+    return 0;
+  }
+  --upper;
+  printf("%lx\n", *upper);
+  return *upper;
+}
+
+bool OiIREmitter::ExtractJumpTargets(
+    uint64_t JT, const std::unordered_set<uint64_t> &ValidPtrs,
+    ArrayRef<uint64_t> Funcs, uint64_t FuncAddr,
+    std::set<BasicBlock *> &JumpTargets) {
+  for (uint64_t I = JT;; I += 4) {
+    uint32_t Candidate = *(const uint32_t *)(&ShadowImage[I]);
+    if (ValidPtrs.count(Candidate) == 0)
+      break;
+    BasicBlock *BB = nullptr;
+    if (!HandleBackEdge(Candidate, BB))
+      llvm_unreachable("Failed to handle backedge");
+    if (GetFuncAddr(Funcs, Candidate) != FuncAddr)
+      break;
+
+    JumpTargets.insert(BB);
+  }
+  if (JumpTargets.size() > 0)
+    return true;
+  return false;
+}
+
+// PatchSection stores addr - value pairs to patch in a second pass.
+class PatchSectionBuilder {
+  std::vector<uint32_t> PatchSection;
+  StructType *S1;
+  std::vector<Constant *> PatchPairs;
+  Module *TheModule;
+
+public:
+  PatchSectionBuilder(Module *M) : TheModule(M) { preparePatchSection(); }
+
+  void preparePatchSection() {
+    std::vector<Type *> S1Types;
+    S1Types.push_back(Type::getInt32Ty(getGlobalContext()));
+    S1Types.push_back(Type::getInt8PtrTy(getGlobalContext()));
+    S1 = StructType::create(S1Types);
+  }
+
+  void addPair(uint32_t Addr, Constant *BB) {
+    std::vector<Constant *> Elmts;
+    Elmts.push_back(
+        ConstantInt::get(Type::getInt32Ty(getGlobalContext()), Addr));
+    Elmts.push_back(BB);
+    PatchPairs.push_back(ConstantStruct::get(S1, Elmts));
+  }
+
+  GlobalVariable *finish() {
+    ArrayType *AT = ArrayType::get(S1, PatchPairs.size());
+    Constant *VAT = ConstantArray::get(AT, PatchPairs);
+    std::vector<Type *> S2Types;
+    S2Types.push_back(Type::getInt32Ty(getGlobalContext()));
+    S2Types.push_back(AT);
+    StructType *S2 = StructType::create(S2Types);
+    std::vector<Constant *> Elmts;
+    Elmts.push_back(ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
+                                     PatchPairs.size()));
+    Elmts.push_back(VAT);
+    Constant *CS = ConstantStruct::get(S2, Elmts);
+    return new GlobalVariable(*TheModule, S2, false,
+                              GlobalValue::ExternalLinkage, CS, "PatchSection");
+  }
+};
+
 bool OiIREmitter::ProcessIndirectJumps() {
   //  uint64_t FinalAddr = 0xFFFFFFFFUL;
   std::error_code ec;
   std::vector<Constant *> IndirectJumpTable;
+  // Store all code ptrs which we discover via relocations
+  std::unordered_set<uint64_t> CodePtrs;
   uint64_t TextOffset;
+  PatchSectionBuilder PSBuilder(&*TheModule);
+
   if (!FindSectionOffset(".text", TextOffset))
     return false;
 
@@ -127,8 +455,9 @@ bool OiIREmitter::ProcessIndirectJumps() {
       outs() << "Contents:" << format("%8" PRIx64,
                                       (*(int *)(&ShadowImage[offset])));
 #endif
-      uint64_t TargetAddr = *(int *)(&ShadowImage[offset]);
+      uint64_t TargetAddr = *(uint32_t *)(&ShadowImage[offset]);
       TargetAddr += TextOffset;
+      CodePtrs.insert(TargetAddr);
 #ifndef NDEBUG
       outs() << " TargetAddr = " << format("%8" PRIx64, TargetAddr) << "\n";
 #endif
@@ -138,15 +467,20 @@ bool OiIREmitter::ProcessIndirectJumps() {
       IndirectJumpTable.push_back(BlockAddress::get(BB));
       IndirectDestinations.push_back(BB);
       IndirectDestinationsAddrs.push_back(TargetAddr);
+      PSBuilder.addPair(offset, BlockAddress::get(BB));
       // Patch ShadowImage with fixed address
       *(int *)(&ShadowImage[offset]) = TargetAddr;
     }
   }
+  PSBuilder.finish();
   uint64_t TableSize = IndirectJumpTable.size();
+  uint32_t NumJumpsOK = 0;
+  uint32_t NumJumpsWarning = 0;
 
   if (TableSize == 0) {
     IndirectJumpTableValue = 0;
   } else {
+    auto IndDestAddrs = IndirectDestinationsAddrs;
     std::sort(IndirectDestinationsAddrs.begin(), IndirectDestinationsAddrs.end());
     IndirectDestinationsAddrs.erase(
         std::unique(IndirectDestinationsAddrs.begin(),
@@ -162,6 +496,9 @@ bool OiIREmitter::ProcessIndirectJumps() {
     IndirectJumpTableValue = CreateHashTableFor<uint32_t>(
         IndirectDestinationsAddrs, IndirectJumpsHash);
 
+    printf("FunctionAddrs size = %ld\n", FunctionAddrs.size());
+    std::vector<uint64_t> Funcs = FunctionAddrs;
+    std::sort(Funcs.begin(), Funcs.end());
     for (unsigned I = 0; I < IndirectJumps.size(); ++I) {
       Instruction *Ins = IndirectJumps[I].first;
       uint64_t Addr = IndirectJumps[I].second;
@@ -169,12 +506,37 @@ bool OiIREmitter::ProcessIndirectJumps() {
       Builder.SetInsertPoint(Ins);
       Value *Target = AccessHashTable(first, &first, IndirectJumpsHash,
                                       IndirectJumpTableValue);
+
+      uint64_t JT = 0ULL;
+      uint64_t FuncAddr = GetFuncAddr(Funcs, Addr);
+      if (MatchIndirectJumpTable(first, JT)) {
+        std::set<BasicBlock *> JumpTargets;
+        if (ExtractJumpTargets(JT, CodePtrs, Funcs, FuncAddr,
+                               JumpTargets)) {
+          IndirectBrInst *v =
+              Builder.CreateIndirectBr(Target, JumpTargets.size());
+          for (auto Dest : JumpTargets) {
+            v->addDestination(Dest);
+          }
+          Ins->eraseFromParent();
+          first = GetFirstInstruction(first, v);
+          InsMap[Addr] = dyn_cast<Instruction>(first);
+          printf("wuhul\n");
+          ++NumJumpsOK;
+          continue;
+        }
+      }
+      if (NumJumpsWarning++ == 0)
+        printf("WARNING: Failed to retrieve jump table base address for "
+               "indirect jump. Assuming all targets in function.\n");
+      dyn_cast<Instruction>(first)->getParent()->dump();
+
       IndirectBrInst *v =
           Builder.CreateIndirectBr(Target, IndirectDestinations.size());
       for (int I = 0, E = IndirectDestinations.size(); I != E; ++I) {
         BasicBlock *targetBB = IndirectDestinations[I];
-        if (targetBB->getParent()->getName() !=
-            Ins->getParent()->getParent()->getName())
+        uint64_t bbAddr = IndDestAddrs[I];
+        if (GetFuncAddr(Funcs, bbAddr) != FuncAddr)
           continue;
         v->addDestination(IndirectDestinations[I]);
         if (&targetBB->getParent()->getEntryBlock() == targetBB) {
@@ -190,6 +552,9 @@ bool OiIREmitter::ProcessIndirectJumps() {
       InsMap[Addr] = dyn_cast<Instruction>(first);
     }
   }
+
+  printf("INFO: Processed %d indirect jumps: %d warnings.\n",
+         NumJumpsOK + NumJumpsWarning, NumJumpsWarning);
 
   if (IndirectCalls.size() > 0) {
     IndirectCallsHash = SelectHashFunctionFor<uint64_t>(FunctionAddrs);
@@ -429,6 +794,7 @@ void OiIREmitter::StartFunction(StringRef N, uint64_t Addr) {
 }
 
 void OiIREmitter::StartMainFunction(uint64_t Addr) {
+  FunctionAddrs.push_back(Addr);
   if (FirstFunction) {
     SmallVector<Type *, 8> args(2, Type::getInt32Ty(getGlobalContext()));
     FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()),
