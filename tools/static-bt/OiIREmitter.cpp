@@ -375,7 +375,10 @@ public:
     std::vector<Constant *> Elmts;
     Elmts.push_back(
         ConstantInt::get(Type::getInt32Ty(getGlobalContext()), Addr));
-    Elmts.push_back(BB);
+    if (isa<Function>(BB))
+      Elmts.push_back(ConstantExpr::getPointerCast(BB, Type::getInt8PtrTy(getGlobalContext())));
+    else
+      Elmts.push_back(BB);
     PatchPairs.push_back(ConstantStruct::get(S1, Elmts));
   }
 
@@ -399,11 +402,12 @@ public:
 bool OiIREmitter::ProcessIndirectJumps() {
   //  uint64_t FinalAddr = 0xFFFFFFFFUL;
   std::error_code ec;
-  std::vector<Constant *> IndirectJumpTable;
   // Store all code ptrs which we discover via relocations
   std::unordered_set<uint64_t> CodePtrs;
   uint64_t TextOffset;
   PatchSectionBuilder PSBuilder(&*TheModule);
+  std::vector<uint64_t> Funcs = FunctionAddrs;
+  std::sort(Funcs.begin(), Funcs.end());
 
   if (!FindSectionOffset(".text", TextOffset))
     return false;
@@ -443,19 +447,30 @@ bool OiIREmitter::ProcessIndirectJumps() {
       if (error(symb.getName(Name))) {
         continue;
       }
-      if (Name != ".text")
-        continue;
-
       uint64_t offset;
+      uint64_t TargetAddr = 0;
       if (error(ri.getOffset(offset)))
         break;
+      // Check if this relocation maps to a symbol in .text -- skip it if not
+      if (Name != ".text") {
+        section_iterator seci = Obj->section_end();
+        if (error(symb.getSection(seci)) || seci == Obj->section_end())
+          continue;
+        StringRef SecName;
+        if (error(seci->getName(SecName)))
+          continue;
+        if (SecName != ".text")
+          continue;
+        if (error(symb.getAddress(TargetAddr)))
+          break;
+      }
       offset += PatchedSecAddr;
 #ifndef NDEBUG
       outs() << "REL at " << format("%8" PRIx64, offset) << " Found ";
       outs() << "Contents:" << format("%8" PRIx64,
                                       (*(int *)(&ShadowImage[offset])));
 #endif
-      uint64_t TargetAddr = *(uint32_t *)(&ShadowImage[offset]);
+      TargetAddr += *(uint32_t *)(&ShadowImage[offset]);
       TargetAddr += TextOffset;
       CodePtrs.insert(TargetAddr);
 #ifndef NDEBUG
@@ -464,24 +479,27 @@ bool OiIREmitter::ProcessIndirectJumps() {
       BasicBlock *BB = nullptr;
       if (!HandleBackEdge(TargetAddr, BB))
         llvm_unreachable("Failed to handle backedge");
-      IndirectJumpTable.push_back(BlockAddress::get(BB));
       IndirectDestinations.push_back(BB);
       IndirectDestinationsAddrs.push_back(TargetAddr);
-      PSBuilder.addPair(offset, BlockAddress::get(BB));
+      auto p = std::equal_range(Funcs.begin(), Funcs.end(), TargetAddr);
+      if (!OneRegion && p.first != p.second)
+        PSBuilder.addPair(offset, BB->getParent());
+      else
+        PSBuilder.addPair(offset, BlockAddress::get(BB));
+      fprintf(stderr, "Offset: %x BB:\n", offset);
+      BB->dump();
       // Patch ShadowImage with fixed address
       *(int *)(&ShadowImage[offset]) = TargetAddr;
     }
   }
   PSBuilder.finish();
-  uint64_t TableSize = IndirectJumpTable.size();
+  uint64_t TableSize = IndirectDestinations.size();
   uint32_t NumJumpsOK = 0;
   uint32_t NumJumpsWarning = 0;
 
   if (TableSize == 0) {
     IndirectJumpTableValue = 0;
   } else {
-    std::vector<uint64_t> Funcs = FunctionAddrs;
-    std::sort(Funcs.begin(), Funcs.end());
     for (unsigned I = 0; I < IndirectJumps.size(); ++I) {
       Instruction *Ins = IndirectJumps[I].first;
       uint64_t Addr = IndirectJumps[I].second;
@@ -773,6 +791,7 @@ void OiIREmitter::StartFunction(StringRef N, uint64_t Addr) {
 
 void OiIREmitter::StartMainFunction(uint64_t Addr) {
   FunctionAddrs.push_back(Addr);
+  MainFunAddr = Addr;
   if (FirstFunction) {
     SmallVector<Type *, 8> args(2, Type::getInt32Ty(getGlobalContext()));
     FunctionType *FT = FunctionType::get(Type::getVoidTy(getGlobalContext()),
@@ -1187,8 +1206,10 @@ bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
 bool OiIREmitter::HandleIndirectCallOneRegion(uint64_t Addr, Value *src,
                                               Value **First) {
   Value *f = nullptr;
-  for (auto FnAddr : FunctionAddrs)
-    FunctionCallMap[FnAddr].push_back(Addr + GetInstructionSize());
+  for (auto FnAddr : FunctionAddrs) {
+    if (FnAddr != MainFunAddr)
+      FunctionCallMap[FnAddr].push_back(Addr + GetInstructionSize());
+  }
   Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
                                        Addr + GetInstructionSize()),
                       Regs[ConvToDirective(Mips::RA)]);

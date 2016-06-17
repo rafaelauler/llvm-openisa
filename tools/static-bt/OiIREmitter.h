@@ -53,7 +53,7 @@ public:
         FirstFunction(true), EntryPointBB(nullptr), CurAddr(0),
         CurSection(nullptr), BBMap(), InsMap(), ReadMap(), WriteMap(),
         DblReadMap(), DblWriteMap(), FunctionCallMap(), FunctionRetMap(),
-        CurFunAddr(0), CurBlockAddr(0), StackSize(Stacksz),
+        CurFunAddr(0), MainFunAddr(0), CurBlockAddr(0), StackSize(Stacksz),
         ReturnAddressesTableValue(nullptr), IndirectDestinations(),
         IndirectDestinationsAddrs(), IndirectJumps(), IndirectCalls(),
         ComdatSymbols() {
@@ -87,6 +87,7 @@ public:
   FunctionCallMapTy FunctionCallMap; // Used only in one-region mode
   FunctionRetMapTy FunctionRetMap;   // Used only in one-region mode
   uint64_t CurFunAddr;
+  uint64_t MainFunAddr;
   uint64_t CurBlockAddr;
   uint64_t StackSize;
   uint64_t ShadowSize;

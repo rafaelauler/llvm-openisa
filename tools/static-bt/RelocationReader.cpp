@@ -198,6 +198,14 @@ void RelocationReader::ResolveAllDataRelocations(
           if ((!error(si.getSection(seci))) && seci != Obj->section_end()) {
             uint64_t SectionAddr = seci->getAddress();
 
+            StringRef SecName;
+            if (error(seci->getName(SecName)))
+              continue;
+            // If the target of this relocation is the code section, leave
+            // this to ProcessIndirectJumps()
+            if (SecName == ".text")
+              continue;
+
             // Relocatable file
             if (SectionAddr == 0) {
               SectionAddr = GetELFOffset(*seci);
