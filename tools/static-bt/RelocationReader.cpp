@@ -12,7 +12,8 @@ using namespace llvm;
 #define NDEBUG
 
 bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type,
-                                         StringRef &SymbolNotFound) {
+                                         StringRef &SymbolNotFound,
+                                         bool DirectCall) {
   relocation_iterator Rel = (*CurSection).relocation_end();
   std::error_code ec;
   StringRef Name;
@@ -68,8 +69,14 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type,
     section_iterator seci = Obj->section_end();
     // Check if it is relative to a section
     if ((!error(si.getSection(seci))) && seci != Obj->section_end()) {
-      uint64_t SectionAddr = seci->getAddress();
+      StringRef SecName;
+      if (!error(seci->getName(SecName)) && SecName == ".text" && !DirectCall) {
+        // If it is relative to text and it is not an indirect call target, it
+        // should be an indirect call
+        SymbolNotFound = SecName;;
+      }
 
+      uint64_t SectionAddr = seci->getAddress();
       // Relocatable file
       if (SectionAddr == 0) {
         SectionAddr = GetELFOffset(*seci);
@@ -88,14 +95,23 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type,
 }
 
 bool RelocationReader::ResolveRelocation(Value *&Res, uint64_t *Type,
-                                         bool *UndefinedSymbol) {
+                                         bool *UndefinedSymbol, bool *IsFuncAddr,
+                                         bool DirectCall) {
   uint64_t IntRes;
   StringRef SymbolNotFound;
   if (UndefinedSymbol)
     *UndefinedSymbol = false;
-  if (ResolveRelocation(IntRes, Type, SymbolNotFound)) {
+  if (IsFuncAddr)
+    *IsFuncAddr = false;
+  if (ResolveRelocation(IntRes, Type, SymbolNotFound, DirectCall)) {
     Res = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), IntRes);
-    return true;
+    if (!SymbolNotFound.size()) {
+      return true;
+    }
+    assert(SymbolNotFound == ".text");
+    if (IsFuncAddr)
+      *IsFuncAddr = true;
+    return false;
   }
   if (SymbolNotFound.size() > 0) {
     Res = ConstantExpr::getPointerCast(

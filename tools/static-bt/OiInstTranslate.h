@@ -85,8 +85,6 @@ private:
                               Value *&V1, Value **First, bool IsLoad);
   bool HandleFloatMemOperand(const MCOperand &o, const MCOperand &o2, Value *&V,
                              Value **First, bool IsLoad);
-  bool HandleLUiOperand(const MCOperand &o, Value *&V, Value **First,
-                        bool IsLoad);
   bool HandleCallTarget(const MCOperand &o, Value *&V, Value **First = 0);
   bool HandleFCmpOperand(const MCOperand &o, Value *o0, Value *o1, Value *&V);
   bool HandleBranchTarget(const MCOperand &o, BasicBlock *&Addr,

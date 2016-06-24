@@ -36,9 +36,11 @@ public:
     }
   }
   bool ResolveRelocation(uint64_t &Res, uint64_t *Type,
-                         StringRef &SymbolNotFound);
+                         StringRef &SymbolNotFound,
+                         bool DirectCall);
   bool ResolveRelocation(llvm::Value *&Res, uint64_t *Type,
-                         bool *UndefinedSymbol);
+                         bool *UndefinedSymbol, bool *IsFuncAddr = 0,
+                         bool DirectCall = false);
   bool CheckRelocation(relocation_iterator &Rel, StringRef &Name);
   void ResolveAllDataRelocations(std::vector<uint8_t>& ShadowImage);
 

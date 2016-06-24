@@ -145,6 +145,7 @@ public:
   void BuildReturnAddressesHash();
   bool BuildReturnTablesOneRegion();
   bool HandleLocalCall(uint64_t Addr, Value *&V, Value **First = 0);
+  Value *HandleGetFunctionAddr(uint64_t Addr);
   Value *AccessSpillMemory(unsigned Idx, bool IsLoad);
   Value *AccessShadowMemory(Value *Idx, bool IsLoad, int width = 32,
                             bool isFloat = false, Value **First = 0);

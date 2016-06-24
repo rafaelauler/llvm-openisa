@@ -153,7 +153,7 @@ static bool CompareFragments(const Value* LHS, const Value *RHS) {
     L4->dump();
     R4->dump();
   }
-    
+
   return false;
 }
 
@@ -1262,6 +1262,26 @@ bool OiIREmitter::HandleLocalCall(uint64_t Addr, Value *&V, Value **First) {
     *First = GetFirstInstruction(*First, V);
   HandleFunctionEntryPoint();
   return true;
+}
+
+Value *OiIREmitter::HandleGetFunctionAddr(uint64_t Addr) {
+  if (OneRegion) {
+    BasicBlock *Target;
+    if (Addr < CurAddr)
+      HandleBackEdge(Addr, Target);
+    else
+      Target = CreateBB(Addr);
+    return ConstantExpr::getPointerCast(BlockAddress::get(Target),
+                                        Type::getInt32Ty(getGlobalContext()));
+  }
+
+  std::string Name = Twine("a").concat(Twine::utohexstr(Addr)).str();
+  StringRef NameRef(Name);
+  FunctionType *ft = FunctionType::get(Type::getVoidTy(getGlobalContext()),
+                                       /*isvararg*/ false);
+  return ConstantExpr::getPointerCast(
+      TheModule->getOrInsertFunction(NameRef, ft),
+      Type::getInt32Ty(getGlobalContext()));
 }
 
 Value *OiIREmitter::AccessSpillMemory(unsigned Idx, bool IsLoad) {
