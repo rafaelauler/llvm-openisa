@@ -24,6 +24,8 @@ bool MipsMCExpr::isSupportedBinaryExpr(MCSymbolRefExpr::VariantKind VK,
   case MCSymbolRefExpr::VK_Mips_ABS_HI:
   case MCSymbolRefExpr::VK_Mips_HIGHER:
   case MCSymbolRefExpr::VK_Mips_HIGHEST:
+  case MCSymbolRefExpr::VK_Mips_IJMP_HI:
+  case MCSymbolRefExpr::VK_Mips_IJMP_LO:
     break;
   default:
     return false;
@@ -57,6 +59,12 @@ MipsMCExpr::Create(MCSymbolRefExpr::VariantKind VK, const MCExpr *Expr,
   case MCSymbolRefExpr::VK_Mips_HIGHEST:
     Kind = VK_Mips_HIGHEST;
     break;
+  case MCSymbolRefExpr::VK_Mips_IJMP_HI:
+    Kind = VK_Mips_IJMP_HI;
+    break;
+  case MCSymbolRefExpr::VK_Mips_IJMP_LO:
+    Kind = VK_Mips_IJMP_LO;
+    break;
   default:
     llvm_unreachable("Invalid kind!");
   }
@@ -71,6 +79,8 @@ void MipsMCExpr::PrintImpl(raw_ostream &OS) const {
   case VK_Mips_HI: OS << "%hi"; break;
   case VK_Mips_HIGHER: OS << "%higher"; break;
   case VK_Mips_HIGHEST: OS << "%highest"; break;
+  case VK_Mips_IJMP_LO: OS << "%ilo"; break;
+  case VK_Mips_IJMP_HI: OS << "%ihi"; break;
   }
 
   OS << '(';

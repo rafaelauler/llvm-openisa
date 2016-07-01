@@ -94,9 +94,11 @@ bool OiInstTranslate::HandleAluSrcOperand(const MCOperand &o, Value *&V,
     bool IsFuncAddr = false;
     if (RelocReader.ResolveRelocation(V0, &reltype, &UndefinedSymbol,
                                       &IsFuncAddr, false)) {
-      if (reltype == ELF::R_MIPS_LO16 || reltype == ELF::R_MIPS_HI16) {
+      if (reltype == ELF::R_MIPS_LO16 || reltype == ELF::R_MIPS_HI16 ||
+          reltype == ELF::R_MICROMIPS_LO16 ||
+          reltype == ELF::R_MICROMIPS_HI16) {
         V0 = ConstantExpr::getAdd(cast<Constant>(V0),
-                                     Builder.getInt32(o.getImm()));
+                                  Builder.getInt32(o.getImm()));
         Constant *V1 = 0;
         if (NoShadow) {
           V1 = ConstantExpr::getAdd(
@@ -113,7 +115,7 @@ bool OiInstTranslate::HandleAluSrcOperand(const MCOperand &o, Value *&V,
         } else {
           V1 = cast<Constant>(V0);
         }
-        if (reltype == ELF::R_MIPS_LO16)
+        if (reltype == ELF::R_MIPS_LO16 || reltype == ELF::R_MICROMIPS_LO16)
           V = V1;
           //          V = ConstantExpr::getAnd(V1, Builder.getInt32(0x3FFF));
         else
@@ -425,9 +427,9 @@ bool OiInstTranslate::HandleMemOperand(const MCOperand &o, const MCOperand &o2,
     Value *V0 = nullptr;
     bool UndefinedSymbol = false;
     if (RelocReader.ResolveRelocation(V0, &reltype, &UndefinedSymbol)) {
-      if (reltype == ELF::R_MIPS_LO16) {
+      if (reltype == ELF::R_MIPS_LO16 || reltype == ELF::R_MICROMIPS_LO16) {
         V0 = ConstantExpr::getAdd(cast<Constant>(V0),
-                                     Builder.getInt32(o2.getImm()));
+                                  Builder.getInt32(o2.getImm()));
         Value *V1 = 0;
         if (NoShadow) {
           Value *shadow = Builder.CreatePtrToInt(
@@ -2991,6 +2993,26 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     if (HandleCallTarget(MI->getOperand(0), call, &first)) {
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    }
+    break;
+  }
+  case Mips::IJMPHI: {
+    DebugOut << "Handling IJMPHI";
+    break;
+  }
+  case Mips::IJMP: {
+    DebugOut << "Handling IJMP\n";
+    Value *first = 0;
+    Value *src = 0;
+    if (HandleMemOperand(MI->getOperand(1), MI->getOperand(0), src, &first,
+                         true)) {
+      Value *Dummy = Builder.CreateRetVoid();
+      IREmitter.AddIndirectJump(dyn_cast<Instruction>(Dummy), src);
+      assert(isa<Instruction>(first) && "Need to rework map logic");
+      IREmitter.CreateBB(IREmitter.CurAddr + GetInstructionSize());
+      IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
+    } else {
+      llvm_unreachable("Failed to handle indirect jump.");
     }
     break;
   }

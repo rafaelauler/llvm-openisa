@@ -485,6 +485,12 @@ getExprOpValue(const MCExpr *Expr,SmallVectorImpl<MCFixup> &Fixups,
       FixupKind = isMicroMips(STI) ? Mips::fixup_MICROMIPS_LO16
                               : Mips::fixup_Mips_LO16;
       break;
+    case MCSymbolRefExpr::VK_Mips_IJMP_HI:
+      FixupKind = Mips::fixup_MICROMIPS_HI16;
+      break;
+    case MCSymbolRefExpr::VK_Mips_IJMP_LO:
+      FixupKind = Mips::fixup_MICROMIPS_LO16;
+      break;
     case MCSymbolRefExpr::VK_Mips_TLSGD:
       FixupKind = isMicroMips(STI) ? Mips::fixup_MICROMIPS_TLS_GD
                               : Mips::fixup_Mips_TLSGD;

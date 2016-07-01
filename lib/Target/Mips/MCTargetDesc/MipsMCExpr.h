@@ -23,7 +23,9 @@ public:
     VK_Mips_LO,
     VK_Mips_HI,
     VK_Mips_HIGHER,
-    VK_Mips_HIGHEST
+    VK_Mips_HIGHEST,
+    VK_Mips_IJMP_HI,
+    VK_Mips_IJMP_LO
   };
 
 private:

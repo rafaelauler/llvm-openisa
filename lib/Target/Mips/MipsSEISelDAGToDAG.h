@@ -53,6 +53,9 @@ private:
   bool selectAddrDefault(SDValue Addr, SDValue &Base,
                          SDValue &Offset) const override;
 
+  bool selectIJmpTarget(SDValue Addr, SDValue &Base, SDValue &Index,
+                        SDValue &Count) const override;
+
   bool selectIntAddr(SDValue Addr, SDValue &Base,
                      SDValue &Offset) const override;
 

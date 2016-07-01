@@ -66,6 +66,9 @@ private:
   virtual bool selectAddrDefault(SDValue Addr, SDValue &Base,
                                  SDValue &Offset) const;
 
+  virtual bool selectIJmpTarget(SDValue Addr, SDValue &Base, SDValue &Index,
+                                SDValue &Count) const;
+
   /// Match integer address pattern.
   virtual bool selectIntAddr(SDValue Addr, SDValue &Base,
                              SDValue &Offset) const;

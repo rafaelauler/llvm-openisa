@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/IR/CFG.h"
@@ -322,6 +323,42 @@ bool MipsSEDAGToDAGISel::selectAddrDefault(SDValue Addr, SDValue &Base,
                                            SDValue &Offset) const {
   Base = Addr;
   Offset = CurDAG->getTargetConstant(0, Addr.getValueType());
+  return true;
+}
+
+bool MipsSEDAGToDAGISel::selectIJmpTarget(SDValue Addr, SDValue &Base,
+                                          SDValue &Index,
+                                          SDValue &Count) const {
+  if (Addr.getOpcode() != ISD::LOAD)
+    return false;
+
+  SDValue LoadAddr = Addr.getOperand(1);
+  if (LoadAddr.getOpcode() != ISD::ADD)
+    return false;
+
+  SDValue BaseOp = LoadAddr.getOperand(0);
+  SDValue IndexReg = LoadAddr.getOperand(1);
+  if (BaseOp.getOpcode() != MipsISD::GetImm) {
+    BaseOp = LoadAddr.getOperand(1);
+    IndexReg = LoadAddr.getOperand(0);
+  }
+  if (BaseOp.getOpcode() != MipsISD::GetImm)
+    return false;
+
+  SDValue JT = BaseOp.getOperand(0);
+  const SDNode *N = JT.getNode();
+  if (N->getOpcode() != ISD::TargetJumpTable &&
+      N->getOpcode() != ISD::JumpTable)
+    return false;
+
+  unsigned I = cast<JumpTableSDNode>(N)->getIndex();
+  const MachineJumpTableInfo *JTInfo = CurDAG->getMachineFunction().getJumpTableInfo();
+  auto Size = JTInfo->getJumpTables()[I].MBBs.size();
+  if (Size >= 256)
+    Size = 0;
+  Count = CurDAG->getTargetConstant(Size, MVT::i32);
+  Index = IndexReg;
+  Base = JT;
   return true;
 }
 

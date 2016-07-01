@@ -88,10 +88,13 @@ static unsigned adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
   case Mips::fixup_Mips_GOT_Local:
   case Mips::fixup_Mips_GOT_HI16:
   case Mips::fixup_Mips_CALL_HI16:
-  case Mips::fixup_MICROMIPS_HI16:
   case Mips::fixup_MIPS_PCHI16:
     // Get the 2nd 16-bits. Also add 1 if bit 15 is 1.
     Value = ((Value + 0x8000) >> 16) & 0xffff;
+    break;
+  case Mips::fixup_MICROMIPS_HI16:
+    // IJMP_HI reloc
+    Value = (Value >> 12) & 0xfffff;
     break;
   case Mips::fixup_Mips_HIGHER:
     // Get the 3rd 16-bits.
@@ -256,8 +259,9 @@ getFixupKindInfo(MCFixupKind Kind) const {
     { "fixup_MIPS_PCHI16",       0,     16,  MCFixupKindInfo::FKF_IsPCRel },
     { "fixup_MIPS_PCLO16",       0,     16,  MCFixupKindInfo::FKF_IsPCRel },
     { "fixup_MICROMIPS_26_S1",   0,     26,   0 },
-    { "fixup_MICROMIPS_HI16",    0,     16,   0 },
-    { "fixup_MICROMIPS_LO16",    0,     16,   0 },
+    // Following two relocs has been chosen to host IJMP relocs (hi/lo)
+    { "fixup_MICROMIPS_HI16",    0,     20,   0 },
+    { "fixup_MICROMIPS_LO16",    14,    12,   0 },
     { "fixup_MICROMIPS_GOT16",   0,     16,   0 },
     { "fixup_MICROMIPS_PC7_S1",  6,     14,   MCFixupKindInfo::FKF_IsPCRel },
     { "fixup_MICROMIPS_PC16_S1", 0,     16,   MCFixupKindInfo::FKF_IsPCRel },

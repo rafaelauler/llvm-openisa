@@ -36,6 +36,9 @@ namespace {
     void expandLoadImm(MachineBasicBlock &MBB,
                        MachineBasicBlock::iterator I,
                        const MipsInstrInfo *TII) const;
+    void expandIJmp(MachineBasicBlock &MBB,
+                    MachineBasicBlock::iterator I,
+                    const MipsInstrInfo *TII) const;
 
     const TargetMachine &TM;
   };
@@ -93,6 +96,26 @@ void MipsExpandPseudo::expandLoadImm(MachineBasicBlock &MBB,
   llvm_unreachable("Unrecognized PSEUDO_LOAD_IMM operand!");
 }
 
+// ijmp_pseudo $imm, %reg, $imm
+// ->
+// ijmphi $imm, $reg, lo($imm)
+// ijmp hi($imm)
+void MipsExpandPseudo::expandIJmp(MachineBasicBlock &MBB,
+                                  MachineBasicBlock::iterator I,
+                                  const MipsInstrInfo *TII) const {
+  if (I->getOperand(0).isJTI()) {
+    BuildMI(MBB, I, I->getDebugLoc(), TII->get(Mips::IJMPHI))
+        .addJumpTableIndex(I->getOperand(0).getIndex(), MipsII::MO_IJMP_HI);
+    BuildMI(MBB, I, I->getDebugLoc(), TII->get(Mips::IJMP))
+        .addJumpTableIndex(I->getOperand(0).getIndex(), MipsII::MO_IJMP_LO)
+        .addReg(I->getOperand(1).getReg())
+        .addImm(I->getOperand(2).getImm());
+    return;
+  }
+  I->dump();
+  llvm_unreachable("Unrecognized IJMP_PSEUDO operand!");
+}
+
 bool MipsExpandPseudo::runOnMachineFunction(MachineFunction &F) {
   const MipsInstrInfo *TII =
       static_cast<const MipsInstrInfo *>(TM.getSubtargetImpl()->getInstrInfo());
@@ -111,6 +134,12 @@ bool MipsExpandPseudo::runOnMachineFunction(MachineFunction &F) {
 
       if (MI->getDesc().getOpcode() == Mips::LOAD_IMM_PSEUDO) {
         expandLoadImm(*MBB, MI, TII);
+        MBB->erase(MI);
+        ++ExpandPseudo;
+        continue;
+      }
+      if (MI->getDesc().getOpcode() == Mips::IJMP_PSEUDO) {
+        expandIJmp(*MBB, MI, TII);
         MBB->erase(MI);
         ++ExpandPseudo;
       }

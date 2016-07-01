@@ -408,6 +408,12 @@ def uimm10      : Operand<i32> {
 def uimm14      : Operand<i32> {
 }
 
+def uimm12      : Operand<i32> {
+}
+
+def uimm8       : Operand<i32> {
+}
+
 def uimm18      : Operand<i32> {
 }
 
@@ -491,6 +497,11 @@ class mem_generic : Operand<iPTR> {
   let ParserMatchClass = MipsMemAsmOperand;
   let OperandType = "OPERAND_MEMORY";
 }
+
+class ijmptgt_generic : Operand<iPTR> {
+  let MIOperandInfo = (ops uimm32, GPR32Opnd, uimm8);
+}
+def ijmptgt : ijmptgt_generic;
 
 // Address operand
 def mem : mem_generic;
@@ -624,6 +635,9 @@ def addrRegReg :
 
 def addrDefault :
   ComplexPattern<iPTR, 2, "selectAddrDefault", [frameindex]>;
+
+def ijmptarget :
+  ComplexPattern<iPTR, 3, "selectIJmpTarget", []>;
 
 def addrimm10 : ComplexPattern<iPTR, 2, "selectIntAddrMSA", [frameindex]>;
 
@@ -1122,6 +1136,16 @@ def SC : SCBase<"sc", GPR32Opnd>, LW_FM<0x18>;
 def J       : MMRel, JumpFJ<jmptarget, "jump", br, bb, "jump">, PL26j<0>,
               AdditionalRequires<[RelocStatic]>, IsBranch;
 def JR      : MMRel, IndirectBranch<"jumpr", GPR32Opnd>, JUMPR_FM;
+def IJMP   : PL26ij<0x26, (outs), (ins uimm12:$imm12, GPR32Opnd:$idx, uimm8:$count),
+                 "ijmp\t$imm12, $idx, $count", [], NoItinerary>;
+def IJMPHI : PL20i<0x1f, 1, 0, (outs), (ins uimm20:$imm20),
+                 "ijmphi\t$imm20", [], NoItinerary>;
+
+let isBranch=1, isIndirectBranch=1, isTerminator=1, isBarrier=1, hasDelaySlot = 0 in {
+  def IJMP_PSEUDO : PseudoSE<(outs),
+    (ins ijmptgt:$ijmptgt), [(brind ijmptarget:$ijmptgt)]>;
+}
+
 def BEQ     : MMRel, CBranch<"jeq", brtarget, seteq, GPR32Opnd>, BEQ_FM<0x15>;
 def BNE     : MMRel, CBranch<"jne", brtarget, setne, GPR32Opnd>, BEQ_FM<0x16>;
 def BGEZ    : MMRel, CBranchZero<"jgez", br14target, setge, GPR32Opnd>,

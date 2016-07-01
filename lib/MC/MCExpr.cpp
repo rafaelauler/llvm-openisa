@@ -260,6 +260,8 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_Mips_GOT: return "GOT";
   case VK_Mips_ABS_HI: return "ABS_HI";
   case VK_Mips_ABS_LO: return "ABS_LO";
+  case VK_Mips_IJMP_HI: return "IJMP_HI";
+  case VK_Mips_IJMP_LO: return "IJMP_LO";
   case VK_Mips_TLSGD: return "TLSGD";
   case VK_Mips_TLSLDM: return "TLSLDM";
   case VK_Mips_DTPREL_HI: return "DTPREL_HI";

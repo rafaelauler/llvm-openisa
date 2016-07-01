@@ -162,6 +162,20 @@ class PL26i<bits<6> op, dag outs, dag ins, string asmstr, list<dag> pattern,
   let Inst{5-0} = rt;
 }
 
+class PL26ij<bits<6> op, dag outs, dag ins, string asmstr, list<dag> pattern,
+        InstrItinClass itin>: InstSE<outs, ins, asmstr, pattern, itin, FrmPL26i>
+{
+  bits<8>  count;
+  bits<6>  idx;
+  bits<12> imm12;
+
+  let Opcode = op;
+
+  let Inst{25-14} = imm12;
+  let Inst{13-8} = idx;
+  let Inst{7-0} = count;
+}
+
 class PL24<bits<6> op, bits<2> extop1,
          dag outs, dag ins, string asmstr, list<dag> pattern, InstrItinClass itin>:
   InstSE<outs, ins, asmstr, pattern, itin, FrmPL24>
@@ -193,6 +207,19 @@ class PL20<bits<6> op, bits<2> extop1, bits<4> extop2,
   let Inst{23-20} = extop2;
   let Inst{19-6} = imm14;
   let Inst{5-0}   = rt;
+}
+
+class PL20i<bits<6> op, bits<2> extop1, bits<4> extop2,
+         dag outs, dag ins, string asmstr, list<dag> pattern, InstrItinClass itin>:
+  InstSE<outs, ins, asmstr, pattern, itin, FrmPL20>
+{
+  bits<20>  imm20;
+
+  let Opcode = op;
+
+  let Inst{25-24} = extop1;
+  let Inst{23-20} = extop2;
+  let Inst{19-0} = imm20;
 }
 
 class PL18<bits<6> op, bits<2> extop1, bits<4> extop2, bits<2> extop3,

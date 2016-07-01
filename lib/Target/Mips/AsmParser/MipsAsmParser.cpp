@@ -2631,6 +2631,8 @@ MCSymbolRefExpr::VariantKind MipsAsmParser::getVariantKind(StringRef Symbol) {
       StringSwitch<MCSymbolRefExpr::VariantKind>(Symbol)
           .Case("hi", MCSymbolRefExpr::VK_Mips_ABS_HI)
           .Case("lo", MCSymbolRefExpr::VK_Mips_ABS_LO)
+          .Case("ihi", MCSymbolRefExpr::VK_Mips_IJMP_HI)
+          .Case("ilo", MCSymbolRefExpr::VK_Mips_IJMP_LO)
           .Case("gp_rel", MCSymbolRefExpr::VK_Mips_GPREL)
           .Case("call16", MCSymbolRefExpr::VK_Mips_GOT_CALL)
           .Case("got", MCSymbolRefExpr::VK_Mips_GOT)
