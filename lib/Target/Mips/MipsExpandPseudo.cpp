@@ -112,7 +112,6 @@ void MipsExpandPseudo::expandIJmp(MachineBasicBlock &MBB,
         .addImm(I->getOperand(2).getImm());
     return;
   }
-  I->dump();
   llvm_unreachable("Unrecognized IJMP_PSEUDO operand!");
 }
 
