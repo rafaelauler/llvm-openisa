@@ -43,6 +43,19 @@ public:
   typedef std::map<uint32_t, std::vector<uint32_t>> FunctionCallMapTy;
   typedef DenseMap<uint32_t, uint32_t> FunctionRetMapTy;
 
+  class IndirectJumpEntry {
+  public:
+    IndirectJumpEntry(Instruction *Ins, uint64_t Addr, Value *Idx, uint64_t JT,
+                      uint32_t Cnt)
+        : Ins(Ins), InsAddress(Addr), Index(Idx), JTAddress(JT), JTCount(Cnt) {}
+
+    Instruction *Ins;
+    uint64_t InsAddress;
+    Value *Index;
+    uint64_t JTAddress;
+    uint32_t JTCount;
+  };
+
   OiIREmitter(const ObjectFile *obj, uint64_t Stacksz, StringRef CodeTarget)
       : Obj(obj), TheModule(new Module("outputtest", getGlobalContext())),
         CodeTarget(CodeTarget), Builder(getGlobalContext()),
@@ -97,8 +110,7 @@ public:
   Value *ReturnAddressesTableValue;
   std::vector<BasicBlock *> IndirectDestinations;
   std::vector<uint32_t> IndirectDestinationsAddrs;
-  std::vector<std::pair<Instruction *, uint64_t>> IndirectJumps;
-  std::vector<Value *> IndirectJumpsIndexes;
+  std::vector<IndirectJumpEntry> IndirectJumps;
   std::vector<std::pair<Instruction *, uint64_t>> IndirectCalls;
   std::vector<Value *> IndirectCallsIndexes;
   llvm::StringMap<uint64_t> ComdatSymbols;
@@ -117,9 +129,9 @@ public:
   HashParams ReturnAddressesHash;
   HashParams IndirectJumpsHash;
 
-  void AddIndirectJump(Instruction *Ins, Value *Idx) {
-    IndirectJumps.push_back(std::make_pair(Ins, CurAddr));
-    IndirectJumpsIndexes.push_back(Idx);
+  void AddIndirectJump(Instruction *Ins, Value *Idx, uint64_t JT = 0,
+                       uint32_t Count = 0) {
+    IndirectJumps.emplace_back(IndirectJumpEntry(Ins, CurAddr, Idx, JT, Count));
   }
   void AddIndirectCall(Instruction *Ins, Value *Idx) {
     IndirectCalls.push_back(std::make_pair(Ins, CurAddr));
@@ -128,7 +140,7 @@ public:
   bool ExtractJumpTargets(uint64_t JT,
                           const std::unordered_set<uint64_t> &ValidPtrs,
                           ArrayRef<uint64_t> Funcs, uint64_t FuncAddr,
-                          std::set<BasicBlock *> &JumpTargets);
+                          std::set<BasicBlock *> &JumpTargets, uint32_t Count);
   bool ProcessIndirectJumps();
   template <typename T>
   Value *CreateHashTableFor(ArrayRef<T> Addrs, const HashParams &Hash);
@@ -137,6 +149,7 @@ public:
   void UpdateShadowImage();
   void BuildRegisterFile();
   void BuildLocalRegisterFile();
+  bool SplitIndirectCriticalEdge(uint64_t Addr, BasicBlock *&Target);
   bool HandleBackEdge(uint64_t Addr, BasicBlock *&Target);
   bool HandleIndirectCallOneRegion(uint64_t Addr, Value *src,
                                    Value **First = 0);

@@ -3006,8 +3006,20 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
     Value *src = 0;
     if (HandleMemOperand(MI->getOperand(1), MI->getOperand(0), src, &first,
                          true)) {
+      const MCOperand &o2 = MI->getOperand(2);
+      assert(o2.isImm() && "Unrecognized IJMP operand type");
+      uint32_t Count = o2.getImm();
+      Value *V0 = nullptr;
+      uint64_t reltype = 0;
+      bool UndefinedSymbol = false;
+      if (!RelocReader.ResolveRelocation(V0, &reltype, &UndefinedSymbol)) {
+        llvm_unreachable("Expected relocation to JT address");
+      }
+      assert(reltype == ELF::R_MICROMIPS_LO16 && "Unrecogined IJMP reloc");
+      assert(isa<ConstantInt>(V0) && "Unexpected resolverelocation return");
+      uint64_t JT = dyn_cast<ConstantInt>(V0)->getLimitedValue();
       Value *Dummy = Builder.CreateRetVoid();
-      IREmitter.AddIndirectJump(dyn_cast<Instruction>(Dummy), src);
+      IREmitter.AddIndirectJump(dyn_cast<Instruction>(Dummy), src, JT, Count);
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.CreateBB(IREmitter.CurAddr + GetInstructionSize());
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
