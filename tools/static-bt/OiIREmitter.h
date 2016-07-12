@@ -150,7 +150,6 @@ public:
   void UpdateShadowImage();
   void BuildRegisterFile();
   void BuildLocalRegisterFile();
-  bool SplitIndirectCriticalEdge(uint64_t Addr, BasicBlock *&Target);
   bool HandleBackEdge(uint64_t Addr, BasicBlock *&Target);
   bool HandleIndirectCallOneRegion(uint64_t Addr, Value *src,
                                    Value **First = 0);

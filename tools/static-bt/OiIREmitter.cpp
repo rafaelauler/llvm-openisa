@@ -484,8 +484,6 @@ bool OiIREmitter::ProcessIndirectJumps() {
       if (!OneRegion && p.first != p.second) {
         PSBuilder.addPair(offset, BB->getParent());
       } else {
-        if (!SplitIndirectCriticalEdge(TargetAddr, BB))
-          llvm_unreachable("Failed to split edge");
         PSBuilder.addPair(offset, BlockAddress::get(BB));
       }
       IndirectDestinations.push_back(BB);
@@ -1172,36 +1170,6 @@ bool OiIREmitter::BuildReturnTablesOneRegion() {
 
 std::vector<uint32_t> OiIREmitter::GetCallSitesFor(uint32_t FuncAddr) {
   return FunctionCallMap[FuncAddr];
-}
-
-bool OiIREmitter::SplitIndirectCriticalEdge(uint64_t Addr,
-                                            BasicBlock *&Target) {
-  std::string Idx = Twine("bb").concat(Twine::utohexstr(Addr)).str();
-  std::string IdxNew =
-      Twine("bb").concat(Twine::utohexstr(Addr)).concat("indedge").str();
-
-  if (BBMap[Idx] == 0)
-    return false;
-  BasicBlock *OldTarget = BBMap[Idx];
-  // We won't split it if it has no preds
-  if (pred_begin(OldTarget) == pred_end(OldTarget)) {
-    Target = OldTarget;
-    return true;
-  }
-  // Do not split if it has already been split
-  if (OldTarget->hasName() && OldTarget->getName().endswith("indedge")) {
-    Target = OldTarget;
-    return true;
-  }
-  // Otherwise, we conservatively assume an ind jump will create a critical
-  // edge to this target, so we split it now.
-  Function *F = OldTarget->getParent();
-  BasicBlock *SplitBB = BasicBlock::Create(getGlobalContext(), IdxNew, F);
-  Builder.SetInsertPoint(SplitBB);
-  Builder.CreateBr(OldTarget);
-  BBMap[Idx] = SplitBB;
-  Target = SplitBB;
-  return true;
 }
 
 bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
