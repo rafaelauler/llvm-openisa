@@ -3003,9 +3003,8 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   case Mips::IJMP: {
     DebugOut << "Handling IJMP\n";
     Value *first = 0;
-    Value *src = 0;
-    if (HandleMemOperand(MI->getOperand(1), MI->getOperand(0), src, &first,
-                         true)) {
+    Value *Index = 0;
+    if (HandleAluSrcOperand(MI->getOperand(1), Index, &first)) {
       const MCOperand &o2 = MI->getOperand(2);
       assert(o2.isImm() && "Unrecognized IJMP operand type");
       uint32_t Count = o2.getImm();
@@ -3019,7 +3018,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       assert(isa<ConstantInt>(V0) && "Unexpected resolverelocation return");
       uint64_t JT = dyn_cast<ConstantInt>(V0)->getLimitedValue();
       Value *Dummy = Builder.CreateRetVoid();
-      IREmitter.AddIndirectJump(dyn_cast<Instruction>(Dummy), src, JT, Count);
+      IREmitter.AddIndirectJump(dyn_cast<Instruction>(Dummy), Index, JT, Count);
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.CreateBB(IREmitter.CurAddr + GetInstructionSize());
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);

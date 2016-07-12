@@ -336,7 +336,7 @@ static uint64_t GetFuncAddr(ArrayRef<uint64_t> Funcs, uint64_t Addr) {
 bool OiIREmitter::ExtractJumpTargets(
     uint64_t JT, const std::unordered_set<uint64_t> &ValidPtrs,
     ArrayRef<uint64_t> Funcs, uint64_t FuncAddr,
-    std::set<BasicBlock *> &JumpTargets, uint32_t Count) {
+    std::vector<BasicBlock *> &JumpTargets, uint32_t Count) {
   for (uint64_t I = 0;; ++I) {
     uint32_t Candidate = *(const uint32_t *)(&ShadowImage[JT + (I << 2)]);
     if (ValidPtrs.count(Candidate) == 0)
@@ -348,7 +348,7 @@ bool OiIREmitter::ExtractJumpTargets(
       break;
     if (Count != 0 && I > Count)
       break;
-    JumpTargets.insert(BB);
+    JumpTargets.emplace_back(BB);
   }
   if (JumpTargets.size() > 0)
     return true;
@@ -512,15 +512,38 @@ bool OiIREmitter::ProcessIndirectJumps() {
       uint64_t JT = IJE.JTAddress;
       uint64_t FuncAddr = GetFuncAddr(Funcs, Addr);
       if (JT != 0 || MatchIndirectJumpTable(first, JT)) {
-        std::set<BasicBlock *> JumpTargets;
+        std::vector<BasicBlock *> JumpTargets;
         if (ExtractJumpTargets(JT, CodePtrs, Funcs, FuncAddr, JumpTargets,
                                IJE.JTCount)) {
-          IndirectBrInst *v = Builder.CreateIndirectBr(
-              Builder.CreateIntToPtr(first,
-                                     Type::getInt32PtrTy(getGlobalContext())),
-              JumpTargets.size());
-          for (auto Dest : JumpTargets) {
-            v->addDestination(Dest);
+          Value *v = nullptr;
+          if (IJE.JTAddress != 0) {
+            auto Sz = JumpTargets.size();
+            assert(Sz > 1 && "Invalid jump table");
+            SwitchInst *Swi = Builder.CreateSwitch(first, JumpTargets[Sz - 1],
+                                                   Sz - 1);
+            uint32_t CaseVal = 0;
+            for (auto Dest : JumpTargets) {
+              Swi->addCase(ConstantInt::get(
+                               Type::getInt32Ty(getGlobalContext()), CaseVal),
+                           Dest);
+              CaseVal += 4;
+              // Add all targets, except the last one, which was already added
+              // as the default target
+              if ((CaseVal >> 2) >= JumpTargets.size() - 1)
+                break;
+            }
+            v = Swi;
+          } else {
+            IndirectBrInst *Ind = Builder.CreateIndirectBr(
+                Builder.CreateIntToPtr(first,
+                                       Type::getInt32PtrTy(getGlobalContext())),
+                JumpTargets.size());
+            std::set<BasicBlock *> JumpTargetsSet;
+            JumpTargetsSet.insert(JumpTargets.begin(), JumpTargets.end());
+            for (auto Dest : JumpTargetsSet) {
+              Ind->addDestination(Dest);
+            }
+            v = Ind;
           }
           Ins->eraseFromParent();
           first = GetFirstInstruction(first, v);

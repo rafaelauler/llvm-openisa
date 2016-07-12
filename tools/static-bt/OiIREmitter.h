@@ -140,7 +140,8 @@ public:
   bool ExtractJumpTargets(uint64_t JT,
                           const std::unordered_set<uint64_t> &ValidPtrs,
                           ArrayRef<uint64_t> Funcs, uint64_t FuncAddr,
-                          std::set<BasicBlock *> &JumpTargets, uint32_t Count);
+                          std::vector<BasicBlock *> &JumpTargets,
+                          uint32_t Count);
   bool ProcessIndirectJumps();
   template <typename T>
   Value *CreateHashTableFor(ArrayRef<T> Addrs, const HashParams &Hash);
