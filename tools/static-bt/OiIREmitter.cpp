@@ -1165,6 +1165,11 @@ bool OiIREmitter::SplitIndirectCriticalEdge(uint64_t Addr,
     Target = OldTarget;
     return true;
   }
+  // Do not split if it has already been split
+  if (OldTarget->hasName() && OldTarget->getName().endswith("indedge")) {
+    Target = OldTarget;
+    return true;
+  }
   // Otherwise, we conservatively assume an ind jump will create a critical
   // edge to this target, so we split it now.
   Function *F = OldTarget->getParent();
