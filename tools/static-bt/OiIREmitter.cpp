@@ -582,6 +582,7 @@ bool OiIREmitter::ProcessIndirectJumps() {
 
   printf("INFO: Processed %d indirect jumps: %d warnings.\n",
          NumJumpsOK + NumJumpsWarning, NumJumpsWarning);
+  printf("INFO: Program uses %d indirect calls.\n", IndirectCalls.size());
 
   if (IndirectCalls.size() > 0) {
     for (auto Addr : FunctionAddrs) {
