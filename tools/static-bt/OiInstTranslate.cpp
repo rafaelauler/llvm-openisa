@@ -1486,21 +1486,22 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
           return Syscalls.HandleGenericInt(V, "setvbuf", 4, 1, ArgTypes, First);
         }
         if (val == "siglongjmp") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
           return Syscalls.HandleGenericInt(V, "siglongjmp", 2, 1, ArgTypes, First);
         }
         if (val == "__sigsetjmp") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
+          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
+                                               SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "__sigsetjmp", 1, 1, ArgTypes, First);
+          return Syscalls.HandleGenericInt(V, "__sigsetjmp", 2, 1, ArgTypes, First);
         }
         if (val == "truncate") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
                                                SyscallsIface::AT_Int32,
                                                SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "truncate", 1, 1, ArgTypes, First);
+          return Syscalls.HandleGenericInt(V, "truncate", 2, 1, ArgTypes, First);
         }
         if (val == "gcvt") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Double,
