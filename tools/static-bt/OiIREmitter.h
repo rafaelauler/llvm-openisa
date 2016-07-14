@@ -116,6 +116,7 @@ public:
   llvm::StringMap<uint64_t> ComdatSymbols;
 
   std::vector<uint64_t> FunctionAddrs;
+  std::set<uint64_t> IndFunctionAddrs;
   std::vector<BasicBlock *> FunctionBBs;
   // Properties of the hash function used in indirect calls
   struct HashParams {

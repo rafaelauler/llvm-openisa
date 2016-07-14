@@ -407,8 +407,7 @@ bool OiIREmitter::ProcessIndirectJumps() {
   std::unordered_set<uint64_t> CodePtrs;
   uint64_t TextOffset;
   PatchSectionBuilder PSBuilder(&*TheModule);
-  std::vector<uint64_t> Funcs = FunctionAddrs;
-  std::sort(Funcs.begin(), Funcs.end());
+  std::sort(FunctionAddrs.begin(), FunctionAddrs.end());
 
   if (!FindSectionOffset(".text", TextOffset))
     return false;
@@ -480,16 +479,18 @@ bool OiIREmitter::ProcessIndirectJumps() {
       BasicBlock *BB = nullptr;
       if (!HandleBackEdge(TargetAddr, BB))
         llvm_unreachable("Failed to handle backedge");
-      auto p = std::equal_range(Funcs.begin(), Funcs.end(), TargetAddr);
+      auto p = std::equal_range(FunctionAddrs.begin(), FunctionAddrs.end(),
+                                TargetAddr);
       if (!OneRegion && p.first != p.second) {
         PSBuilder.addPair(offset, BB->getParent());
       } else {
+        if (OneRegion && p.first != p.second) {
+          IndFunctionAddrs.insert(*p.first);
+        }
         PSBuilder.addPair(offset, BlockAddress::get(BB));
       }
       IndirectDestinations.push_back(BB);
       IndirectDestinationsAddrs.push_back(TargetAddr);
-      fprintf(stderr, "Offset: %x BB:\n", offset);
-      BB->dump();
       // Patch ShadowImage with fixed address
       *(int *)(&ShadowImage[offset]) = TargetAddr;
     }
@@ -508,11 +509,11 @@ bool OiIREmitter::ProcessIndirectJumps() {
       Value *first = IJE.Index;
       Builder.SetInsertPoint(Ins);
       uint64_t JT = IJE.JTAddress;
-      uint64_t FuncAddr = GetFuncAddr(Funcs, Addr);
+      uint64_t FuncAddr = GetFuncAddr(FunctionAddrs, Addr);
       if (JT != 0 || MatchIndirectJumpTable(first, JT)) {
         std::vector<BasicBlock *> JumpTargets;
-        if (ExtractJumpTargets(JT, CodePtrs, Funcs, FuncAddr, JumpTargets,
-                               IJE.JTCount)) {
+        if (ExtractJumpTargets(JT, CodePtrs, FunctionAddrs, FuncAddr,
+                               JumpTargets, IJE.JTCount)) {
           Value *v = nullptr;
           if (IJE.JTAddress != 0) {
             auto Sz = JumpTargets.size();
@@ -563,7 +564,7 @@ bool OiIREmitter::ProcessIndirectJumps() {
       for (int I = 0, E = IndirectDestinations.size(); I != E; ++I) {
         BasicBlock *targetBB = IndirectDestinations[I];
         uint64_t bbAddr = IndirectDestinationsAddrs[I];
-        if (GetFuncAddr(Funcs, bbAddr) != FuncAddr)
+        if (GetFuncAddr(FunctionAddrs, bbAddr) != FuncAddr)
           continue;
         v->addDestination(IndirectDestinations[I]);
         if (&targetBB->getParent()->getEntryBlock() == targetBB) {
@@ -582,10 +583,14 @@ bool OiIREmitter::ProcessIndirectJumps() {
 
   printf("INFO: Processed %d indirect jumps: %d warnings.\n",
          NumJumpsOK + NumJumpsWarning, NumJumpsWarning);
-  printf("INFO: Program uses %d indirect calls.\n", IndirectCalls.size());
+  printf("INFO: Program uses %d indirect calls.\n", (int)IndirectCalls.size());
+  printf("INFO: Program has %d indirect calls targets.\n",
+         (int)IndFunctionAddrs.size());
 
-  if (IndirectCalls.size() > 0) {
-    for (auto Addr : FunctionAddrs) {
+  if (OneRegion && IndirectCalls.size() > 0) {
+    assert(IndFunctionAddrs.size() > 0 &&
+           "Indirect calls present, but no targets found");
+    for (auto Addr : IndFunctionAddrs) {
       std::string Idx = Twine("bb").concat(Twine::utohexstr(Addr)).str();
       assert (BBMap[Idx] != 0 && "Missing basic block for function");
       // Populate FunctionBBs to be used when creating indirect calls later
@@ -1232,7 +1237,7 @@ bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
 bool OiIREmitter::HandleIndirectCallOneRegion(uint64_t Addr, Value *src,
                                               Value **First) {
   Value *f = nullptr;
-  for (auto FnAddr : FunctionAddrs) {
+  for (auto FnAddr : IndFunctionAddrs) {
     if (FnAddr != MainFunAddr)
       FunctionCallMap[FnAddr].push_back(Addr + GetInstructionSize());
   }
@@ -1292,6 +1297,7 @@ bool OiIREmitter::HandleLocalCall(uint64_t Addr, Value *&V, Value **First) {
 
 Value *OiIREmitter::HandleGetFunctionAddr(uint64_t Addr) {
   if (OneRegion) {
+    IndFunctionAddrs.insert(Addr);
     BasicBlock *Target;
     if (Addr < CurAddr)
       HandleBackEdge(Addr, Target);
