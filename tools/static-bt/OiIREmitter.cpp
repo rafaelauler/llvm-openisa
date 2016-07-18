@@ -147,8 +147,6 @@ static bool CompareFragments(const Value* LHS, const Value *RHS) {
   printf("Yes:\n");
   if (L4 != R4)
     printf("L4 != R4\n");
-  printf("C1 = %ld\n", C1->getLimitedValue());
-  printf("C2 = %ld\n", C2->getLimitedValue());
   if (C1->getLimitedValue() == C2->getLimitedValue()) {
     L4->dump();
     R4->dump();
@@ -500,9 +498,7 @@ bool OiIREmitter::ProcessIndirectJumps() {
   uint32_t NumJumpsOK = 0;
   uint32_t NumJumpsWarning = 0;
 
-  if (TableSize == 0) {
-    IndirectJumpTableValue = 0;
-  } else {
+  if (TableSize != 0) {
     for (const auto &IJE : IndirectJumps) {
       Instruction *Ins = IJE.Ins;
       uint64_t Addr = IJE.InsAddress;
@@ -1082,29 +1078,7 @@ void OiIREmitter::CleanRegs() {
   }
 }
 
-void OiIREmitter::BuildReturnAddressesHash() {
-  std::vector<uint32_t> CallSites;
-  for (auto &elmt : FunctionCallMap) {
-    for (auto &addr : elmt.second) {
-      bool found = false;
-      for (auto &j : CallSites) {
-        if (j == addr) {
-          found = true;
-          break;
-        }
-      }
-      if (!found)
-        CallSites.push_back(addr);
-    }
-  }
-  HashParams Hash = SelectHashFunctionFor<uint32_t>(CallSites);
-  printf("Selected hash function = (%d * (k - %d) + %d) %% %d %% %d \n",
-         Hash.A, Hash.C, Hash.B, Hash.P, Hash.M);
-  ReturnAddressesTableValue = CreateHashTableFor<uint32_t>(CallSites, Hash);
-  ReturnAddressesHash = Hash;
-}
-
-bool OiIREmitter::BuildReturnTablesOneRegion() {
+bool OiIREmitter::BuildReturns() {
   for (FunctionRetMapTy::iterator I = FunctionRetMap.begin(),
                                   E = FunctionRetMap.end();
        I != E; ++I) {
@@ -1123,53 +1097,20 @@ bool OiIREmitter::BuildReturnTablesOneRegion() {
     Value *ra =
         Builder.CreateLoad(Regs[ConvToDirective(Mips::RA)], "RetTableInput");
     ReadMap[ConvToDirective(Mips::RA)] = true;
-    Instruction *dummy = Builder.CreateUnreachable();
-    Builder.SetInsertPoint(tgtins->getParent(), dummy);
 
+    Value *Target =
+        Builder.CreateIntToPtr(ra, Type::getInt8PtrTy(getGlobalContext()));
+    std::vector<BasicBlock *> CallSitesBBs;
+    for (auto CallAddr : CallSites) {
+      std::string Idx = Twine("bb").concat(Twine::utohexstr(CallAddr)).str();
+      assert(BBMap[Idx] != 0 && "Invalid return target address");
+      CallSitesBBs.push_back(BBMap[Idx]);
+    }
+    IndirectBrInst *v = Builder.CreateIndirectBr(Target, CallSitesBBs.size());
+    for (auto CallBB : CallSitesBBs)
+      v->addDestination(CallBB);
     // Delete the original ret instruction
     tgtins->eraseFromParent();
-
-    // Create a hash table
-    if (CallSites.size() > 3) {
-      if (ReturnAddressesTableValue == nullptr)
-        BuildReturnAddressesHash();
-      assert(ReturnAddressesTableValue != nullptr && "Missing hash table");
-      Value *BasePtr = ReturnAddressesTableValue;
-      Value *Target = AccessHashTable(ra, 0, ReturnAddressesHash, BasePtr);
-      std::vector<BasicBlock *> CallSitesBBs;
-      for (auto CallAddr : CallSites) {
-        std::string Idx = Twine("bb").concat(Twine::utohexstr(CallAddr)).str();
-        assert(BBMap[Idx] != 0 && "Invalid return target address");
-        CallSitesBBs.push_back(BBMap[Idx]);
-      }
-      IndirectBrInst *v = Builder.CreateIndirectBr(Target, CallSitesBBs.size());
-      for (auto CallBB : CallSitesBBs)
-        v->addDestination(CallBB);
-      dummy->eraseFromParent();
-      continue;
-    }
-
-    for (std::vector<uint32_t>::iterator J = CallSites.begin(),
-                                         EJ = CallSites.end();
-         J != EJ; ++J) {
-      Value *site = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), *J);
-      Value *cmp = Builder.CreateICmpEQ(site, ra);
-
-      std::string Idx = Twine("bb").concat(Twine::utohexstr(*J)).str();
-      //  printf("\n%08X\n\n%s\n", *J,  Idx.c_str());
-      assert(BBMap[Idx] != 0 && "Invalid return target address");
-      Value *TrueV = BBMap[Idx];
-      assert(isa<BasicBlock>(TrueV) &&
-             "Values stored into BBMap must be BasicBlocks");
-      BasicBlock *True = dyn_cast<BasicBlock>(TrueV);
-      Function *F = True->getParent();
-      BasicBlock *FallThrough = BasicBlock::Create(getGlobalContext(), "", F);
-
-      Builder.CreateCondBr(cmp, True, FallThrough);
-      Builder.SetInsertPoint(FallThrough);
-    }
-    Builder.CreateUnreachable();
-    dummy->eraseFromParent();
   }
   return true;
 }
@@ -1236,14 +1177,15 @@ bool OiIREmitter::HandleBackEdge(uint64_t Addr, BasicBlock *&Target) {
 
 bool OiIREmitter::HandleIndirectCallOneRegion(uint64_t Addr, Value *src,
                                               Value **First) {
-  Value *f = nullptr;
   for (auto FnAddr : IndFunctionAddrs) {
     if (FnAddr != MainFunAddr)
       FunctionCallMap[FnAddr].push_back(Addr + GetInstructionSize());
   }
-  Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
-                                       Addr + GetInstructionSize()),
-                      Regs[ConvToDirective(Mips::RA)]);
+  BasicBlock *Ret = CreateBB(Addr + GetInstructionSize());
+  Builder.CreateStore(
+      ConstantExpr::getPtrToInt(BlockAddress::get(Ret),
+                                Type::getInt32Ty(getGlobalContext())),
+      Regs[ConvToDirective(Mips::RA)]);
   WriteMap[ConvToDirective(Mips::RA)] = true;
   IndirectBrInst *v = Builder.CreateIndirectBr(
       Builder.CreateIntToPtr(src, Type::getInt32PtrTy(getGlobalContext())),
@@ -1252,7 +1194,7 @@ bool OiIREmitter::HandleIndirectCallOneRegion(uint64_t Addr, Value *src,
     v->addDestination(FunctionBBs[I]);
   }
   if (First)
-    *First = GetFirstInstruction(*First, src, f);
+    *First = GetFirstInstruction(*First, src);
   return true;
 }
 
@@ -1264,15 +1206,14 @@ bool OiIREmitter::HandleLocalCallOneRegion(uint64_t Addr, Value *&V,
     HandleBackEdge(Addr, Target);
   else
     Target = CreateBB(Addr);
-  Value *first =
-      Builder.CreateStore(ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
-                                           CurAddr + GetInstructionSize()),
-                          Regs[ConvToDirective(Mips::RA)]);
+
+  BasicBlock *Ret = CreateBB(CurAddr + GetInstructionSize());
+  Value *first = Builder.CreateStore(
+      ConstantExpr::getPointerCast(BlockAddress::get(Ret),
+                                   Type::getInt32Ty(getGlobalContext())),
+      Regs[ConvToDirective(Mips::RA)]);
   WriteMap[ConvToDirective(Mips::RA)] = true;
   V = Builder.CreateBr(Target);
-  //  printf("\nHandleLocalCallOneregion.CurAddr: %08LX\n",
-  //  CurAddr+GetInstructionSize());
-  CreateBB(CurAddr + GetInstructionSize());
   if (First)
     *First = GetFirstInstruction(*First, first);
   return true;
@@ -1377,149 +1318,3 @@ Value *OiIREmitter::AccessShadowMemory(Value *Idx, bool IsLoad, int width,
   return ptr;
 }
 
-Value *OiIREmitter::AccessHashTable(Value *Idx, Value **First,
-                                    const HashParams &Hash,
-                                    Value *TableBasePtr) {
-  SmallVector<Value *, 4> Idxs;
-  Value *M = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), Hash.M);
-  Value *P = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), Hash.P);
-  Value *A = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), Hash.A);
-  Value *B = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), Hash.B);
-  Value *C = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), Hash.C);
-  Value *Top = Builder.CreateSub(Idx, C);
-
-  Value *Add = Builder.CreateAdd(
-      Builder.CreatePtrToInt(TableBasePtr,
-                             Type::getInt32Ty(getGlobalContext())),
-      Builder.CreateShl(
-          Builder.CreateURem(
-              Builder.CreateURem(
-                  Builder.CreateAdd(Builder.CreateMul(Top, A), B), P),
-              M),
-          ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 2)));
-
-  Value *v =
-      Builder.CreateIntToPtr(Builder.CreateLoad(Builder.CreateIntToPtr(
-                                 Add, Type::getInt32PtrTy(getGlobalContext()))),
-                             Type::getInt32PtrTy(getGlobalContext()));
-
-  if (First)
-    *First = GetFirstInstruction(*First, Top, Add);
-  return v;
-}
-
-template <typename T>
-OiIREmitter::HashParams OiIREmitter::SelectHashFunctionFor(ArrayRef<T> Addrs) {
-  HashParams Res;
-  const int NumFuncs = Addrs.size();
-  // We want to hash the addresses in functionaddrs with a function:
-  //   hash(k) = ((a(k - c) + b) mod p) mod m
-  // where HashA = a
-  //       HashB = b
-  //       HashC = c
-  //       HashP = p
-  //       HashM = m
-
-  // First we select a prime number that is larger than the largest key
-  // in our set.
-  unsigned MaxKey = 0;
-  unsigned MinKey = 0xFFFFFFFF;
-  for (auto Addr : Addrs) {
-    if ((unsigned)Addr > MaxKey)
-      MaxKey = (unsigned)Addr;
-    if ((unsigned)Addr < MinKey)
-      MinKey = (unsigned)Addr;
-  }
-  // Select b
-  Res.C = MinKey;
-  MaxKey = MaxKey - MinKey;
-  // Pick a prime number
-  unsigned P;
-  for (P = MaxKey; P < 0xFFFFFFFF; ++P) {
-    bool Prime = true;
-    for (unsigned J = 2; J < (P >> 1); ++J) {
-      if (P % J == 0) {
-        Prime = false;
-        break;
-      }
-    }
-    if (Prime)
-      break;
-  }
-  if (P == 0)
-    P = 3;
-
-  assert(P < 0xFFFFFFFF && "Couldn't find a prime number");
-  // Now try to pick values for a, b, m that provides a perfect hash
-  Res.P = P;
-  Res.M = NumFuncs * NumFuncs;
-  assert (Res.M < 500000000 && "Hash is too large for this application");
-  bool *Map = new bool[Res.M];
-  bool Conflict = true;
-  unsigned Trials = 0;
-  while (Conflict) {
-    assert(Trials++ < 100 && "Couldn't find a good hash function in 100 trials");
-    Conflict = false;
-    for (int I = 0, E = Res.M; I != E; ++I)
-      Map[I] = false;
-    Res.A = rand();
-    Res.B = rand();
-    for (auto Addr : Addrs) {
-      unsigned k = (unsigned) Addr;
-      unsigned h = (Res.A * (k - Res.C) + Res.B) % Res.P % Res.M;
-      if (Map[h]) {
-        Conflict = true;
-        break;
-      }
-      Map[h] = true;
-    }
-  }
-  delete [] Map;
-  return Res;
-}
-
-template<typename T>
-Value *OiIREmitter::CreateHashTableFor(ArrayRef<T> Addrs,
-                                       const HashParams &Hash) {
-  Constant **Map = new Constant *[Hash.M];
-
-  for (unsigned I = 0; I < Hash.M; ++I)
-    Map[I] = nullptr;
-
-  for (auto Addr : Addrs) {
-    std::string Idx = Twine("bb").concat(Twine::utohexstr(Addr)).str();
-    assert (BBMap[Idx] != 0 && "Missing basic block for address");
-    Constant *Target = nullptr;
-    BasicBlock *BB = BBMap[Idx];
-    if (&(*BB->getParent()->begin()) != BB)
-      Target = BlockAddress::get(BBMap[Idx]);
-    else {
-      std::string FunIdx = Twine("a").concat(Twine::utohexstr(Addr)).str();
-      FunctionType *FT =
-          FunctionType::get(Type::getVoidTy(getGlobalContext()), false);
-      Function *F = reinterpret_cast<Function *>(
-          TheModule->getOrInsertFunction(FunIdx, FT));
-      Target = ConstantExpr::getBitCast(F, Type::getInt8PtrTy(getGlobalContext()));
-    }
-    unsigned k = (unsigned) Addr;
-    unsigned h = (Hash.A * (k - Hash.C) + Hash.B) % Hash.P % Hash.M;
-    Map[h] = Target;
-  }
-
-  for (unsigned I = 0; I < Hash.M; ++I) {
-    if (Map[I] == nullptr)
-      Map[I] = ConstantExpr::getIntToPtr(
-          ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
-          Type::getInt8PtrTy(getGlobalContext()));
-  }
-
-  ConstantArray *c = dyn_cast<ConstantArray>(ConstantArray::get(
-      ArrayType::get(Type::getInt8PtrTy(getGlobalContext()), Hash.M),
-      ArrayRef<Constant *>(&Map[0], Hash.M)));
-
-  GlobalVariable *gv = new GlobalVariable(*TheModule, c->getType(), false,
-                                          GlobalValue::ExternalLinkage, c);
-
-  delete [] Map;
-  return gv;
-}

@@ -65,7 +65,7 @@ void OiInstTranslate::FinishModule() {
     IREmitter.FixEntryPoint();
     IREmitter.CleanRegs();
     IREmitter.FixBBTerminators();
-    IREmitter.BuildReturnTablesOneRegion();
+    IREmitter.BuildReturns();
     if (DebugIR)
       IREmitter.Builder.GetInsertBlock()->getParent()->getParent()->dump();
   }

@@ -67,7 +67,7 @@ public:
         CurSection(nullptr), BBMap(), InsMap(), ReadMap(), WriteMap(),
         DblReadMap(), DblWriteMap(), FunctionCallMap(), FunctionRetMap(),
         CurFunAddr(0), MainFunAddr(0), CurBlockAddr(0), StackSize(Stacksz),
-        ReturnAddressesTableValue(nullptr), IndirectDestinations(),
+        IndirectDestinations(),
         IndirectDestinationsAddrs(), IndirectJumps(), IndirectCalls(),
         ComdatSymbols() {
     BuildShadowImage();
@@ -105,9 +105,6 @@ public:
   uint64_t StackSize;
   uint64_t ShadowSize;
   Value *ShadowImageValue;
-  Value *IndirectJumpTableValue;
-  Value *IndirectCallTableValue;
-  Value *ReturnAddressesTableValue;
   std::vector<BasicBlock *> IndirectDestinations;
   std::vector<uint32_t> IndirectDestinationsAddrs;
   std::vector<IndirectJumpEntry> IndirectJumps;
@@ -118,17 +115,6 @@ public:
   std::vector<uint64_t> FunctionAddrs;
   std::set<uint64_t> IndFunctionAddrs;
   std::vector<BasicBlock *> FunctionBBs;
-  // Properties of the hash function used in indirect calls
-  struct HashParams {
-    unsigned A;
-    unsigned B;
-    unsigned C;
-    unsigned P;
-    unsigned M;
-  };
-  HashParams IndirectCallsHash;
-  HashParams ReturnAddressesHash;
-  HashParams IndirectJumpsHash;
 
   void AddIndirectJump(Instruction *Ins, Value *Idx, uint64_t JT = 0,
                        uint32_t Count = 0) {
@@ -144,9 +130,6 @@ public:
                           std::vector<BasicBlock *> &JumpTargets,
                           uint32_t Count);
   bool ProcessIndirectJumps();
-  template <typename T>
-  Value *CreateHashTableFor(ArrayRef<T> Addrs, const HashParams &Hash);
-  template <typename T> HashParams SelectHashFunctionFor(ArrayRef<T> Addrs);
   void BuildShadowImage();
   void UpdateShadowImage();
   void BuildRegisterFile();
@@ -156,16 +139,13 @@ public:
                                    Value **First = 0);
   bool HandleLocalCallOneRegion(uint64_t Addr, Value *&V, Value **First = 0);
   std::vector<uint32_t> GetCallSitesFor(uint32_t FuncAddr);
-  void BuildReturnAddressesHash();
-  bool BuildReturnTablesOneRegion();
+  bool BuildReturns();
   bool HandleLocalCall(uint64_t Addr, Value *&V, Value **First = 0);
   Value *HandleGetFunctionAddr(uint64_t Addr);
   Value *AccessSpillMemory(unsigned Idx, bool IsLoad);
   Value *AccessShadowMemory(Value *Idx, bool IsLoad, int width = 32,
                             bool isFloat = false, Value **First = 0);
   Value *AccessJumpTable(Value *Idx, Value **First = 0);
-  Value *AccessHashTable(Value *Idx, Value **First, const HashParams &Hash,
-                         Value *TableBasePtr);
   void InsertStartupCode(uint64_t Addr);
   BasicBlock *CreateBB(uint64_t Addr = 0, Function *F = 0);
   void UpdateInsertPoint();
