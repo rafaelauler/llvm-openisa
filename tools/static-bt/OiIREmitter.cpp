@@ -29,6 +29,10 @@ using namespace llvm;
 
 namespace llvm {
 
+cl::opt<bool> AbiLocals(
+    "abi-locals",
+    cl::desc("Reduce the pool of registers synced in region transitions"));
+
 cl::opt<bool>
     NoLocals("nolocals",
              cl::desc("Do not use locals, always use global variables"));
@@ -944,6 +948,24 @@ void OiIREmitter::HandleFunctionEntryPoint(Value **First) {
   bool WroteFirst = false;
   if (NoLocals)
     return;
+  if (AbiLocals) {
+    for (unsigned I = ConvToDirective(Mips::V0); I <= ConvToDirective(Mips::V1); ++I) {
+      Value *ld = Builder.CreateLoad(GlobalRegs[I]);
+      Builder.CreateStore(ld, Regs[I]);
+      if (!WroteFirst) {
+        WroteFirst = true;
+        if (First)
+          *First = GetFirstInstruction(*First, ld);
+      }
+    }
+    Builder.CreateStore(
+        Builder.CreateLoad(GlobalRegs[ConvToDirective(Mips::F0)]),
+        Regs[ConvToDirective(Mips::F0)]);
+    Builder.CreateStore(
+        Builder.CreateLoad(DblGlobalRegs[ConvToDirectiveDbl(Mips::F0)]),
+        DblRegs[ConvToDirectiveDbl(Mips::F0)]);
+    return;
+  }
   for (int I = 1; I < 259; ++I) {
     Value *ld = Builder.CreateLoad(GlobalRegs[I]);
     Builder.CreateStore(ld, Regs[I]);
@@ -962,6 +984,40 @@ void OiIREmitter::HandleFunctionExitPoint(Value **First) {
   bool WroteFirst = false;
   if (NoLocals)
     return;
+  if (AbiLocals) {
+    // Only save registers that pass useful information from one function to the
+    // other.
+    for (unsigned I = ConvToDirective(Mips::A0); I <= ConvToDirective(Mips::A3);
+         ++I) {
+      Value *ld = Builder.CreateLoad(Regs[I]);
+      Builder.CreateStore(ld, GlobalRegs[I]);
+      if (!WroteFirst) {
+        WroteFirst = true;
+        if (First)
+          *First = GetFirstInstruction(*First, ld);
+      }
+    }
+    for (unsigned I = ConvToDirective(Mips::F12);
+         I <= ConvToDirective(Mips::F15); ++I) {
+      Builder.CreateStore(Builder.CreateLoad(Regs[I]), GlobalRegs[I]);
+    }
+    for (unsigned I = ConvToDirectiveDbl(Mips::F12);
+         I < ConvToDirectiveDbl(Mips::F16); ++I) {
+      Builder.CreateStore(Builder.CreateLoad(DblRegs[I]), DblGlobalRegs[I]);
+    }
+    for (unsigned I = ConvToDirective(Mips::V0); I <= ConvToDirective(Mips::V1);
+         ++I) {
+      Builder.CreateStore(Builder.CreateLoad(Regs[I]), GlobalRegs[I]);
+    }
+    Builder.CreateStore(Builder.CreateLoad(Regs[ConvToDirective(Mips::SP)]),
+                        GlobalRegs[ConvToDirective(Mips::SP)]);
+    Builder.CreateStore(Builder.CreateLoad(Regs[ConvToDirective(Mips::F0)]),
+                        GlobalRegs[ConvToDirective(Mips::F0)]);
+    Builder.CreateStore(
+        Builder.CreateLoad(DblRegs[ConvToDirectiveDbl(Mips::F0)]),
+        DblGlobalRegs[ConvToDirectiveDbl(Mips::F0)]);
+    return;
+  }
   for (int I = 1; I < 259; ++I) {
     Value *ld = Builder.CreateLoad(Regs[I]);
     Builder.CreateStore(ld, GlobalRegs[I]);
