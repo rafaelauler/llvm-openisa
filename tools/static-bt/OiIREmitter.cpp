@@ -949,7 +949,8 @@ void OiIREmitter::HandleFunctionEntryPoint(Value **First) {
   if (NoLocals)
     return;
   if (AbiLocals) {
-    for (unsigned I = ConvToDirective(Mips::V0); I <= ConvToDirective(Mips::V1); ++I) {
+    for (unsigned I = ConvToDirective(Mips::V0); I <= ConvToDirective(Mips::V1);
+         ++I) {
       Value *ld = Builder.CreateLoad(GlobalRegs[I]);
       Builder.CreateStore(ld, Regs[I]);
       if (!WroteFirst) {
@@ -997,6 +998,8 @@ void OiIREmitter::HandleFunctionExitPoint(Value **First) {
           *First = GetFirstInstruction(*First, ld);
       }
     }
+    Builder.CreateStore(Builder.CreateLoad(Regs[ConvToDirective(Mips::T0)]),
+                        GlobalRegs[ConvToDirective(Mips::T0)]);
     for (unsigned I = ConvToDirective(Mips::F12);
          I <= ConvToDirective(Mips::F15); ++I) {
       Builder.CreateStore(Builder.CreateLoad(Regs[I]), GlobalRegs[I]);
