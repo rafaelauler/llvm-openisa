@@ -552,15 +552,18 @@ bool OiInstTranslate::HandleAluDstOperand(const MCOperand &o, Value *&V) {
   return false;
 }
 
-bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
-                                       Value **First) {
+bool OiInstTranslate::HandleCallTarget(const MCOperand &o, const MCOperand &o2,
+                                       Value *&V, Value **First) {
+  assert(o2.isImm() && "Invalid count field in call instruction");
+  uint32_t Count = o2.getImm();
   if (o.isImm()) {
     if (o.getImm() != 0U) {
       uint64_t targetaddr;
       StringRef Unused;
       if (RelocReader.ResolveRelocation(targetaddr, nullptr, Unused, true))
-        return IREmitter.HandleLocalCall(o.getImm() + targetaddr, V, First);
-      return IREmitter.HandleLocalCall(o.getImm(), V, First);
+        return IREmitter.HandleLocalCall(o.getImm() + targetaddr, Count, V,
+                                         First);
+      return IREmitter.HandleLocalCall(o.getImm(), Count, V, First);
     } else { // Need to handle the relocation to find the correct jump address
       relocation_iterator ri = (*IREmitter.CurSection).relocation_end();
       StringRef val;
@@ -1539,7 +1542,7 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, Value *&V,
       uint64_t targetaddr;
       StringRef Unused;
       if (RelocReader.ResolveRelocation(targetaddr, nullptr, Unused, true))
-        return IREmitter.HandleLocalCall(targetaddr, V, First);
+        return IREmitter.HandleLocalCall(targetaddr, Count, V, First);
       outs() << "Error: Unrecognized library function call: " << val << ". ";
       outs() << "Consider adding it to OiInstTranslate::HandleCallTarget if "
                 "you want to support it.\n";
@@ -2967,8 +2970,11 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       llvm_unreachable("Failed to handle CALLR.");
       break;
     }
+    const MCOperand &o2 = MI->getOperand(1);
     if (!OneRegion) {
-      IREmitter.HandleFunctionExitPoint(&first);
+      assert(o2.isImm() && "Invalid count field in call instruction");
+      uint32_t Count = o2.getImm();
+      IREmitter.HandleFunctionExitPoint(Count, &first);
       Value *Dummy = Builder.CreateNeg(src);
       IREmitter.HandleFunctionEntryPoint();
       first = GetFirstInstruction(first, src, Dummy);
@@ -2991,7 +2997,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   case Mips::JAL: {
     DebugOut << "Handling CALL\n";
     Value *call, *first = 0;
-    if (HandleCallTarget(MI->getOperand(0), call, &first)) {
+    if (HandleCallTarget(MI->getOperand(0), MI->getOperand(1), call, &first)) {
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
     }
@@ -3037,7 +3043,7 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
       // the program is terminating, it is not neccessary.
       if (!NoLocals && !OneRegion &&
           Builder.GetInsertBlock()->getParent()->getName() != "main")
-        IREmitter.HandleFunctionExitPoint(&first);
+        IREmitter.HandleFunctionExitPoint(0, &first);
       Value *v = Builder.CreateRetVoid();
       if (!first)
         first = v;

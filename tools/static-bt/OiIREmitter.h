@@ -140,7 +140,8 @@ public:
   bool HandleLocalCallOneRegion(uint64_t Addr, Value *&V, Value **First = 0);
   std::vector<uint32_t> GetCallSitesFor(uint32_t FuncAddr);
   bool BuildReturns();
-  bool HandleLocalCall(uint64_t Addr, Value *&V, Value **First = 0);
+  bool HandleLocalCall(uint64_t Addr, uint32_t Count, Value *&V,
+                       Value **First = 0);
   Value *HandleGetFunctionAddr(uint64_t Addr);
   Value *AccessSpillMemory(unsigned Idx, bool IsLoad);
   Value *AccessShadowMemory(Value *Idx, bool IsLoad, int width = 32,
@@ -153,7 +154,7 @@ public:
   void StartFunction(StringRef N, uint64_t Addr);
   void StartMainFunction(uint64_t Addr);
   void HandleFunctionEntryPoint(Value **First = 0);
-  void HandleFunctionExitPoint(Value **First = 0);
+  void HandleFunctionExitPoint(uint32_t Count, Value **First = 0);
   void FixEntryBB();
   void FixBBTerminators();
   void FixEntryPoint();

@@ -981,15 +981,18 @@ void OiIREmitter::HandleFunctionEntryPoint(Value **First) {
   }
 }
 
-void OiIREmitter::HandleFunctionExitPoint(Value **First) {
+void OiIREmitter::HandleFunctionExitPoint(uint32_t Count, Value **First) {
   bool WroteFirst = false;
   if (NoLocals)
     return;
   if (AbiLocals) {
     // Only save registers that pass useful information from one function to the
     // other.
+    uint32_t ArgsSaved = 0;
     for (unsigned I = ConvToDirective(Mips::A0); I <= ConvToDirective(Mips::A3);
          ++I) {
+      if (++ArgsSaved > Count)
+        break;
       Value *ld = Builder.CreateLoad(Regs[I]);
       Builder.CreateStore(ld, GlobalRegs[I]);
       if (!WroteFirst) {
@@ -998,14 +1001,25 @@ void OiIREmitter::HandleFunctionExitPoint(Value **First) {
           *First = GetFirstInstruction(*First, ld);
       }
     }
-    Builder.CreateStore(Builder.CreateLoad(Regs[ConvToDirective(Mips::T0)]),
-                        GlobalRegs[ConvToDirective(Mips::T0)]);
+    Value *LdIns = Builder.CreateLoad(Regs[ConvToDirective(Mips::T0)]);
+    Builder.CreateStore(LdIns, GlobalRegs[ConvToDirective(Mips::T0)]);
+    if (!WroteFirst) {
+      WroteFirst = true;
+      if (First)
+        *First = GetFirstInstruction(*First, LdIns);
+    }
+    ArgsSaved = 0;
     for (unsigned I = ConvToDirective(Mips::F12);
          I <= ConvToDirective(Mips::F15); ++I) {
+      if (++ArgsSaved > Count)
+        break;
       Builder.CreateStore(Builder.CreateLoad(Regs[I]), GlobalRegs[I]);
     }
+    ArgsSaved = 0;
     for (unsigned I = ConvToDirectiveDbl(Mips::F12);
          I < ConvToDirectiveDbl(Mips::F16); ++I) {
+      if (++ArgsSaved > Count)
+        break;
       Builder.CreateStore(Builder.CreateLoad(DblRegs[I]), DblGlobalRegs[I]);
     }
     for (unsigned I = ConvToDirective(Mips::V0); I <= ConvToDirective(Mips::V1);
@@ -1278,13 +1292,14 @@ bool OiIREmitter::HandleLocalCallOneRegion(uint64_t Addr, Value *&V,
   return true;
 }
 
-bool OiIREmitter::HandleLocalCall(uint64_t Addr, Value *&V, Value **First) {
+bool OiIREmitter::HandleLocalCall(uint64_t Addr, uint32_t Count, Value *&V,
+                                  Value **First) {
   if (OneRegion)
     return HandleLocalCallOneRegion(Addr, V, First);
 
   std::string Name = Twine("a").concat(Twine::utohexstr(Addr)).str();
   StringRef NameRef(Name);
-  HandleFunctionExitPoint(First);
+  HandleFunctionExitPoint(Count, First);
   FunctionType *ft = FunctionType::get(Type::getVoidTy(getGlobalContext()),
                                        /*isvararg*/ false);
   Value *fun = TheModule->getOrInsertFunction(NameRef, ft);
