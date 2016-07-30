@@ -749,7 +749,7 @@ void OiIREmitter::BuildLocalRegisterFile() {
     for (int I = 1; I < 259; ++I) {
       Regs[I] = GlobalRegs[I];
     }
-    for (int I = 0; I < 64; ++I) {
+    for (int I = 0; I < 32; ++I) {
       DblRegs[I] = DblGlobalRegs[I];
     }
   } else {
@@ -767,7 +767,7 @@ void OiIREmitter::BuildLocalRegisterFile() {
       WriteMap[I] = false;
       ReadMap[I] = false;
     }
-    for (int I = 0; I < 64; ++I) {
+    for (int I = 0; I < 32; ++I) {
       AllocaInst *inst = Builder.CreateAlloca(dblTy, 0, "ldblreg");
       DblRegs[I] = inst;
       Builder.CreateStore(Builder.CreateLoad(DblGlobalRegs[I]), inst);
@@ -976,7 +976,7 @@ void OiIREmitter::HandleFunctionEntryPoint(Value **First) {
         *First = GetFirstInstruction(*First, ld);
     }
   }
-  for (int I = 0; I < 64; ++I) {
+  for (int I = 0; I < 32; ++I) {
     Builder.CreateStore(Builder.CreateLoad(DblGlobalRegs[I]), DblRegs[I]);
   }
 }
@@ -1008,6 +1008,8 @@ void OiIREmitter::HandleFunctionExitPoint(uint32_t Count, Value **First) {
       if (First)
         *First = GetFirstInstruction(*First, LdIns);
     }
+    Builder.CreateStore(Builder.CreateLoad(Regs[ConvToDirective(Mips::T1)]),
+                        GlobalRegs[ConvToDirective(Mips::T1)]);
     ArgsSaved = 0;
     for (unsigned I = ConvToDirective(Mips::F12);
          I <= ConvToDirective(Mips::F15); ++I) {
@@ -1016,8 +1018,8 @@ void OiIREmitter::HandleFunctionExitPoint(uint32_t Count, Value **First) {
       Builder.CreateStore(Builder.CreateLoad(Regs[I]), GlobalRegs[I]);
     }
     ArgsSaved = 0;
-    for (unsigned I = ConvToDirectiveDbl(Mips::F12);
-         I < ConvToDirectiveDbl(Mips::F16); ++I) {
+    for (unsigned I = ConvToDirectiveDbl(Mips::D6);
+         I < ConvToDirectiveDbl(Mips::D8); I += 1) {
       if (++ArgsSaved > Count)
         break;
       Builder.CreateStore(Builder.CreateLoad(DblRegs[I]), DblGlobalRegs[I]);
@@ -1033,6 +1035,9 @@ void OiIREmitter::HandleFunctionExitPoint(uint32_t Count, Value **First) {
     Builder.CreateStore(
         Builder.CreateLoad(DblRegs[ConvToDirectiveDbl(Mips::F0)]),
         DblGlobalRegs[ConvToDirectiveDbl(Mips::F0)]);
+    Builder.CreateStore(
+        Builder.CreateLoad(DblRegs[ConvToDirectiveDbl(Mips::D1)]),
+        DblGlobalRegs[ConvToDirectiveDbl(Mips::D1)]);
     return;
   }
   for (int I = 1; I < 259; ++I) {
@@ -1044,7 +1049,7 @@ void OiIREmitter::HandleFunctionExitPoint(uint32_t Count, Value **First) {
         *First = GetFirstInstruction(*First, ld);
     }
   }
-  for (int I = 0; I < 64; ++I) {
+  for (int I = 0; I < 32; I += 1) {
     Builder.CreateStore(Builder.CreateLoad(DblRegs[I]), DblGlobalRegs[I]);
   }
 }
@@ -1122,7 +1127,7 @@ void OiIREmitter::CleanRegs() {
       }
     }
   }
-  for (int I = 0; I < 64; ++I) {
+  for (int I = 0; I < 32; ++I) {
     if (!(DblWriteMap[I] || DblReadMap[I])) {
       Instruction *inst = dyn_cast<Instruction>(DblRegs[I]);
       if (inst) {
