@@ -83,32 +83,10 @@ MipsSETargetLowering::MipsSETargetLowering(const MipsTargetMachine &TM,
   if (Subtarget.hasDSPR2())
     setOperationAction(ISD::MUL, MVT::v2i16, Legal);
 
-  if (Subtarget.hasMSA()) {
-    addMSAIntType(MVT::v16i8, &Mips::MSA128BRegClass);
-    addMSAIntType(MVT::v8i16, &Mips::MSA128HRegClass);
-    addMSAIntType(MVT::v4i32, &Mips::MSA128WRegClass);
-    addMSAIntType(MVT::v2i64, &Mips::MSA128DRegClass);
-    addMSAFloatType(MVT::v8f16, &Mips::MSA128HRegClass);
-    addMSAFloatType(MVT::v4f32, &Mips::MSA128WRegClass);
-    addMSAFloatType(MVT::v2f64, &Mips::MSA128DRegClass);
-
-    setTargetDAGCombine(ISD::AND);
-    setTargetDAGCombine(ISD::OR);
-    setTargetDAGCombine(ISD::SRA);
-    setTargetDAGCombine(ISD::VSELECT);
-    setTargetDAGCombine(ISD::XOR);
-  }
-
   if (!Subtarget.abiUsesSoftFloat()) {
     addRegisterClass(MVT::f32, &Mips::FGR32RegClass);
 
-    // When dealing with single precision only, use libcalls
-    if (!Subtarget.isSingleFloat()) {
-      if (Subtarget.isFP64bit())
-        addRegisterClass(MVT::f64, &Mips::FGR64RegClass);
-      else
-        addRegisterClass(MVT::f64, &Mips::AFGR64RegClass);
-    }
+    addRegisterClass(MVT::f64, &Mips::AFGR64RegClass);
   }
 
   setOperationAction(ISD::SMUL_LOHI,          MVT::i32, Custom);

@@ -1345,34 +1345,6 @@ MipsTargetLowering::emitAtomicCmpSwapPartword(MachineInstr *MI,
   return exitMBB;
 }
 
-MachineBasicBlock *MipsTargetLowering::emitSEL_D(MachineInstr *MI,
-                                                 MachineBasicBlock *BB) const {
-  MachineFunction *MF = BB->getParent();
-  const TargetRegisterInfo *TRI =
-      getTargetMachine().getSubtargetImpl()->getRegisterInfo();
-  const TargetInstrInfo *TII =
-      getTargetMachine().getSubtargetImpl()->getInstrInfo();
-  MachineRegisterInfo &RegInfo = MF->getRegInfo();
-  DebugLoc DL = MI->getDebugLoc();
-  MachineBasicBlock::iterator II(MI);
-
-  unsigned Fc = MI->getOperand(1).getReg();
-  const auto &FGR64RegClass = TRI->getRegClass(Mips::FGR64RegClassID);
-
-  unsigned Fc2 = RegInfo.createVirtualRegister(FGR64RegClass);
-
-  BuildMI(*BB, II, DL, TII->get(Mips::SUBREG_TO_REG), Fc2)
-      .addImm(0)
-      .addReg(Fc)
-      .addImm(Mips::sub_lo);
-
-  // We don't erase the original instruction, we just replace the condition
-  // register with the 64-bit super-register.
-  MI->getOperand(1).setReg(Fc2);
-
-  return BB;
-}
-
 //===----------------------------------------------------------------------===//
 //  Misc Lower Operation implementation
 //===----------------------------------------------------------------------===//
@@ -2207,8 +2179,9 @@ static bool CC_MipsO32(unsigned ValNo, MVT ValVT, MVT LocVT,
   // f32 and f64 are allocated in A0, A1, A2, A3 when either of the following
   // is true: function is vararg, argument is 3rd or higher, there is previous
   // argument which is not f32 or f64.
-  bool AllocateFloatsInIntReg = State.isVarArg() || ValNo > 1
-      || State.getFirstUnallocated(F32Regs, FloatRegsSize) != ValNo;
+  bool AllocateFloatsInIntReg =
+      State.isVarArg() || ValNo > 1 ||
+      State.getFirstUnallocated(F32Regs, FloatRegsSize) != ValNo;
   unsigned OrigAlign = ArgFlags.getOrigAlign();
   bool isI64 = (ValVT == MVT::i32 && OrigAlign == 8);
 
@@ -2233,8 +2206,12 @@ static bool CC_MipsO32(unsigned ValNo, MVT ValVT, MVT LocVT,
       Reg = State.AllocateReg(F32Regs, FloatRegsSize);
       // Shadow int register
       State.AllocateReg(IntRegs, IntRegsSize);
+      // Shadow double register
+      State.AllocateReg(F64Regs, FloatRegsSize);
     } else {
       Reg = State.AllocateReg(F64Regs, FloatRegsSize);
+      // Shadow float register
+      State.AllocateReg(F32Regs, FloatRegsSize);
       // Shadow int registers
       unsigned Reg2 = State.AllocateReg(IntRegs, IntRegsSize);
       if (Reg2 == Mips::A1 || Reg2 == Mips::A3)
@@ -2258,14 +2235,6 @@ static bool CC_MipsO32_FP32(unsigned ValNo, MVT ValVT,
                             MVT LocVT, CCValAssign::LocInfo LocInfo,
                             ISD::ArgFlagsTy ArgFlags, CCState &State) {
   static const MCPhysReg F64Regs[] = { Mips::D6, Mips::D7 };
-
-  return CC_MipsO32(ValNo, ValVT, LocVT, LocInfo, ArgFlags, State, F64Regs);
-}
-
-static bool CC_MipsO32_FP64(unsigned ValNo, MVT ValVT,
-                            MVT LocVT, CCValAssign::LocInfo LocInfo,
-                            ISD::ArgFlagsTy ArgFlags, CCState &State) {
-  static const MCPhysReg F64Regs[] = { Mips::D12_64, Mips::D14_64 };
 
   return CC_MipsO32(ValNo, ValVT, LocVT, LocInfo, ArgFlags, State, F64Regs);
 }
@@ -3135,29 +3104,6 @@ parseRegForInlineAsmConstraint(StringRef C, MVT VT) const {
     RC = TRI->getRegClass(Prefix == "hi" ?
                           Mips::HI32RegClassID : Mips::LO32RegClassID);
     return std::make_pair(*(RC->begin()), RC);
-  } else if (Prefix.compare(0, 4, "$msa") == 0) {
-    // Parse $msa(ir|csr|access|save|modify|request|map|unmap)
-
-    // No numeric characters follow the name.
-    if (R.second)
-      return std::make_pair(0U, nullptr);
-
-    Reg = StringSwitch<unsigned long long>(Prefix)
-              .Case("$msair", Mips::MSAIR)
-              .Case("$msacsr", Mips::MSACSR)
-              .Case("$msaaccess", Mips::MSAAccess)
-              .Case("$msasave", Mips::MSASave)
-              .Case("$msamodify", Mips::MSAModify)
-              .Case("$msarequest", Mips::MSARequest)
-              .Case("$msamap", Mips::MSAMap)
-              .Case("$msaunmap", Mips::MSAUnmap)
-              .Default(0);
-
-    if (!Reg)
-      return std::make_pair(0U, nullptr);
-
-    RC = TRI->getRegClass(Mips::MSACtrlRegClassID);
-    return std::make_pair(Reg, RC);
   }
 
   if (!R.second)
@@ -3211,19 +3157,9 @@ getRegForInlineAsmConstraint(const std::string &Constraint, MVT VT) const
       // This will generate an error message
       return std::make_pair(0U, nullptr);
     case 'f': // FPU or MSA register
-      if (VT == MVT::v16i8)
-        return std::make_pair(0U, &Mips::MSA128BRegClass);
-      else if (VT == MVT::v8i16 || VT == MVT::v8f16)
-        return std::make_pair(0U, &Mips::MSA128HRegClass);
-      else if (VT == MVT::v4i32 || VT == MVT::v4f32)
-        return std::make_pair(0U, &Mips::MSA128WRegClass);
-      else if (VT == MVT::v2i64 || VT == MVT::v2f64)
-        return std::make_pair(0U, &Mips::MSA128DRegClass);
-      else if (VT == MVT::f32)
+      if (VT == MVT::f32)
         return std::make_pair(0U, &Mips::FGR32RegClass);
       else if ((VT == MVT::f64) && (!Subtarget.isSingleFloat())) {
-        if (Subtarget.isFP64bit())
-          return std::make_pair(0U, &Mips::FGR64RegClass);
         return std::make_pair(0U, &Mips::AFGR64RegClass);
       }
       break;

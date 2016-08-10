@@ -51,22 +51,12 @@ class Mips64GPRReg<bits<16> Enc, string n, list<Register> subregs>
 class FPR<bits<16> Enc, string n> : MipsReg<Enc, n>;
 
 // Mips 64-bit (aliased) FPU Registers
-class AFPR<bits<16> Enc, string n, list<Register> subregs>
-  : MipsRegWithSubRegs<Enc, n, subregs> {
-  let SubRegIndices = [sub_lo, sub_hi];
-  let CoveredBySubRegs = 1;
-}
+class AFPR<bits<16> Enc, string n> : MipsReg<Enc, n>;
 
 class AFPR64<bits<16> Enc, string n, list<Register> subregs>
   : MipsRegWithSubRegs<Enc, n, subregs> {
   let SubRegIndices = [sub_lo, sub_hi];
   let CoveredBySubRegs = 1;
-}
-
-// Mips 128-bit (aliased) MSA Registers
-class AFPR128<bits<16> Enc, string n, list<Register> subregs>
-  : MipsRegWithSubRegs<Enc, n, subregs> {
-  let SubRegIndices = [sub_64];
 }
 
 // Accumulator Registers
@@ -158,27 +148,10 @@ let Namespace = "Mips" in {
   foreach I = 0-63 in
   def F#I : FPR<I, "f"#I>, DwarfRegNum<[!add(I, 64)]>;
 
-  // Higher half of 64-bit FP registers.
-  foreach I = 0-63 in
-  def F_HI#I : FPR<I, "f"#I>, DwarfRegNum<[!add(I, 66)]>;
-
   /// Mips Double point precision FPU Registers (aliased
   /// with the single precision to hold 64 bit values)
   foreach I = 0-31 in
-  def D#I : AFPR<!shl(I, 1), "f"#!shl(I, 1),
-                 [!cast<FPR>("F"#!shl(I, 1)),
-                  !cast<FPR>("F"#!add(!shl(I, 1), 1))]>;
-
-  /// Mips Double point precision FPU Registers in MFP64 mode.
-  foreach I = 0-63 in
-  def D#I#_64 : AFPR64<I, "f"#I, [!cast<FPR>("F"#I), !cast<FPR>("F_HI"#I)]>,
-                DwarfRegNum<[!add(I, 32)]>;
-
-  /// Mips MSA registers
-  /// MSA and FPU cannot both be present unless the FPU has 64-bit registers
-  foreach I = 0-31 in
-  def W#I : AFPR128<I, "w"#I, [!cast<AFPR64>("D"#I#"_64")]>,
-            DwarfRegNum<[!add(I, 32)]>;
+  def D#I : FPR<I, "d"#I>, DwarfRegNum<[!add(I,128)]>;
 
   // Hi/Lo registers
   def HI0 : MipsReg<0, "ac0">, DwarfRegNum<[64]>;
@@ -247,16 +220,6 @@ let Namespace = "Mips" in {
   def DSPOutFlag : RegisterWithSubRegs<"", [DSPOutFlag16_19, DSPOutFlag20,
                                             DSPOutFlag21, DSPOutFlag22,
                                             DSPOutFlag23]>;
-
-  // MSA-ASE control registers.
-  def MSAIR      : MipsReg<0, "0">;
-  def MSACSR     : MipsReg<1, "1">;
-  def MSAAccess  : MipsReg<2, "2">;
-  def MSASave    : MipsReg<3, "3">;
-  def MSAModify  : MipsReg<4, "4">;
-  def MSARequest : MipsReg<5, "5">;
-  def MSAMap     : MipsReg<6, "6">;
-  def MSAUnmap   : MipsReg<7, "7">;
 
   // Octeon multiplier and product registers
   def MPL0 : MipsReg<0, "mpl0">;
@@ -349,9 +312,6 @@ def CPUSPReg : RegisterClass<"Mips", [i32], 32, (add SP)>, Unallocatable;
 // * FGR32 - 32 32-bit registers (single float only mode)
 def FGR32 : RegisterClass<"Mips", [f32], 32, (sequence "F%u", 0, 63)>;
 
-def FGRH32 : RegisterClass<"Mips", [f32], 32, (sequence "F_HI%u", 0, 63)>,
-             Unallocatable;
-
 def AFGR64 : RegisterClass<"Mips", [f64], 64, (add
   // Return Values and Arguments
   D0, D1,
@@ -366,17 +326,6 @@ def AFGR64 : RegisterClass<"Mips", [f64], 64, (add
   D16, D17, D18, D19, D20, D21, D22, D23, D24, D25, D26, D27, D28, D29,
   D30, D31)>;
 
-def FGR64 : RegisterClass<"Mips", [f64], 64, (sequence "D%u_64", 0, 63)>;
-
-// Used to reserve odd registers when given -mattr=+nooddspreg
-// FIXME: Remove double precision registers from this set.
-def OddSP : RegisterClass<"Mips", [f32], 32,
-                          (add (decimate (sequence "F%u", 1, 31), 2),
-                               (decimate (sequence "F_HI%u", 1, 31), 2),
-                               (decimate (sequence "D%u", 1, 15), 2),
-                               (decimate (sequence "D%u_64", 1, 31), 2))>,
-            Unallocatable;
-
 // FP control registers.
 def CCR : RegisterClass<"Mips", [i32], 32, (sequence "FCR%u", 0, 31)>,
           Unallocatable;
@@ -388,18 +337,6 @@ def FCC : RegisterClass<"Mips", [i32], 32, (sequence "FCC%u", 0, 7)>,
 // MIPS32r6/MIPS64r6 store FPU condition codes in normal FGR registers.
 // This class allows us to represent this in codegen patterns.
 def FGRCC : RegisterClass<"Mips", [i32], 32, (sequence "F%u", 0, 31)>;
-
-def MSA128B: RegisterClass<"Mips", [v16i8], 128,
-                           (sequence "W%u", 0, 31)>;
-def MSA128H: RegisterClass<"Mips", [v8i16, v8f16], 128,
-                           (sequence "W%u", 0, 31)>;
-def MSA128W: RegisterClass<"Mips", [v4i32, v4f32], 128,
-                           (sequence "W%u", 0, 31)>;
-def MSA128D: RegisterClass<"Mips", [v2i64, v2f64], 128,
-                           (sequence "W%u", 0, 31)>;
-
-def MSACtrl: RegisterClass<"Mips", [i32], 32, (add
-  MSAIR, MSACSR, MSAAccess, MSASave, MSAModify, MSARequest, MSAMap, MSAUnmap)>;
 
 // Hi/Lo Registers
 def LO32 : RegisterClass<"Mips", [i32], 32, (add LO0)>;
@@ -511,14 +448,6 @@ def FCCRegsAsmOperand : MipsAsmRegOperand {
   let Name = "FCCAsmReg";
 }
 
-def MSA128AsmOperand : MipsAsmRegOperand {
-  let Name = "MSA128AsmReg";
-}
-
-def MSACtrlAsmOperand : MipsAsmRegOperand {
-  let Name = "MSACtrlAsmReg";
-}
-
 def GPR32Opnd : RegisterOperand<GPR32> {
   let ParserMatchClass = GPR32AsmOperand;
 }
@@ -563,10 +492,6 @@ def AFGR64Opnd : RegisterOperand<AFGR64> {
   let ParserMatchClass = AFGR64AsmOperand;
 }
 
-def FGR64Opnd : RegisterOperand<FGR64> {
-  let ParserMatchClass = FGR64AsmOperand;
-}
-
 def FGR32Opnd : RegisterOperand<FGR32> {
   let ParserMatchClass = FGR32AsmOperand;
 }
@@ -575,10 +500,6 @@ def FGRCCOpnd : RegisterOperand<FGRCC> {
   // The assembler doesn't use register classes so we can re-use
   // FGR32AsmOperand.
   let ParserMatchClass = FGR32AsmOperand;
-}
-
-def FGRH32Opnd : RegisterOperand<FGRH32> {
-  let ParserMatchClass = FGRH32AsmOperand;
 }
 
 def FCCRegsOpnd : RegisterOperand<FCC> {
@@ -605,22 +526,3 @@ def COP3Opnd : RegisterOperand<COP3> {
   let ParserMatchClass = COP3AsmOperand;
 }
 
-def MSA128BOpnd : RegisterOperand<MSA128B> {
-  let ParserMatchClass = MSA128AsmOperand;
-}
-
-def MSA128HOpnd : RegisterOperand<MSA128H> {
-  let ParserMatchClass = MSA128AsmOperand;
-}
-
-def MSA128WOpnd : RegisterOperand<MSA128W> {
-  let ParserMatchClass = MSA128AsmOperand;
-}
-
-def MSA128DOpnd : RegisterOperand<MSA128D> {
-  let ParserMatchClass = MSA128AsmOperand;
-}
-
-def MSA128CROpnd : RegisterOperand<MSACtrl> {
-  let ParserMatchClass = MSACtrlAsmOperand;
-}

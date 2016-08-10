@@ -71,8 +71,6 @@ MipsRegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
     return 64;
   case Mips::AFGR64RegClassID:
     return 32;
-  case Mips::FGR64RegClassID:
-    return 32;
   }
 }
 
@@ -86,15 +84,6 @@ MipsRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   if (Subtarget.isSingleFloat())
     return CSR_SingleFloatOnly_SaveList;
 
-  if (Subtarget.isABI_N64())
-    return CSR_N64_SaveList;
-
-  if (Subtarget.isABI_N32())
-    return CSR_N32_SaveList;
-
-  if (Subtarget.isFP64bit())
-    return CSR_O32_FP64_SaveList;
-
   if (Subtarget.isFPXX())
     return CSR_O32_FPXX_SaveList;
 
@@ -105,15 +94,6 @@ const uint32_t*
 MipsRegisterInfo::getCallPreservedMask(CallingConv::ID) const {
   if (Subtarget.isSingleFloat())
     return CSR_SingleFloatOnly_RegMask;
-
-  if (Subtarget.isABI_N64())
-    return CSR_N64_RegMask;
-
-  if (Subtarget.isABI_N32())
-    return CSR_N32_RegMask;
-
-  if (Subtarget.isFP64bit())
-    return CSR_O32_FP64_RegMask;
 
   if (Subtarget.isFPXX())
     return CSR_O32_FPXX_RegMask;
@@ -136,7 +116,6 @@ getReservedRegs(const MachineFunction &MF) const {
   };
 
   BitVector Reserved(getNumRegs());
-  typedef TargetRegisterClass::const_iterator RegIter;
 
   for (unsigned I = 0; I < array_lengthof(ReservedGPR32); ++I)
     Reserved.set(ReservedGPR32[I]);
@@ -157,17 +136,6 @@ getReservedRegs(const MachineFunction &MF) const {
     Reserved.set(Mips::GP_64);
   }
 
-  if (Subtarget.isFP64bit()) {
-    // Reserve all registers in AFGR64.
-    for (RegIter Reg = Mips::AFGR64RegClass.begin(),
-         EReg = Mips::AFGR64RegClass.end(); Reg != EReg; ++Reg)
-      Reserved.set(*Reg);
-  } else {
-    // Reserve all registers in FGR64.
-    for (RegIter Reg = Mips::FGR64RegClass.begin(),
-         EReg = Mips::FGR64RegClass.end(); Reg != EReg; ++Reg)
-      Reserved.set(*Reg);
-  }
   // Reserve FP if this function should have a dedicated frame pointer register.
   if (MF.getSubtarget().getFrameLowering()->hasFP(MF)) {
     if (Subtarget.inMips16Mode())
@@ -188,16 +156,6 @@ getReservedRegs(const MachineFunction &MF) const {
   Reserved.set(Mips::DSPEFI);
   Reserved.set(Mips::DSPOutFlag);
 
-  // Reserve MSA control registers.
-  Reserved.set(Mips::MSAIR);
-  Reserved.set(Mips::MSACSR);
-  Reserved.set(Mips::MSAAccess);
-  Reserved.set(Mips::MSASave);
-  Reserved.set(Mips::MSAModify);
-  Reserved.set(Mips::MSARequest);
-  Reserved.set(Mips::MSAMap);
-  Reserved.set(Mips::MSAUnmap);
-
   // Reserve RA if in mips16 mode.
   if (Subtarget.inMips16Mode()) {
     const MipsFunctionInfo *MipsFI = MF.getInfo<MipsFunctionInfo>();
@@ -213,11 +171,6 @@ getReservedRegs(const MachineFunction &MF) const {
   if (Subtarget.useSmallSection()) {
     Reserved.set(Mips::GP);
     Reserved.set(Mips::GP_64);
-  }
-
-  if (Subtarget.isABI_O32() && !Subtarget.useOddSPReg()) {
-    for (const auto &Reg : Mips::OddSPRegClass)
-      Reserved.set(Reg);
   }
 
   return Reserved;

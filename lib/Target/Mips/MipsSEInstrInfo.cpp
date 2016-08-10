@@ -42,10 +42,9 @@ unsigned MipsSEInstrInfo::isLoadFromStackSlot(const MachineInstr *MI,
                                               int &FrameIndex) const {
   unsigned Opc = MI->getOpcode();
 
-  if ((Opc == Mips::LW)   ||// (Opc == Mips::LD)   ||
-      (Opc == Mips::LWC1) || (Opc == Mips::LDC1)) { //|| (Opc == Mips::LDC164)) {
-    if ((MI->getOperand(1).isFI()) && // is a stack slot
-        (MI->getOperand(2).isImm()) &&  // the imm is zero
+  if ((Opc == Mips::LW) || (Opc == Mips::LWC1) || (Opc == Mips::LDC1)) {
+    if ((MI->getOperand(1).isFI()) &&  // is a stack slot
+        (MI->getOperand(2).isImm()) && // the imm is zero
         (isZeroImm(MI->getOperand(2)))) {
       FrameIndex = MI->getOperand(1).getIndex();
       return MI->getOperand(0).getReg();
@@ -64,10 +63,9 @@ unsigned MipsSEInstrInfo::isStoreToStackSlot(const MachineInstr *MI,
                                              int &FrameIndex) const {
   unsigned Opc = MI->getOpcode();
 
-  if ((Opc == Mips::SW)   ||// (Opc == Mips::SD)   ||
-      (Opc == Mips::SWC1) || (Opc == Mips::SDC1)){// || (Opc == Mips::SDC164)) {
-    if ((MI->getOperand(1).isFI()) && // is a stack slot
-        (MI->getOperand(2).isImm()) &&  // the imm is zero
+  if ((Opc == Mips::SW) || (Opc == Mips::SWC1) || (Opc == Mips::SDC1)) {
+    if ((MI->getOperand(1).isFI()) &&  // is a stack slot
+        (MI->getOperand(2).isImm()) && // the imm is zero
         (isZeroImm(MI->getOperand(2)))) {
       FrameIndex = MI->getOperand(1).getIndex();
       return MI->getOperand(0).getReg();
@@ -84,93 +82,19 @@ void MipsSEInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 
   if (Mips::GPR32RegClass.contains(DestReg)) { // Copy to CPU Reg.
     if (Mips::GPR32RegClass.contains(SrcReg)) {
-      //      if (isMicroMips)
-      //        Opc = Mips::MOVE16_MM;
-      //      else
-        Opc = Mips::ADDu, ZeroReg = Mips::ZERO;
-    } else if (Mips::CCRRegClass.contains(SrcReg)) {
-      llvm_unreachable("Shouldn't copy control regs!\n");
-      //      Opc = Mips::CFC1;
-    } else if (Mips::FGR32RegClass.contains(SrcReg))
+      Opc = Mips::ADDu, ZeroReg = Mips::ZERO;
+    } else if (Mips::FGR32RegClass.contains(SrcReg)) {
       Opc = Mips::MFC1;
-    else if (Mips::HI32RegClass.contains(SrcReg)) {
-      //      Opc = isMicroMips ? Mips::MFHI16_MM : Mips::MFHI;
-      llvm_unreachable("Shouldn't copy from HI registers!\n");
-      SrcReg = 0;
-    } else if (Mips::LO32RegClass.contains(SrcReg)) {
-      //      Opc = isMicroMips ? Mips::MFLO16_MM : Mips::MFLO;
-      llvm_unreachable("Shouldn't copy from LO registers!\n");
-      SrcReg = 0;
     }
-      //    } else if (Mips::HI32DSPRegClass.contains(SrcReg))
-      //      Opc = Mips::MFHI_DSP;
-      //    else if (Mips::LO32DSPRegClass.contains(SrcReg))
-      //      Opc = Mips::MFLO_DSP;
-//    else if (Mips::DSPCCRegClass.contains(SrcReg)) {
-//      BuildMI(MBB, I, DL, get(Mips::RDDSP), DestReg).addImm(1 << 4)
-//        .addReg(SrcReg, RegState::Implicit | getKillRegState(KillSrc));
-//      return;
-//    }
-//    else if (Mips::MSACtrlRegClass.contains(SrcReg))
-//      Opc = Mips::CFCMSA;
-  }
-  else if (Mips::GPR32RegClass.contains(SrcReg)) { // Copy from CPU Reg.
-    if (Mips::CCRRegClass.contains(DestReg))
-      //    Opc = Mips::CTC1;
-      llvm_unreachable("CTC1 unimplemented...\n");
-    else if (Mips::FGR32RegClass.contains(DestReg))
+  } else if (Mips::GPR32RegClass.contains(SrcReg)) { // Copy from CPU Reg.
+    if (Mips::FGR32RegClass.contains(DestReg)) {
       Opc = Mips::MTC1;
-    else if (Mips::HI32RegClass.contains(DestReg))
-      llvm_unreachable("acc regs unimplemented...\n");
-      //      Opc = Mips::MTHI, DestReg = 0;
-    else if (Mips::LO32RegClass.contains(DestReg))
-      llvm_unreachable("acc regs unimplemented...\n");
-    //      Opc = Mips::MTLO, DestReg = 0;
-    else if (Mips::HI32DSPRegClass.contains(DestReg))
-      llvm_unreachable("acc regs unimplemented...\n");
-    //      Opc = Mips::MTHI_DSP;
-    else if (Mips::LO32DSPRegClass.contains(DestReg))
-      llvm_unreachable("acc regs unimplemented...\n");
-    //      Opc = Mips::MTLO_DSP;
-    else if (Mips::DSPCCRegClass.contains(DestReg)) {
-      llvm_unreachable("acc regs unimplemented...\n");
-//      BuildMI(MBB, I, DL, get(Mips::WRDSP))
-//        .addReg(SrcReg, getKillRegState(KillSrc)).addImm(1 << 4)
-//        .addReg(DestReg, RegState::ImplicitDefine);
-//      return;
     }
-    else if (Mips::MSACtrlRegClass.contains(DestReg))
-      llvm_unreachable("acc regs unimplemented...\n");
-    //      Opc = Mips::CTCMSA;
-  }
-  else if (Mips::FGR32RegClass.contains(DestReg, SrcReg))
+  } else if (Mips::FGR32RegClass.contains(DestReg, SrcReg)) {
     Opc = Mips::FMOV_S;
-  else if (Mips::AFGR64RegClass.contains(DestReg, SrcReg))
+  } else if (Mips::AFGR64RegClass.contains(DestReg, SrcReg)) {
     Opc = Mips::FMOV_D32;
-    //  else if (Mips::FGR64RegClass.contains(DestReg, SrcReg))
-    //    Opc = Mips::FMOV_D64;
-//  else if (Mips::GPR64RegClass.contains(DestReg)) { // Copy to CPU64 Reg.
-//    if (Mips::GPR64RegClass.contains(SrcReg))
-//      Opc = Mips::DADDu, ZeroReg = Mips::ZERO_64;
-//    else if (Mips::HI64RegClass.contains(SrcReg))
-//      Opc = Mips::MFHI64, SrcReg = 0;
-//    else if (Mips::LO64RegClass.contains(SrcReg))
-//      Opc = Mips::MFLO64, SrcReg = 0;
-//    else if (Mips::FGR64RegClass.contains(SrcReg))
-//      Opc = Mips::DMFC1;
-//  }
-//  else if (Mips::GPR64RegClass.contains(SrcReg)) { // Copy from CPU64 Reg.
-//    if (Mips::HI64RegClass.contains(DestReg))
-//      Opc = Mips::MTHI64, DestReg = 0;
-//    else if (Mips::LO64RegClass.contains(DestReg))
-//      Opc = Mips::MTLO64, DestReg = 0;
-//    else if (Mips::FGR64RegClass.contains(DestReg))
-//      Opc = Mips::DMTC1;
-//  }
-//  else if (Mips::MSA128BRegClass.contains(DestReg)) { // Copy to MSA reg
-//    if (Mips::MSA128BRegClass.contains(SrcReg))
-//      Opc = Mips::MOVE_V;
-//  }
+  }
 
   assert(Opc && "Cannot copy registers");
 
@@ -199,30 +123,10 @@ storeRegToStack(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 
   if (Mips::GPR32RegClass.hasSubClassEq(RC))
     Opc = Mips::SW;
-//  else if (Mips::GPR64RegClass.hasSubClassEq(RC))
-//    Opc = Mips::SD;
-//  else if (Mips::ACC64RegClass.hasSubClassEq(RC))
-//    Opc = Mips::STORE_ACC64;
-//  else if (Mips::ACC64DSPRegClass.hasSubClassEq(RC))
-//    Opc = Mips::STORE_ACC64DSP;
-//  else if (Mips::ACC128RegClass.hasSubClassEq(RC))
-//    Opc = Mips::STORE_ACC128;
-//  else if (Mips::DSPCCRegClass.hasSubClassEq(RC))
-//    Opc = Mips::STORE_CCOND_DSP;
   else if (Mips::FGR32RegClass.hasSubClassEq(RC))
     Opc = Mips::SWC1;
   else if (Mips::AFGR64RegClass.hasSubClassEq(RC))
     Opc = Mips::SDC1;
-//  else if (Mips::FGR64RegClass.hasSubClassEq(RC))
-//    Opc = Mips::SDC164;
-//  else if (RC->hasType(MVT::v16i8))
-//    Opc = Mips::ST_B;
-//  else if (RC->hasType(MVT::v8i16) || RC->hasType(MVT::v8f16))
-//    Opc = Mips::ST_H;
-//  else if (RC->hasType(MVT::v4i32) || RC->hasType(MVT::v4f32))
-//    Opc = Mips::ST_W;
-//  else if (RC->hasType(MVT::v2i64) || RC->hasType(MVT::v2f64))
-//    Opc = Mips::ST_D;
 
   assert(Opc && "Register class not handled!");
   BuildMI(MBB, I, DL, get(Opc)).addReg(SrcReg, getKillRegState(isKill))
@@ -240,30 +144,10 @@ loadRegFromStack(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 
   if (Mips::GPR32RegClass.hasSubClassEq(RC))
     Opc = Mips::LW;
-//  else if (Mips::GPR64RegClass.hasSubClassEq(RC))
-//    Opc = Mips::LD;
-//  else if (Mips::ACC64RegClass.hasSubClassEq(RC))
-//    Opc = Mips::LOAD_ACC64;
-//  else if (Mips::ACC64DSPRegClass.hasSubClassEq(RC))
-//    Opc = Mips::LOAD_ACC64DSP;
-//  else if (Mips::ACC128RegClass.hasSubClassEq(RC))
-//    Opc = Mips::LOAD_ACC128;
-//  else if (Mips::DSPCCRegClass.hasSubClassEq(RC))
-//    Opc = Mips::LOAD_CCOND_DSP;
   else if (Mips::FGR32RegClass.hasSubClassEq(RC))
     Opc = Mips::LWC1;
   else if (Mips::AFGR64RegClass.hasSubClassEq(RC))
     Opc = Mips::LDC1;
-//  else if (Mips::FGR64RegClass.hasSubClassEq(RC))
-//    Opc = Mips::LDC164;
-//  else if (RC->hasType(MVT::v16i8))
-//    Opc = Mips::LD_B;
-//  else if (RC->hasType(MVT::v8i16) || RC->hasType(MVT::v8f16))
-//    Opc = Mips::LD_H;
-//  else if (RC->hasType(MVT::v4i32) || RC->hasType(MVT::v4f32))
-//    Opc = Mips::LD_W;
-//  else if (RC->hasType(MVT::v2i64) || RC->hasType(MVT::v2f64))
-//    Opc = Mips::LD_D;
 
   assert(Opc && "Register class not handled!");
   BuildMI(MBB, I, DL, get(Opc), DestReg).addFrameIndex(FI).addImm(Offset)
@@ -280,55 +164,11 @@ bool MipsSEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
   case Mips::RetRA:
     expandRetRA(MBB, MI);
     break;
-//  case Mips::PseudoMFHI:
-//    Opc = isMicroMips ? Mips::MFHI16_MM : Mips::MFHI;
-//    expandPseudoMFHiLo(MBB, MI, Opc);
-//    break;
-//  case Mips::PseudoMFLO:
-//    Opc = isMicroMips ? Mips::MFLO16_MM : Mips::MFLO;
-//    expandPseudoMFHiLo(MBB, MI, Opc);
-//    break;
-//  case Mips::PseudoMFHI64:
-//    expandPseudoMFHiLo(MBB, MI, Mips::MFHI64);
-//    break;
-//  case Mips::PseudoMFLO64:
-//    expandPseudoMFHiLo(MBB, MI, Mips::MFLO64);
-//    break;
-//  case Mips::PseudoMTLOHI:
-//    expandPseudoMTLoHi(MBB, MI, Mips::MTLO, Mips::MTHI, false);
-//    break;
-//  case Mips::PseudoMTLOHI64:
-//    expandPseudoMTLoHi(MBB, MI, Mips::MTLO64, Mips::MTHI64, false);
-//    break;
-//  case Mips::PseudoMTLOHI_DSP:
-//    expandPseudoMTLoHi(MBB, MI, Mips::MTLO_DSP, Mips::MTHI_DSP, true);
-//    break;
-  case Mips::PseudoCVT_S_W:
-    expandCvtFPInt(MBB, MI, Mips::CVT_S_W, Mips::MTC1, false);
-    break;
-  case Mips::PseudoCVT_D32_W:
-    expandCvtFPInt(MBB, MI, Mips::CVT_D32_W, Mips::MTC1, false);
-    break;
-//  case Mips::PseudoCVT_S_L:
-//    expandCvtFPInt(MBB, MI, Mips::CVT_S_L, Mips::DMTC1, true);
-//    break;
-//  case Mips::PseudoCVT_D64_W:
-//    expandCvtFPInt(MBB, MI, Mips::CVT_D64_W, Mips::MTC1, true);
-//    break;
-//  case Mips::PseudoCVT_D64_L:
-//    expandCvtFPInt(MBB, MI, Mips::CVT_D64_L, Mips::DMTC1, true);
-//    break;
   case Mips::BuildPairF64:
     expandBuildPairF64(MBB, MI, false);
     break;
-  case Mips::BuildPairF64_64:
-    expandBuildPairF64(MBB, MI, true);
-    break;
   case Mips::ExtractElementF64:
     expandExtractElementF64(MBB, MI, false);
-    break;
-  case Mips::ExtractElementF64_64:
-    expandExtractElementF64(MBB, MI, true);
     break;
   case Mips::MIPSeh_return32:
   case Mips::MIPSeh_return64:
@@ -351,16 +191,8 @@ unsigned MipsSEInstrInfo::getOppositeBranchOpc(unsigned Opc) const {
   case Mips::BGEZ:   return Mips::BLTZ;
   case Mips::BLTZ:   return Mips::BGEZ;
   case Mips::BLEZ:   return Mips::BGTZ;
-//  case Mips::BEQ64:  return Mips::BNE64;
-//  case Mips::BNE64:  return Mips::BEQ64;
-//  case Mips::BGTZ64: return Mips::BLEZ64;
-//  case Mips::BGEZ64: return Mips::BLTZ64;
-//  case Mips::BLTZ64: return Mips::BGEZ64;
-//  case Mips::BLEZ64: return Mips::BGTZ64;
   case Mips::BC1T:   return Mips::BC1F;
   case Mips::BC1F:   return Mips::BC1T;
-//  case Mips::BEQZC_MM: return Mips::BNEZC_MM;
-//  case Mips::BNEZC_MM: return Mips::BEQZC_MM;
   }
 }
 
@@ -370,8 +202,8 @@ void MipsSEInstrInfo::adjustStackPtr(unsigned SP, int64_t Amount,
                                      MachineBasicBlock::iterator I) const {
   const MipsSubtarget &STI = Subtarget;
   DebugLoc DL = I != MBB.end() ? I->getDebugLoc() : DebugLoc();
-  unsigned ADDu = Mips::ADDu;//STI.isABI_N64() ? Mips::DADDu : Mips::ADDu;
-  unsigned ADDiu = Mips::ADDiu; //STI.isABI_N64() ? Mips::DADDiu : Mips::ADDiu;
+  unsigned ADDu = Mips::ADDu;
+  unsigned ADDiu = Mips::ADDiu;
 
   if (isInt<14>(Amount))// addi sp, sp, amount
     BuildMI(MBB, I, DL, get(ADDiu), SP).addReg(SP).addImm(Amount);
@@ -386,19 +218,13 @@ void MipsSEInstrInfo::adjustStackPtr(unsigned SP, int64_t Amount,
 unsigned MipsSEInstrInfo::getAnalyzableBrOpc(unsigned Opc) const {
   return (Opc == Mips::BEQ    || Opc == Mips::BNE    || Opc == Mips::BGTZ   ||
           Opc == Mips::BGEZ   || Opc == Mips::BLTZ   || Opc == Mips::BLEZ   ||
-//          Opc == Mips::BEQ64  || Opc == Mips::BNE64  || Opc == Mips::BGTZ64 ||
-//          Opc == Mips::BGEZ64 || Opc == Mips::BLTZ64 || Opc == Mips::BLEZ64 ||
           Opc == Mips::BC1T   || Opc == Mips::BC1F   || Opc == Mips::B      ||
-          Opc == Mips::J) ? //|| Opc == Mips::BEQZC_MM || Opc == Mips::BNEZC_MM) ?
+          Opc == Mips::J) ?
          Opc : 0;
 }
 
 void MipsSEInstrInfo::expandRetRA(MachineBasicBlock &MBB,
                                   MachineBasicBlock::iterator I) const {
-//  if (Subtarget.isGP64bit())
-//    BuildMI(MBB, I, I->getDebugLoc(), get(Mips::PseudoReturn64))
-//        .addReg(Mips::RA_64);
-//  else
     BuildMI(MBB, I, I->getDebugLoc(), get(Mips::PseudoReturn)).addReg(Mips::RA);
 }
 
@@ -412,66 +238,6 @@ MipsSEInstrInfo::compareOpndSize(unsigned Opc,
   unsigned SrcRegSize = getRegClass(Desc, 1, RI, MF)->getSize();
 
   return std::make_pair(DstRegSize > SrcRegSize, DstRegSize < SrcRegSize);
-}
-
-void MipsSEInstrInfo::expandPseudoMFHiLo(MachineBasicBlock &MBB,
-                                         MachineBasicBlock::iterator I,
-                                         unsigned NewOpc) const {
-  BuildMI(MBB, I, I->getDebugLoc(), get(NewOpc), I->getOperand(0).getReg());
-}
-
-void MipsSEInstrInfo::expandPseudoMTLoHi(MachineBasicBlock &MBB,
-                                         MachineBasicBlock::iterator I,
-                                         unsigned LoOpc,
-                                         unsigned HiOpc,
-                                         bool HasExplicitDef) const {
-  // Expand
-  //  lo_hi pseudomtlohi $gpr0, $gpr1
-  // to these two instructions:
-  //  mtlo $gpr0
-  //  mthi $gpr1
-  llvm_unreachable("Unimplemented...");
-
-//  DebugLoc DL = I->getDebugLoc();
-//  const MachineOperand &SrcLo = I->getOperand(1), &SrcHi = I->getOperand(2);
-//  MachineInstrBuilder LoInst = BuildMI(MBB, I, DL, get(LoOpc));
-//  MachineInstrBuilder HiInst = BuildMI(MBB, I, DL, get(HiOpc));
-//  LoInst.addReg(SrcLo.getReg(), getKillRegState(SrcLo.isKill()));
-//  HiInst.addReg(SrcHi.getReg(), getKillRegState(SrcHi.isKill()));
-//
-//  // Add lo/hi registers if the mtlo/hi instructions created have explicit
-//  // def registers.
-//  if (HasExplicitDef) {
-//    unsigned DstReg = I->getOperand(0).getReg();
-//    unsigned DstLo = getRegisterInfo().getSubReg(DstReg, Mips::sub_lo);
-//    unsigned DstHi = getRegisterInfo().getSubReg(DstReg, Mips::sub_hi);
-//    LoInst.addReg(DstLo, RegState::Define);
-//    HiInst.addReg(DstHi, RegState::Define);
-//  }
-}
-
-void MipsSEInstrInfo::expandCvtFPInt(MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator I,
-                                     unsigned CvtOpc, unsigned MovOpc,
-                                     bool IsI64) const {
-  const MCInstrDesc &CvtDesc = get(CvtOpc), &MovDesc = get(MovOpc);
-  const MachineOperand &Dst = I->getOperand(0), &Src = I->getOperand(1);
-  unsigned DstReg = Dst.getReg(), SrcReg = Src.getReg(), TmpReg = DstReg;
-  unsigned KillSrc =  getKillRegState(Src.isKill());
-  DebugLoc DL = I->getDebugLoc();
-  bool DstIsLarger, SrcIsLarger;
-
-  std::tie(DstIsLarger, SrcIsLarger) =
-      compareOpndSize(CvtOpc, *MBB.getParent());
-
-  if (DstIsLarger)
-    TmpReg = getRegisterInfo().getSubReg(DstReg, Mips::sub_lo);
-
-  if (SrcIsLarger)
-    DstReg = getRegisterInfo().getSubReg(DstReg, Mips::sub_lo);
-
-  BuildMI(MBB, I, DL, MovDesc, TmpReg).addReg(SrcReg, KillSrc);
-  BuildMI(MBB, I, DL, CvtDesc, DstReg).addReg(TmpReg, RegState::Kill);
 }
 
 void MipsSEInstrInfo::expandExtractElementF64(MachineBasicBlock &MBB,

@@ -178,10 +178,6 @@ multiclass ABSS_M<string opstr, InstrItinClass Itin,
 multiclass ROUND_M<string opstr, InstrItinClass Itin> {
   def _D32 : MMRel, ABSS_FT<opstr, FGR32Opnd, AFGR64Opnd, Itin>,
              AdditionalRequires<[NotFP64bit]>;
-  def _D64 : ABSS_FT<opstr, FGR32Opnd, FGR64Opnd, Itin>,
-             AdditionalRequires<[IsFP64bit]> {
-    let DecoderNamespace = "Mips64";
-  }
 }
 
 class MFC1_FT<string opstr, RegisterOperand DstRC, RegisterOperand SrcRC,
@@ -324,11 +320,6 @@ def CVT_D32_W : MMRel, ABSS_FT<"cvt.d.w", AFGR64Opnd, FGR32Opnd, II_CVT>,
 def CVT_D32_S : MMRel, ABSS_FT<"cvt.d.s", AFGR64Opnd, FGR32Opnd, II_CVT>,
                 ABSS_FM<1, 6>, FGR_32;
 
-let isPseudo = 1, isCodeGenOnly = 1 in {
-  def PseudoCVT_S_W : ABSS_FT<"", FGR32Opnd, GPR32Opnd, II_CVT>;
-  def PseudoCVT_D32_W : ABSS_FT<"", AFGR64Opnd, GPR32Opnd, II_CVT>;
-}
-
 def FABS_S : MMRel, ABSS_FT<"abs.s", FGR32Opnd, FGR32Opnd, II_ABS, fabs>,
              ABSS_FM<0, 6>;
 def FNEG_S : MMRel, ABSS_FT<"neg.s", FGR32Opnd, FGR32Opnd, II_NEG, fneg>,
@@ -440,8 +431,6 @@ class BuildPairF64Base<RegisterOperand RO> :
 
 def BuildPairF64 : BuildPairF64Base<AFGR64Opnd>,
                    AdditionalRequires<[NotFP64bit]>;
-def BuildPairF64_64 : BuildPairF64Base<FGR64Opnd>,
-                      AdditionalRequires<[IsFP64bit]>;
 
 // This pseudo instr gets expanded into 2 mfc1 instrs after register
 // allocation.
@@ -453,8 +442,6 @@ class ExtractElementF64Base<RegisterOperand RO> :
 
 def ExtractElementF64 : ExtractElementF64Base<AFGR64Opnd>,
                         AdditionalRequires<[NotFP64bit]>;
-def ExtractElementF64_64 : ExtractElementF64Base<FGR64Opnd>,
-                           AdditionalRequires<[IsFP64bit]>;
 
 //===----------------------------------------------------------------------===//
 // InstAliases.
@@ -467,12 +454,12 @@ def : MipsPat<(f32 fpimm0), (MTC1 ZERO)>;
 def : MipsPat<(f32 fpimm0neg), (FNEG_S (MTC1 ZERO))>;
 
 def : MipsPat<(f32 (sint_to_fp GPR32Opnd:$src)),
-              (PseudoCVT_S_W GPR32Opnd:$src)>;
+              (CVT_S_W (MTC1 GPR32Opnd:$src))>;
 def : MipsPat<(MipsTruncIntFP FGR32Opnd:$src),
               (TRUNC_W_S FGR32Opnd:$src)>;
 
 def : MipsPat<(f64 (sint_to_fp GPR32Opnd:$src)),
-              (PseudoCVT_D32_W GPR32Opnd:$src)>, FGR_32;
+              (CVT_D32_W (MTC1 GPR32Opnd:$src))>, FGR_32;
 def : MipsPat<(MipsTruncIntFP AFGR64Opnd:$src),
               (TRUNC_W_D32 AFGR64Opnd:$src)>, FGR_32;
 def : MipsPat<(f32 (fround AFGR64Opnd:$src)),

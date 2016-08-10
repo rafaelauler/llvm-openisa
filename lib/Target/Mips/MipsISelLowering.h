@@ -532,7 +532,6 @@ namespace llvm {
                                   MachineBasicBlock *BB, unsigned Size) const;
     MachineBasicBlock *emitAtomicCmpSwapPartword(MachineInstr *MI,
                                   MachineBasicBlock *BB, unsigned Size) const;
-    MachineBasicBlock *emitSEL_D(MachineInstr *MI, MachineBasicBlock *BB) const;
     MachineBasicBlock *emitPseudoSELECT(MachineInstr *MI,
                                         MachineBasicBlock *BB, bool isFPCmp,
                                         unsigned Opc) const;

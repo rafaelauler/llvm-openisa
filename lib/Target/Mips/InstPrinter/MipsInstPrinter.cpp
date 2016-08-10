@@ -163,6 +163,9 @@ void MipsInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
                                    raw_ostream &O) {
   const MCOperand &Op = MI->getOperand(OpNo);
   if (Op.isReg()) {
+    if (Op.getReg() == 0) {
+      MI->dump();
+    }
     printRegName(O, Op.getReg());
     return;
   }

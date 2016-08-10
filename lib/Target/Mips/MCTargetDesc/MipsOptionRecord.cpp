@@ -80,9 +80,7 @@ void MipsRegInfoRecord::SetPhysRegUsed(unsigned Reg,
         GPR64RegClass->contains(CurrentSubReg))
       ri_gprmask |= Value;
     else if (FGR32RegClass->contains(CurrentSubReg) ||
-             FGR64RegClass->contains(CurrentSubReg) ||
-             AFGR64RegClass->contains(CurrentSubReg) ||
-             MSA128BRegClass->contains(CurrentSubReg))
+             AFGR64RegClass->contains(CurrentSubReg))
       ri_cprmask[1] |= Value;
     else if (COP2RegClass->contains(CurrentSubReg))
       ri_cprmask[2] |= Value;

@@ -72,14 +72,6 @@ unsigned MipsSEDAGToDAGISel::getMSACtrlReg(const SDValue RegIdx) const {
   switch (cast<ConstantSDNode>(RegIdx)->getZExtValue()) {
   default:
     llvm_unreachable("Could not map int to register");
-  case 0: return Mips::MSAIR;
-  case 1: return Mips::MSACSR;
-  case 2: return Mips::MSAAccess;
-  case 3: return Mips::MSASave;
-  case 4: return Mips::MSAModify;
-  case 5: return Mips::MSARequest;
-  case 6: return Mips::MSAMap;
-  case 7: return Mips::MSAUnmap;
   }
 }
 
@@ -690,13 +682,6 @@ std::pair<bool, SDNode*> MipsSEDAGToDAGISel::selectNode(SDNode *Node) {
     default:
       break;
 
-    case Intrinsic::mips_cfcmsa: {
-      SDValue ChainIn = Node->getOperand(0);
-      SDValue RegIdx = Node->getOperand(2);
-      SDValue Reg = CurDAG->getCopyFromReg(ChainIn, DL,
-                                           getMSACtrlReg(RegIdx), MVT::i32);
-      return std::make_pair(true, Reg.getNode());
-    }
     }
     break;
   }
@@ -715,14 +700,6 @@ std::pair<bool, SDNode*> MipsSEDAGToDAGISel::selectNode(SDNode *Node) {
     default:
       break;
 
-    case Intrinsic::mips_ctcmsa: {
-      SDValue ChainIn = Node->getOperand(0);
-      SDValue RegIdx  = Node->getOperand(2);
-      SDValue Value   = Node->getOperand(3);
-      SDValue ChainOut = CurDAG->getCopyToReg(ChainIn, DL,
-                                              getMSACtrlReg(RegIdx), Value);
-      return std::make_pair(true, ChainOut.getNode());
-    }
     }
     break;
   }

@@ -111,73 +111,7 @@ unsigned conv32(unsigned regnum) {
   case Mips::T8_64:
     return Mips::T8;
   case Mips::T9_64:
-    return Mips::T9; 
-  case Mips::D0_64:
-    return Mips::F0;
-  case Mips::D1_64:
-    return Mips::F1;
-  case Mips::D2_64:
-    return Mips::F2;
-  case Mips::D3_64:
-    return Mips::F3;
-  case Mips::D4_64:
-    return Mips::F4;
-  case Mips::D5_64:
-    return Mips::F5;
-  case Mips::D6_64:
-    return Mips::F6;
-  case Mips::D7_64:
-    return Mips::F7;
-  case Mips::D8_64:
-    return Mips::F8;
-  case Mips::D9_64:
-    return Mips::F9;
-  case Mips::D10_64:
-    return Mips::F10;
-  case Mips::D11_64:
-    return Mips::F11;
-  case Mips::D12_64:
-    return Mips::F12;
-  case Mips::D13_64:
-    return Mips::F13;
-  case Mips::D14_64:
-    return Mips::F14;
-  case Mips::D15_64:
-    return Mips::F15;
-  case Mips::D16_64:
-    return Mips::F16;
-  case Mips::D17_64:
-    return Mips::F17;
-  case Mips::D18_64:
-    return Mips::F18;
-  case Mips::D19_64:
-    return Mips::F19;
-  case Mips::D20_64:
-    return Mips::F20;
-  case Mips::D21_64:
-    return Mips::F21;
-  case Mips::D22_64:
-    return Mips::F22;
-  case Mips::D23_64:
-    return Mips::F23;
-  case Mips::D24_64:
-    return Mips::F24;
-  case Mips::D25_64:
-    return Mips::F25;
-  case Mips::D26_64:
-    return Mips::F26;
-  case Mips::D27_64:
-    return Mips::F27;
-  case Mips::D28_64:
-    return Mips::F28;
-  case Mips::D29_64:
-    return Mips::F29;
-  case Mips::D30_64:
-    return Mips::F30;
-  case Mips::D31_64:
-    return Mips::F31;
-
-    //    return regnum - 1;
+    return Mips::T9;
   }
   return regnum;
 }

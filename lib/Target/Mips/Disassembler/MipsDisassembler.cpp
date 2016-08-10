@@ -486,7 +486,10 @@ static DecodeStatus DecodeFMem(MCInst &Inst,
   unsigned Reg = fieldFromInstruction(Insn, 0, 6);
   unsigned Base = fieldFromInstruction(Insn, 6, 6);
 
-  Reg = getReg(Decoder, Mips::FGR64RegClassID, Reg);
+  if (Inst.getOpcode() == Mips::LWC1 || Inst.getOpcode() == Mips::SWC1)
+    Reg = getReg(Decoder, Mips::FGR32RegClassID, Reg);
+  else
+    Reg = getReg(Decoder, Mips::AFGR64RegClassID, Reg);
   Base = getReg(Decoder, Mips::GPR32RegClassID, Base);
 
   Inst.addOperand(MCOperand::CreateReg(Reg));
@@ -500,11 +503,11 @@ static DecodeStatus DecodeAFGR64RegisterClass(MCInst &Inst,
                                               unsigned RegNo,
                                               uint64_t Address,
                                               const void *Decoder) {
-  if (RegNo > 62 || RegNo %2)
+  if (RegNo > 63)
     return MCDisassembler::Fail;
 
   ;
-  unsigned Reg = getReg(Decoder, Mips::AFGR64RegClassID, RegNo /2);
+  unsigned Reg = getReg(Decoder, Mips::AFGR64RegClassID, RegNo);
   Inst.addOperand(MCOperand::CreateReg(Reg));
   return MCDisassembler::Success;
 }

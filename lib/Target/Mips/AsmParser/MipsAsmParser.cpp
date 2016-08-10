@@ -237,10 +237,6 @@ class MipsAsmParser : public MCTargetAsmParser {
 
   int matchACRegisterName(StringRef Name);
 
-  int matchMSA128RegisterName(StringRef Name);
-
-  int matchMSA128CtrlRegisterName(StringRef Name);
-
   unsigned getReg(int RC, int RegNo);
 
   unsigned getGPR(int RegNo);
@@ -249,11 +245,6 @@ class MipsAsmParser : public MCTargetAsmParser {
 
   bool processInstruction(MCInst &Inst, SMLoc IDLoc,
                           SmallVectorImpl<MCInst> &Instructions);
-
-  // Helper function that checks if the value of a vector index is within the
-  // boundaries of accepted values for each RegisterKind
-  // Example: INSERT.B $w0[n], $1 => 16 > n >= 0
-  bool validateMSAIndex(int Val, int RegKind);
 
   // Selects a new architecture by updating the FeatureBits with the necessary
   // info including implied dependencies.
@@ -409,8 +400,6 @@ public:
     RegKind_FGR = 2,      /// FGR32, FGR64, AFGR64 (depending on context and
                           /// isFP64bit())
     RegKind_FCC = 4,      /// FCC
-    RegKind_MSA128 = 8,   /// MSA128[BHWD] (makes no difference which)
-    RegKind_MSACtrl = 16, /// MSA control registers
     RegKind_COP2 = 32,    /// COP2
     RegKind_ACC = 64,     /// HI32DSP, LO32DSP, and ACC64DSP (depending on
                           /// context).
@@ -419,9 +408,8 @@ public:
     RegKind_COP3 = 512,   /// COP3
 
     /// Potentially any (e.g. $1)
-    RegKind_Numeric = RegKind_GPR | RegKind_FGR | RegKind_FCC | RegKind_MSA128 |
-                      RegKind_MSACtrl | RegKind_COP2 | RegKind_ACC |
-                      RegKind_CCR | RegKind_HWRegs | RegKind_COP3
+    RegKind_Numeric = RegKind_GPR | RegKind_FGR | RegKind_FCC | RegKind_COP2 |
+                      RegKind_ACC | RegKind_CCR | RegKind_HWRegs | RegKind_COP3
   };
 
 private:
@@ -527,17 +515,7 @@ private:
   /// target.
   unsigned getAFGR64Reg() const {
     assert(isRegIdx() && (RegIdx.Kind & RegKind_FGR) && "Invalid access!");
-    if (RegIdx.Index % 2 != 0)
-      AsmParser.Warning(StartLoc, "Float register should be even.");
     return RegIdx.RegInfo->getRegClass(Mips::AFGR64RegClassID)
-        .getRegister(RegIdx.Index / 2);
-  }
-
-  /// Coerce the register to FGR64 and return the real register for the current
-  /// target.
-  unsigned getFGR64Reg() const {
-    assert(isRegIdx() && (RegIdx.Kind & RegKind_FGR) && "Invalid access!");
-    return RegIdx.RegInfo->getRegClass(Mips::FGR64RegClassID)
         .getRegister(RegIdx.Index);
   }
 
@@ -549,38 +527,12 @@ private:
         .getRegister(RegIdx.Index);
   }
 
-  /// Coerce the register to FGRH32 and return the real register for the current
-  /// target.
-  unsigned getFGRH32Reg() const {
-    assert(isRegIdx() && (RegIdx.Kind & RegKind_FGR) && "Invalid access!");
-    return RegIdx.RegInfo->getRegClass(Mips::FGRH32RegClassID)
-        .getRegister(RegIdx.Index);
-  }
-
   /// Coerce the register to FCC and return the real register for the current
   /// target.
   unsigned getFCCReg() const {
     assert(isRegIdx() && (RegIdx.Kind & RegKind_FCC) && "Invalid access!");
     return RegIdx.RegInfo->getRegClass(Mips::FCCRegClassID)
         .getRegister(RegIdx.Index);
-  }
-
-  /// Coerce the register to MSA128 and return the real register for the current
-  /// target.
-  unsigned getMSA128Reg() const {
-    assert(isRegIdx() && (RegIdx.Kind & RegKind_MSA128) && "Invalid access!");
-    // It doesn't matter which of the MSA128[BHWD] classes we use. They are all
-    // identical
-    unsigned ClassID = Mips::MSA128BRegClassID;
-    return RegIdx.RegInfo->getRegClass(ClassID).getRegister(RegIdx.Index);
-  }
-
-  /// Coerce the register to MSACtrl and return the real register for the
-  /// current target.
-  unsigned getMSACtrlReg() const {
-    assert(isRegIdx() && (RegIdx.Kind & RegKind_MSACtrl) && "Invalid access!");
-    unsigned ClassID = Mips::MSACtrlRegClassID;
-    return RegIdx.RegInfo->getRegClass(ClassID).getRegister(RegIdx.Index);
   }
 
   /// Coerce the register to COP2 and return the real register for the
@@ -685,11 +637,6 @@ public:
     Inst.addOperand(MCOperand::CreateReg(getAFGR64Reg()));
   }
 
-  void addFGR64AsmRegOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    Inst.addOperand(MCOperand::CreateReg(getFGR64Reg()));
-  }
-
   void addFGR32AsmRegOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     Inst.addOperand(MCOperand::CreateReg(getFGR32Reg()));
@@ -699,24 +646,9 @@ public:
                                 "registers");
   }
 
-  void addFGRH32AsmRegOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    Inst.addOperand(MCOperand::CreateReg(getFGRH32Reg()));
-  }
-
   void addFCCAsmRegOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     Inst.addOperand(MCOperand::CreateReg(getFCCReg()));
-  }
-
-  void addMSA128AsmRegOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    Inst.addOperand(MCOperand::CreateReg(getMSA128Reg()));
-  }
-
-  void addMSACtrlAsmRegOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    Inst.addOperand(MCOperand::CreateReg(getMSACtrlReg()));
   }
 
   void addCOP2AsmRegOperands(MCInst &Inst, unsigned N) const {
@@ -967,22 +899,6 @@ public:
     return CreateReg(Index, RegKind_ACC, RegInfo, S, E, Parser);
   }
 
-  /// Create a register that is definitely an MSA128.
-  /// This is typically only used for named registers such as $w0.
-  static std::unique_ptr<MipsOperand>
-  createMSA128Reg(unsigned Index, const MCRegisterInfo *RegInfo, SMLoc S,
-                  SMLoc E, MipsAsmParser &Parser) {
-    return CreateReg(Index, RegKind_MSA128, RegInfo, S, E, Parser);
-  }
-
-  /// Create a register that is definitely an MSACtrl.
-  /// This is typically only used for named registers such as $msaaccess.
-  static std::unique_ptr<MipsOperand>
-  createMSACtrlReg(unsigned Index, const MCRegisterInfo *RegInfo, SMLoc S,
-                   SMLoc E, MipsAsmParser &Parser) {
-    return CreateReg(Index, RegKind_MSACtrl, RegInfo, S, E, Parser);
-  }
-
   static std::unique_ptr<MipsOperand>
   CreateImm(const MCExpr *Val, SMLoc S, SMLoc E, MipsAsmParser &Parser) {
     auto Op = make_unique<MipsOperand>(k_Immediate, Parser);
@@ -1068,13 +984,6 @@ public:
   bool isCOP3AsmReg() const {
     return isRegIdx() && RegIdx.Kind & RegKind_COP3 && RegIdx.Index <= 31;
   }
-  bool isMSA128AsmReg() const {
-    return isRegIdx() && RegIdx.Kind & RegKind_MSA128 && RegIdx.Index <= 31;
-  }
-  bool isMSACtrlAsmReg() const {
-    return isRegIdx() && RegIdx.Kind & RegKind_MSACtrl && RegIdx.Index <= 7;
-  }
-
   /// getStartLoc - Get the location of the first token of this operand.
   SMLoc getStartLoc() const override { return StartLoc; }
   /// getEndLoc - Get the location of the last token of this operand.
@@ -1840,7 +1749,7 @@ int MipsAsmParser::matchHWRegsRegisterName(StringRef Name) {
 
 int MipsAsmParser::matchFPURegisterName(StringRef Name) {
 
-  if (Name[0] == 'f') {
+  if (Name[0] == 'f' || Name[0] == 'd') {
     StringRef NumString = Name.substr(1);
     unsigned IntVal;
     if (NumString.getAsInteger(10, IntVal))
@@ -1878,35 +1787,6 @@ int MipsAsmParser::matchACRegisterName(StringRef Name) {
     return IntVal;
   }
   return -1;
-}
-
-int MipsAsmParser::matchMSA128RegisterName(StringRef Name) {
-  unsigned IntVal;
-
-  if (Name.front() != 'w' || Name.drop_front(1).getAsInteger(10, IntVal))
-    return -1;
-
-  if (IntVal > 31)
-    return -1;
-
-  return IntVal;
-}
-
-int MipsAsmParser::matchMSA128CtrlRegisterName(StringRef Name) {
-  int CC;
-
-  CC = StringSwitch<unsigned>(Name)
-           .Case("msair", 0)
-           .Case("msacsr", 1)
-           .Case("msaaccess", 2)
-           .Case("msasave", 3)
-           .Case("msamodify", 4)
-           .Case("msarequest", 5)
-           .Case("msamap", 6)
-           .Case("msaunmap", 7)
-           .Default(-1);
-
-  return CC;
 }
 
 bool MipsAssemblerOptions::setATReg(unsigned Reg) {
@@ -2349,20 +2229,6 @@ MipsAsmParser::matchAnyRegisterNameWithoutDollar(OperandVector &Operands,
   Index = matchACRegisterName(Identifier);
   if (Index != -1) {
     Operands.push_back(MipsOperand::createACCReg(
-        Index, getContext().getRegisterInfo(), S, getLexer().getLoc(), *this));
-    return MatchOperand_Success;
-  }
-
-  Index = matchMSA128RegisterName(Identifier);
-  if (Index != -1) {
-    Operands.push_back(MipsOperand::createMSA128Reg(
-        Index, getContext().getRegisterInfo(), S, getLexer().getLoc(), *this));
-    return MatchOperand_Success;
-  }
-
-  Index = matchMSA128CtrlRegisterName(Identifier);
-  if (Index != -1) {
-    Operands.push_back(MipsOperand::createMSACtrlReg(
         Index, getContext().getRegisterInfo(), S, getLexer().getLoc(), *this));
     return MatchOperand_Success;
   }
