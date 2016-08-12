@@ -114,9 +114,6 @@ static bool CompareFragments(const Value* LHS, const Value *RHS) {
   auto L2 = dyn_cast<GetElementPtrInst>(L1->getOperand(0));
   auto R2 = dyn_cast<GetElementPtrInst>(R1->getOperand(0));
   if (!L2 || !R2) {
-    printf("CompMismatch1\n");
-    L1->dump();
-    R1->dump();
     return false;
   }
 
@@ -130,32 +127,17 @@ static bool CompareFragments(const Value* LHS, const Value *RHS) {
   ConstantInt *C1, *C2;
   if (!PatternMatch::match(L3, PatternMatch::m_Add(PatternMatch::m_Value(L4),
                                                    PatternMatch::m_ConstantInt(C1)))) {
-    printf("CompMismatch2\n");
-    L2->dump();
-    L3->dump();
     return false;
   }
   if (!PatternMatch::match(R3, PatternMatch::m_Add(PatternMatch::m_Value(R4),
                                                    PatternMatch::m_ConstantInt(C2)))){
-    printf("CompMismatch3\n");
-    R2->dump();
-    R3->dump();
     return false;
   }
-  printf("CompMismatch4?\n");
   auto *L5 = dyn_cast<LoadInst>(L4);
   auto *R5 = dyn_cast<LoadInst>(R4);
   if (L4 && R4 && C1->getLimitedValue() == C2->getLimitedValue() &&
       L5->getPointerOperand() == R5->getPointerOperand())
     return true;
-  printf("Yes:\n");
-  if (L4 != R4)
-    printf("L4 != R4\n");
-  if (C1->getLimitedValue() == C2->getLimitedValue()) {
-    L4->dump();
-    R4->dump();
-  }
-
   return false;
 }
 
@@ -226,7 +208,6 @@ static bool FindReachingDef(const BasicBlock *BB,
 static bool MatchIndirectJumpTable(const Value *Operand, uint64_t &JT) {
   auto *Instr = dyn_cast<Instruction>(Operand);
   if (Instr == nullptr) {
-    printf("Mismatch1\n");
     return false;
   }
 
@@ -240,30 +221,22 @@ static bool MatchIndirectJumpTable(const Value *Operand, uint64_t &JT) {
 
   const Value *DefInstr = nullptr;
   if (!FindDefiningInstr(BB, It, Operand, DefInstr)) {
-    printf("Mismatch2\n");
-    Operand->dump();
     return false;
   }
 
   auto *Load = dyn_cast<LoadInst>(DefInstr);
   if (Load == nullptr) {
-    printf("Mismatch3\n");
-    DefInstr->dump();
     return false;
   }
 
   Value *Op = nullptr;
   if (!PatternMatch::match(Load->getPointerOperand(),
                            PatternMatch::m_BitCast(PatternMatch::m_Value(Op)))) {
-    printf("Mismatch4\n");
-    Load->getPointerOperand()->dump();
     return false;
   }
 
   auto *GEP = dyn_cast<GetElementPtrInst>(Op);
   if (GEP == nullptr) {
-    printf("Mismatch5\n");
-    Op->dump();
     return false;
   }
 
@@ -281,57 +254,35 @@ static bool MatchIndirectJumpTable(const Value *Operand, uint64_t &JT) {
       !PatternMatch::match(AddInstr2,
                            PatternMatch::m_Add(PatternMatch::m_Value(LHS),
                                                PatternMatch::m_Value(RHS)))) {
-    printf("Mismatch6\n");
-    AddInstr->dump();
-    LHS->dump();
-    AddInstr2->dump();
     return false;
   }
 
   const Value *LHSDef, *RHSDef;
   if (!FindReachingDef(BB, It, LHS, LHSDef)) {
-    printf("Mismatch7\n");
-    LHS->dump();
     return false;
   }
 
   if (!FindReachingDef(BB, It, RHS, RHSDef)) {
-    printf("Mismatch8\n");
-    RHS->dump();
     return false;
   }
 
   auto ConstVal = dyn_cast<ConstantInt>(LHSDef);
   if (ConstVal == nullptr) {
-    printf("Mismatch9, trying RHSDef...\n");
-    LHSDef->dump();
     if (!(ConstVal = dyn_cast<ConstantInt>(RHSDef))) {
-      printf("Final mismatch10\n");
-      RHSDef->dump();
       return false;
     }
   }
   JT = ConstVal->getLimitedValue();
-  printf("INFO: JT = %ld\n", JT);
-  LHSDef->dump();
-  RHSDef->dump();
   return true;
 }
 
 static uint64_t GetFuncAddr(ArrayRef<uint64_t> Funcs, uint64_t Addr) {
-  printf("Requesting funcaddr for %lx...", Addr);
   auto upper = std::upper_bound(Funcs.begin(), Funcs.end(), Addr);
   if (upper == Funcs.begin()) {
-    printf("not found\n");
-    printf("Dumping funcs...\n");
-    for (auto Elem : Funcs) {
-      printf("  %lx\n", Elem);
-    }
     llvm_unreachable("GetFuncAddr failed");
     return 0;
   }
   --upper;
-  printf("%lx\n", *upper);
   return *upper;
 }
 
@@ -547,7 +498,6 @@ bool OiIREmitter::ProcessIndirectJumps() {
           Ins->eraseFromParent();
           first = GetFirstInstruction(first, v);
           InsMap[Addr] = dyn_cast<Instruction>(first);
-          printf("wuhul\n");
           ++NumJumpsOK;
           continue;
         }
