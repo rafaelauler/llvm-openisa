@@ -214,6 +214,14 @@ Function *SyscallsIface::createTranslateCTypeFunction() {
       ConstantInt::get(Type::getInt1Ty(getGlobalContext()), 0),
       "__ctype_xlated");
 
+  GlobalVariable *XlatedValGV = new GlobalVariable(
+      *TheModule, Type::getInt32Ty(getGlobalContext()), false,
+      GlobalValue::PrivateLinkage,
+      ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
+      "__ctype_xlated_val");
+
+  Value *XlatedVal = PBuilder.CreatePtrToInt(
+      XlatedValGV, Type::getInt32Ty(getGlobalContext()));
   Value *LoadGV = PBuilder.CreateLoad(GV);
   Value *one = ConstantInt::get(Type::getInt1Ty(getGlobalContext()), 1U);
   Value *cmp = PBuilder.CreateICmpEQ(LoadGV, one);
@@ -226,43 +234,17 @@ Function *SyscallsIface::createTranslateCTypeFunction() {
 
   PBuilder.CreateCondBr(cmp, BBTrue, BBFalse);
   PBuilder.SetInsertPoint(BBTrue);
-  PBuilder.CreateRet(InputVal);
+  PBuilder.CreateRet(XlatedVal);
 
   PBuilder.SetInsertPoint(BBFalse);
-  // Initialize IV
-  Value *IV = PBuilder.CreateAlloca(Type::getInt32Ty(getGlobalContext()));
-  Value *Zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
-  //  Value *One = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 1);
-  Value *Four = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 4);
-  PBuilder.CreateStore(Zero, IV);
-
-  // Create Loop Header
-  BasicBlock *BBLoopHeader = BasicBlock::Create(getGlobalContext(), "", F);
-  BasicBlock *BBLoopExit = BasicBlock::Create(getGlobalContext(), "", F);
-  PBuilder.CreateBr(BBLoopHeader);
-  PBuilder.SetInsertPoint(BBLoopHeader);
-  Value *IVLoad = PBuilder.CreateLoad(IV);
-  //  Value *Plus255 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
-  //  255);
-  BasicBlock *BBLoopBody = BasicBlock::Create(getGlobalContext(), "", F);
-  Value *Cmp2 = PBuilder.CreateICmpSGT(IVLoad, Zero);
-  PBuilder.CreateCondBr(Cmp2, BBLoopExit, BBLoopBody);
-  // Create Loop Body
-  PBuilder.SetInsertPoint(BBLoopBody);
   Value *Shadow = PBuilder.CreatePtrToInt(IREmitter.ShadowImageValue,
                                           Type::getInt32Ty(getGlobalContext()));
-  Value *Ptr = PBuilder.CreateIntToPtr(
-      PBuilder.CreateAdd(PBuilder.CreateLoad(IV), InputVal),
-      Type::getInt32PtrTy(getGlobalContext()));
+  Value *Ptr = PBuilder.CreateIntToPtr(InputVal,
+                                       Type::getInt32PtrTy(getGlobalContext()));
   PBuilder.CreateStore(PBuilder.CreateSub(PBuilder.CreateLoad(Ptr), Shadow),
-                       Ptr);
-  PBuilder.CreateStore(PBuilder.CreateAdd(PBuilder.CreateLoad(IV), Four), IV);
-  PBuilder.CreateBr(BBLoopHeader);
-
-  // Create Loop Exit
-  PBuilder.SetInsertPoint(BBLoopExit);
+                       XlatedValGV);
   PBuilder.CreateStore(one, GV);
-  PBuilder.CreateRet(InputVal);
+  PBuilder.CreateRet(XlatedVal);
 
   return F;
 }
@@ -290,6 +272,14 @@ Function *SyscallsIface::createTranslateToLowerFunction() {
       ConstantInt::get(Type::getInt1Ty(getGlobalContext()), 0),
       "__ctype_tolower_xlated");
 
+  GlobalVariable *XlatedValGV = new GlobalVariable(
+      *TheModule, Type::getInt32Ty(getGlobalContext()), false,
+      GlobalValue::PrivateLinkage,
+      ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
+      "__ctype_tolower_xlated_val");
+
+  Value *XlatedVal = PBuilder.CreatePtrToInt(
+      XlatedValGV, Type::getInt32Ty(getGlobalContext()));
   Value *LoadGV = PBuilder.CreateLoad(GV);
   Value *one = ConstantInt::get(Type::getInt1Ty(getGlobalContext()), 1U);
   Value *cmp = PBuilder.CreateICmpEQ(LoadGV, one);
@@ -302,44 +292,17 @@ Function *SyscallsIface::createTranslateToLowerFunction() {
 
   PBuilder.CreateCondBr(cmp, BBTrue, BBFalse);
   PBuilder.SetInsertPoint(BBTrue);
-  PBuilder.CreateRet(InputVal);
+  PBuilder.CreateRet(XlatedVal);
 
   PBuilder.SetInsertPoint(BBFalse);
-  // Initialize IV
-  Value *IV = PBuilder.CreateAlloca(Type::getInt32Ty(getGlobalContext()));
-  Value *Zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
-  //  Value *One = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 1);
-  Value *Four = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 4);
-  PBuilder.CreateStore(Zero, IV);
-
-  // Create Loop Header
-  BasicBlock *BBLoopHeader = BasicBlock::Create(getGlobalContext(), "", F);
-  BasicBlock *BBLoopExit = BasicBlock::Create(getGlobalContext(), "", F);
-  PBuilder.CreateBr(BBLoopHeader);
-  PBuilder.SetInsertPoint(BBLoopHeader);
-  Value *IVLoad = PBuilder.CreateLoad(IV);
-  //  Value *Plus255 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
-  //  255);
-  BasicBlock *BBLoopBody = BasicBlock::Create(getGlobalContext(), "", F);
-  Value *Cmp2 = PBuilder.CreateICmpSGT(IVLoad, Zero);
-  PBuilder.CreateCondBr(Cmp2, BBLoopExit, BBLoopBody);
-  // Create Loop Body
-  PBuilder.SetInsertPoint(BBLoopBody);
   Value *Shadow = PBuilder.CreatePtrToInt(IREmitter.ShadowImageValue,
                                           Type::getInt32Ty(getGlobalContext()));
-  Value *Ptr = PBuilder.CreateIntToPtr(
-      PBuilder.CreateAdd(PBuilder.CreateLoad(IV), InputVal),
-      Type::getInt32PtrTy(getGlobalContext()));
+  Value *Ptr = PBuilder.CreateIntToPtr(InputVal,
+                                       Type::getInt32PtrTy(getGlobalContext()));
   PBuilder.CreateStore(PBuilder.CreateSub(PBuilder.CreateLoad(Ptr), Shadow),
-                       Ptr);
-  PBuilder.CreateStore(PBuilder.CreateAdd(PBuilder.CreateLoad(IV), Four), IV);
-  PBuilder.CreateBr(BBLoopHeader);
-
-  // Create Loop Exit
-  PBuilder.SetInsertPoint(BBLoopExit);
+                       XlatedValGV);
   PBuilder.CreateStore(one, GV);
-  PBuilder.CreateRet(InputVal);
-
+  PBuilder.CreateRet(XlatedVal);
   return F;
 }
 
@@ -366,6 +329,14 @@ Function *SyscallsIface::createTranslateBLocFunction() {
       ConstantInt::get(Type::getInt1Ty(getGlobalContext()), 0),
       "__ctype_bloc_xlated");
 
+  GlobalVariable *XlatedValGV = new GlobalVariable(
+      *TheModule, Type::getInt32Ty(getGlobalContext()), false,
+      GlobalValue::PrivateLinkage,
+      ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
+      "__ctype_bloc_xlated_val");
+
+  Value *XlatedVal = PBuilder.CreatePtrToInt(
+      XlatedValGV, Type::getInt32Ty(getGlobalContext()));
   Value *LoadGV = PBuilder.CreateLoad(GV);
   Value *one = ConstantInt::get(Type::getInt1Ty(getGlobalContext()), 1U);
   Value *cmp = PBuilder.CreateICmpEQ(LoadGV, one);
@@ -378,44 +349,17 @@ Function *SyscallsIface::createTranslateBLocFunction() {
 
   PBuilder.CreateCondBr(cmp, BBTrue, BBFalse);
   PBuilder.SetInsertPoint(BBTrue);
-  PBuilder.CreateRet(InputVal);
+  PBuilder.CreateRet(XlatedVal);
 
   PBuilder.SetInsertPoint(BBFalse);
-  // Initialize IV
-  Value *IV = PBuilder.CreateAlloca(Type::getInt32Ty(getGlobalContext()));
-  Value *Zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
-  //  Value *One = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 1);
-  Value *Four = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 4);
-  PBuilder.CreateStore(Zero, IV);
-
-  // Create Loop Header
-  BasicBlock *BBLoopHeader = BasicBlock::Create(getGlobalContext(), "", F);
-  BasicBlock *BBLoopExit = BasicBlock::Create(getGlobalContext(), "", F);
-  PBuilder.CreateBr(BBLoopHeader);
-  PBuilder.SetInsertPoint(BBLoopHeader);
-  Value *IVLoad = PBuilder.CreateLoad(IV);
-  //  Value *Plus255 = ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
-  //  255);
-  BasicBlock *BBLoopBody = BasicBlock::Create(getGlobalContext(), "", F);
-  Value *Cmp2 = PBuilder.CreateICmpSGT(IVLoad, Zero);
-  PBuilder.CreateCondBr(Cmp2, BBLoopExit, BBLoopBody);
-  // Create Loop Body
-  PBuilder.SetInsertPoint(BBLoopBody);
   Value *Shadow = PBuilder.CreatePtrToInt(IREmitter.ShadowImageValue,
                                           Type::getInt32Ty(getGlobalContext()));
-  Value *Ptr = PBuilder.CreateIntToPtr(
-      PBuilder.CreateAdd(PBuilder.CreateLoad(IV), InputVal),
-      Type::getInt32PtrTy(getGlobalContext()));
+  Value *Ptr = PBuilder.CreateIntToPtr(InputVal,
+                                       Type::getInt32PtrTy(getGlobalContext()));
   PBuilder.CreateStore(PBuilder.CreateSub(PBuilder.CreateLoad(Ptr), Shadow),
-                       Ptr);
-  PBuilder.CreateStore(PBuilder.CreateAdd(PBuilder.CreateLoad(IV), Four), IV);
-  PBuilder.CreateBr(BBLoopHeader);
-
-  // Create Loop Exit
-  PBuilder.SetInsertPoint(BBLoopExit);
+                       XlatedValGV);
   PBuilder.CreateStore(one, GV);
-  PBuilder.CreateRet(InputVal);
-
+  PBuilder.CreateRet(XlatedVal);
   return F;
 }
 
