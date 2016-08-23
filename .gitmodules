@@ -6,5 +6,5 @@
 	url = http://llvm.org/git/compiler-rt.git
 [submodule "tools/clang"]
 	path = tools/clang
-	url = git@git-marvin:clang-openisa
+	url = http://github.com/rafaelauler/clang-openisa
 	branch = openisa
