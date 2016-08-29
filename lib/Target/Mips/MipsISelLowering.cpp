@@ -1898,11 +1898,14 @@ SDValue MipsTargetLowering::lowerShiftLeftParts(SDValue Op,
   SDValue ShiftLeftHi = DAG.getNode(ISD::SHL, DL, MVT::i32, Hi, Shamt);
   SDValue Or = DAG.getNode(ISD::OR, DL, MVT::i32, ShiftLeftHi, ShiftRightLo);
   SDValue ShiftLeftLo = DAG.getNode(ISD::SHL, DL, MVT::i32, Lo, Shamt);
+  SDValue MaskedShamt = DAG.getNode(ISD::AND, DL, MVT::i32, Shamt,
+                                    DAG.getConstant(0x1F, MVT::i32));
+  SDValue ShiftLeftLo2 = DAG.getNode(ISD::SHL, DL, MVT::i32, Lo, MaskedShamt);
   SDValue Cond = DAG.getNode(ISD::AND, DL, MVT::i32, Shamt,
                              DAG.getConstant(0x20, MVT::i32));
   Lo = DAG.getNode(ISD::SELECT, DL, MVT::i32, Cond,
                    DAG.getConstant(0, MVT::i32), ShiftLeftLo);
-  Hi = DAG.getNode(ISD::SELECT, DL, MVT::i32, Cond, ShiftLeftLo, Or);
+  Hi = DAG.getNode(ISD::SELECT, DL, MVT::i32, Cond, ShiftLeftLo2, Or);
 
   SDValue Ops[2] = {Lo, Hi};
   return DAG.getMergeValues(Ops, DL);
