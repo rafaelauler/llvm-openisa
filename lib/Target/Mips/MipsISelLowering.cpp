@@ -1889,10 +1889,12 @@ SDValue MipsTargetLowering::lowerShiftLeftParts(SDValue Op,
   // else:
   //  lo = 0
   //  hi = (shl lo, shamt[4:0])
-  SDValue Not = DAG.getNode(ISD::XOR, DL, MVT::i32, Shamt,
-                            DAG.getConstant(-1, MVT::i32));
-  SDValue ShiftRight1Lo = DAG.getNode(ISD::SRL, DL, MVT::i32, Lo,
-                                      DAG.getConstant(1, MVT::i32));
+  SDValue Not = DAG.getNode(
+      ISD::AND, DL, MVT::i32,
+      DAG.getNode(ISD::XOR, DL, MVT::i32, Shamt, DAG.getConstant(-1, MVT::i32)),
+      DAG.getConstant(0x1F, MVT::i32));
+  SDValue ShiftRight1Lo =
+      DAG.getNode(ISD::SRL, DL, MVT::i32, Lo, DAG.getConstant(1, MVT::i32));
   SDValue ShiftRightLo = DAG.getNode(ISD::SRL, DL, MVT::i32, ShiftRight1Lo,
                                      Not);
   SDValue ShiftLeftHi = DAG.getNode(ISD::SHL, DL, MVT::i32, Hi, Shamt);
@@ -1930,15 +1932,19 @@ SDValue MipsTargetLowering::lowerShiftRightParts(SDValue Op, SelectionDAG &DAG,
   //  else:
   //   lo = (srl hi, shamt[4:0])
   //   hi = 0
-  SDValue Not = DAG.getNode(ISD::XOR, DL, MVT::i32, Shamt,
-                            DAG.getConstant(-1, MVT::i32));
+  SDValue MaskedShamt = DAG.getNode(ISD::AND, DL, MVT::i32, Shamt,
+                                    DAG.getConstant(0x1F, MVT::i32));
+  SDValue Not = DAG.getNode(
+      ISD::AND, DL, MVT::i32,
+      DAG.getNode(ISD::XOR, DL, MVT::i32, Shamt, DAG.getConstant(-1, MVT::i32)),
+      DAG.getConstant(0x1F, MVT::i32));
   SDValue ShiftLeft1Hi = DAG.getNode(ISD::SHL, DL, MVT::i32, Hi,
                                      DAG.getConstant(1, MVT::i32));
   SDValue ShiftLeftHi = DAG.getNode(ISD::SHL, DL, MVT::i32, ShiftLeft1Hi, Not);
   SDValue ShiftRightLo = DAG.getNode(ISD::SRL, DL, MVT::i32, Lo, Shamt);
   SDValue Or = DAG.getNode(ISD::OR, DL, MVT::i32, ShiftLeftHi, ShiftRightLo);
   SDValue ShiftRightHi = DAG.getNode(IsSRA ? ISD::SRA : ISD::SRL, DL, MVT::i32,
-                                     Hi, Shamt);
+                                     Hi, MaskedShamt);
   SDValue Cond = DAG.getNode(ISD::AND, DL, MVT::i32, Shamt,
                              DAG.getConstant(0x20, MVT::i32));
   SDValue Shift31 = DAG.getNode(ISD::SRA, DL, MVT::i32, Hi,
