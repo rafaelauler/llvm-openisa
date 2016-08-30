@@ -30,7 +30,7 @@ uint64_t GetELFOffset(const SectionRef &i);
 std::vector<std::pair<uint64_t, StringRef>>
 GetSymbolsList(const ObjectFile *Obj, const SectionRef &i);
 llvm::StringMap<uint64_t>
-GetComdatSymbolsList(const ObjectFile *Obj, uint64_t &TotalSize);
+GetCommonSymbolsList(const ObjectFile *Obj, uint64_t &TotalSize);
 Value *GetFirstInstruction(Value *o0, Value *o1);
 Value *GetFirstInstruction(Value *o0, Value *o1, Value *o2);
 Value *GetFirstInstruction(Value *o0, Value *o1, Value *o2, Value *o3);

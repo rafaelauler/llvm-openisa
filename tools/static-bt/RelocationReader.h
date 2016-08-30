@@ -26,9 +26,9 @@ class RelocationReader {
 public:
   RelocationReader(llvm::Module *M, const ObjectFile *obj,
                    const SectionRef *&secptr, uint64_t &addrptr,
-                   llvm::StringMap<uint64_t> &comdatsymbols)
+                   llvm::StringMap<uint64_t> &commonsymbols)
       : TheModule(M), Obj(obj), CurSection(secptr), CurAddr(addrptr),
-        ComdatSymbols(comdatsymbols) {
+        CommonSymbols(commonsymbols) {
     for (const SectionRef &Section : Obj->sections()) {
       section_iterator Sec2 = Section.getRelocatedSection();
       if (Sec2 != Obj->section_end())
@@ -49,7 +49,7 @@ private:
   const ObjectFile *Obj;
   const SectionRef *&CurSection;
   uint64_t &CurAddr;
-  llvm::StringMap<uint64_t> &ComdatSymbols;
+  llvm::StringMap<uint64_t> &CommonSymbols;
   // Set of relocation sections for each section
   std::map<SectionRef, SmallVector<SectionRef, 1>> SectionRelocMap;
 };

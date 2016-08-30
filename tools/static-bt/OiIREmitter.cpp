@@ -576,8 +576,8 @@ bool OiIREmitter::ProcessIndirectJumps() {
 void OiIREmitter::BuildShadowImage() {
   ShadowSize = 0;
 
-  uint64_t TotalComdatSize = 0;
-  ComdatSymbols = GetComdatSymbolsList(Obj, TotalComdatSize);
+  uint64_t TotalCommonsSize = 0;
+  CommonSymbols = GetCommonSymbolsList(Obj, TotalCommonsSize);
 
   std::error_code ec;
   for (auto &i : Obj->sections()) {
@@ -592,14 +592,14 @@ void OiIREmitter::BuildShadowImage() {
       ShadowSize = SectSize + SectionAddr;
   }
 
-  // Put our comdat symbols last
-  uint64_t ComdatSectionAddress = ShadowSize;
-  ShadowSize += TotalComdatSize;
-  // Update Comdat symbols addresses
-  for (auto &sym : ComdatSymbols) {
-    sym.setValue(sym.getValue() + ComdatSectionAddress);
+  // Put our common symbols last
+  uint64_t CommonSectionAddress = ShadowSize;
+  ShadowSize += TotalCommonsSize;
+  // Update Common symbols addresses
+  for (auto &sym : CommonSymbols) {
+    sym.setValue(sym.getValue() + CommonSectionAddress);
 #ifndef NDEBUG
-    outs() << "COMDAT/BSS symbol \"" << sym.getKey() << "\" @"
+    outs() << "COMMON/BSS symbol \"" << sym.getKey() << "\" @"
            << format("%8" PRIx64, sym.getValue()) << "\n ";
 #endif
   }

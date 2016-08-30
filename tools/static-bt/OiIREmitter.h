@@ -69,7 +69,7 @@ public:
         CurFunAddr(0), MainFunAddr(0), CurBlockAddr(0), StackSize(Stacksz),
         IndirectDestinations(),
         IndirectDestinationsAddrs(), IndirectJumps(), IndirectCalls(),
-        ComdatSymbols() {
+        CommonSymbols() {
     BuildShadowImage();
     BuildRegisterFile();
     if (CodeTarget == "arm") {
@@ -110,7 +110,7 @@ public:
   std::vector<IndirectJumpEntry> IndirectJumps;
   std::vector<std::pair<Instruction *, uint64_t>> IndirectCalls;
   std::vector<Value *> IndirectCallsIndexes;
-  llvm::StringMap<uint64_t> ComdatSymbols;
+  llvm::StringMap<uint64_t> CommonSymbols;
 
   std::vector<uint64_t> FunctionAddrs;
   std::set<uint64_t> IndFunctionAddrs;

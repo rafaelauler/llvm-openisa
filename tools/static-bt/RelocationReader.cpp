@@ -25,8 +25,8 @@ bool RelocationReader::ResolveRelocation(uint64_t &Res, uint64_t *Type,
       llvm_unreachable("Error getting relocation type");
   }
 
-  auto it = ComdatSymbols.find(Name);
-  if (it != ComdatSymbols.end()) {
+  auto it = CommonSymbols.find(Name);
+  if (it != CommonSymbols.end()) {
     Res = it->getValue();
     return true;
   }
@@ -178,8 +178,8 @@ void RelocationReader::ResolveAllDataRelocations(
         if (Name == ".text")
           continue;
 
-        auto it = ComdatSymbols.find(Name);
-        if (it != ComdatSymbols.end()) {
+        auto it = CommonSymbols.find(Name);
+        if (it != CommonSymbols.end()) {
           // Patch it!
           *(int *)(&ShadowImage[PatchAddress]) =
               it->getValue() + *(int *)(&ShadowImage[PatchAddress]);

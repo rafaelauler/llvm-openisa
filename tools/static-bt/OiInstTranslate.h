@@ -39,7 +39,7 @@ public:
       : MCInstPrinter(MAI, MII, MRI), Obj(obj),
         IREmitter(obj, Stacksz, CodeTarget),
         RelocReader(&*IREmitter.TheModule, obj, IREmitter.CurSection,
-                    IREmitter.CurAddr, IREmitter.ComdatSymbols),
+                    IREmitter.CurAddr, IREmitter.CommonSymbols),
         Syscalls(IREmitter, CodeTarget), Builder(IREmitter.Builder),
         ReadMap(IREmitter.ReadMap), WriteMap(IREmitter.WriteMap),
         CodeTarget(CodeTarget) {

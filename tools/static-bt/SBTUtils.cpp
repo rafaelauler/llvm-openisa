@@ -632,7 +632,7 @@ GetSymbolsList(const ObjectFile *Obj, const SectionRef &i) {
 }
 
 llvm::StringMap<uint64_t>
-GetComdatSymbolsList(const ObjectFile *o, uint64_t &TotalSize) {
+GetCommonSymbolsList(const ObjectFile *o, uint64_t &TotalSize) {
   TotalSize = 0;
 
   std::error_code ec;
