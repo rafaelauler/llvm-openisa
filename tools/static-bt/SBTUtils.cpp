@@ -669,11 +669,14 @@ GetCommonSymbolsList(const ObjectFile *o, uint64_t &TotalSize) {
     uint64_t Size;
     SymbolRef::Type Type;
     uint32_t Flags = Symbol.getFlags();
+    uint32_t Alignment;
     if (error(Symbol.getType(Type)))
       continue;
     if (error(Symbol.getSize(Size)))
       continue;
     if (error(Symbol.getSection(Section)))
+      continue;
+    if (error(Symbol.getAlignment(Alignment)))
       continue;
 
     if (Section != o->section_end())
@@ -686,6 +689,9 @@ GetCommonSymbolsList(const ObjectFile *o, uint64_t &TotalSize) {
     StringRef Name;
     if (error(Symbol.getName(Name)))
       continue;
+    assert(Alignment && !(Alignment & (Alignment - 1)) &&
+           "Alignment must be power of two");
+    TotalSize = (TotalSize + Alignment - 1) & ~(Alignment - 1);
     Symbols[Name] = TotalSize;
     TotalSize += Size;
   }
