@@ -631,6 +631,41 @@ bool SyscallsIface::HandleXstat(Value *&V, Value **First) {
   return true;
 }
 
+bool SyscallsIface::HandleLibcLseek(Value *&V, Value **First) {
+  if (CodeTarget != "arm") {
+    SyscallsIface::ArgType ArgTypes[] = {
+        SyscallsIface::AT_Int32, SyscallsIface::AT_Int32,
+        SyscallsIface::AT_Int32, SyscallsIface::AT_Int32};
+    return HandleGenericInt(V, "lseek", 3, 1, ArgTypes, First);
+  }
+
+  SmallVector<Type *, 8> args;
+  args.push_back(Type::getInt32Ty(getGlobalContext()));
+  args.push_back(Type::getInt64Ty(getGlobalContext()));
+  args.push_back(Type::getInt32Ty(getGlobalContext()));
+  FunctionType *ft = FunctionType::get(Type::getInt32Ty(getGlobalContext()),
+                                       args, /*isvararg*/ false);
+  Value *fun = TheModule->getOrInsertFunction("lseek", ft);
+  SmallVector<Value *, 8> params;
+  Value *Arg0 = Builder.CreateLoad(IREmitter.Regs[ConvToDirective(Mips::A0)]);
+  if (First)
+    *First = GetFirstInstruction(*First, Arg0);
+  Value *Arg1 = Builder.CreateZExt(
+      Builder.CreateLoad(IREmitter.Regs[ConvToDirective(Mips::A1)]),
+      Type::getInt64Ty(getGlobalContext()));
+  Value *Arg2 = Builder.CreateLoad(IREmitter.Regs[ConvToDirective(Mips::A2)]);
+  params.push_back(Arg0);
+  params.push_back(Arg1);
+  params.push_back(Arg2);
+  V = Builder.CreateStore(Builder.CreateCall(fun, params),
+                          IREmitter.Regs[ConvToDirective(Mips::V0)]);
+  ReadMap[ConvToDirective(Mips::A0)] = true;
+  ReadMap[ConvToDirective(Mips::A1)] = true;
+  ReadMap[ConvToDirective(Mips::A2)] = true;
+  WriteMap[ConvToDirective(Mips::V0)] = true;
+  return true;
+}
+
 bool SyscallsIface::HandleGenericDouble(Value *&V, StringRef Name, int numargs,
                                         int numret, ArgType *ArgTypes,
                                         Value **First) {

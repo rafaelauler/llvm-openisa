@@ -26,6 +26,7 @@ public:
   bool HandleLibcCalloc(Value *&V, Value **First = 0);
   bool HandleLibcFree(Value *&V, Value **First = 0);
   bool HandleLibcExit(Value *&V, Value **First = 0);
+  bool HandleLibcLseek(Value *&V, Value **First = 0);
   bool HandleGenericInt(Value *&V, StringRef Name, int numargs, int numret,
                         ArgType *ArgTypes, Value **First);
   bool HandleGenericDouble(Value *&V, StringRef Name, int numargs, int numret,

@@ -1374,11 +1374,7 @@ bool OiInstTranslate::HandleCallTarget(const MCOperand &o, const MCOperand &o2,
           return Syscalls.HandleGenericInt(V, "kill", 2, 1, ArgTypes, First);
         }
         if (val == "lseek") {
-          SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32,
-                                               SyscallsIface::AT_Int32};
-          return Syscalls.HandleGenericInt(V, "lseek", 3, 1, ArgTypes, First);
+          return Syscalls.HandleLibcLseek(V, First);
         }
         if (val == "ctime") {
           SyscallsIface::ArgType ArgTypes[] = {SyscallsIface::AT_Ptr,
