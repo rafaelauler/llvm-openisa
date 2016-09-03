@@ -2369,16 +2369,11 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   case Mips::MFC1: {
     DebugOut << "Handling MFC1\n";
     Value *o0, *o1;
-    if (HandleDoubleSrcOperand(MI->getOperand(1), o1) &&
+    if (HandleFloatSrcOperand(MI->getOperand(1), o1) &&
         HandleAluDstOperand(MI->getOperand(0), o0)) {
-      Value *hi, *lo, *V;
-      HandleSaveDouble(o1, lo, hi);
-      if (ConvToDirective(conv32(MI->getOperand(1).getReg())) % 2)
-        V = hi;
-      else
-        V = lo;
-      Value *v = Builder.CreateStore(V, o0);
-      Value *first = GetFirstInstruction(o1, v);
+      Builder.CreateStore(o1, Builder.CreateBitCast(
+                                  o0, Type::getFloatPtrTy(getGlobalContext())));
+      Value *first = GetFirstInstruction(o1, o0);
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
     }
@@ -2405,34 +2400,13 @@ void OiInstTranslate::printInstruction(const MCInst *MI, raw_ostream &O) {
   }
   case Mips::MTC1: {
     DebugOut << "Handling MTC1\n";
-    Value *o0, *o0float, *o1, *first = 0;
+    Value *o0, *o1, *first = 0;
     if (HandleAluSrcOperand(MI->getOperand(1), o1, &first) &&
-        HandleDoubleDstOperand(MI->getOperand(0), o0) &&
-        HandleFloatDstOperand(MI->getOperand(0), o0float)) {
-      Value *hi, *lo;
-      // First store it in the float bank
+        HandleFloatDstOperand(MI->getOperand(0), o0)) {
       Builder.CreateStore(
-          o1, Builder.CreateBitCast(o0float,
+          o1, Builder.CreateBitCast(o0,
                                     Type::getInt32PtrTy(getGlobalContext())));
-      // Now store it in the double bank
-      Value *previousVal = Builder.CreateLoad(o0);
-      HandleSaveDouble(previousVal, lo, hi);
-      if (ConvToDirective(conv32(MI->getOperand(0).getReg())) % 2) {
-        hi = o1;
-      } else {
-        lo = o1;
-      }
-      Value *v3 =
-          Builder.CreateZExtOrTrunc(hi, Type::getInt64Ty(getGlobalContext()));
-      Value *v4 =
-          Builder.CreateZExtOrTrunc(lo, Type::getInt64Ty(getGlobalContext()));
-      Value *v5 = Builder.CreateShl(
-          v3, ConstantInt::get(Type::getInt64Ty(getGlobalContext()), 32));
-      Value *v6 = Builder.CreateOr(v5, v4);
-      Value *dblSrc =
-          Builder.CreateBitCast(v6, Type::getDoubleTy(getGlobalContext()));
-      Builder.CreateStore(dblSrc, o0);
-      first = GetFirstInstruction(first, o1, o0, previousVal);
+      first = GetFirstInstruction(first, o1, o0);
       assert(isa<Instruction>(first) && "Need to rework map logic");
       IREmitter.InsMap[IREmitter.CurAddr] = dyn_cast<Instruction>(first);
     }
