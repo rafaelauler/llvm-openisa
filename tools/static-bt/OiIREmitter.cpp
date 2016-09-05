@@ -939,9 +939,12 @@ void OiIREmitter::HandleFunctionExitPoint(uint32_t Count, Value **First) {
     // Only save registers that pass useful information from one function to the
     // other.
     uint32_t ArgsSaved = 0;
+    uint32_t IntRegCount = Count;
+    if (Count >= 2)
+      IntRegCount = 4; // Some parameters may be double, which shadows int regs
     for (unsigned I = ConvToDirective(Mips::A0); I <= ConvToDirective(Mips::A3);
          ++I) {
-      if (++ArgsSaved > Count)
+      if (++ArgsSaved > IntRegCount)
         break;
       Value *ld = Builder.CreateLoad(Regs[I]);
       Builder.CreateStore(ld, GlobalRegs[I]);
@@ -963,7 +966,7 @@ void OiIREmitter::HandleFunctionExitPoint(uint32_t Count, Value **First) {
     ArgsSaved = 0;
     for (unsigned I = ConvToDirective(Mips::F12);
          I <= ConvToDirective(Mips::F15); ++I) {
-      if (++ArgsSaved > Count)
+      if (++ArgsSaved > IntRegCount)
         break;
       Builder.CreateStore(Builder.CreateLoad(Regs[I]), GlobalRegs[I]);
     }
